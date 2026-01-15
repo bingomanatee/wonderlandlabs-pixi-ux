@@ -290,6 +290,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@forestry-pixi/root-container@workspace:packages/root-container":
+  version: 0.0.0-use.local
+  resolution: "@forestry-pixi/root-container@workspace:packages/root-container"
+  dependencies:
+    pixi.js: "npm:^8.0.0"
+    typescript: "npm:^5.5.3"
+    vitest: "npm:^4.0.17"
+  languageName: unknown
+  linkType: soft
+
 "@isaacs/balanced-match@npm:^4.0.1":
   version: 4.0.1
   resolution: "@isaacs/balanced-match@npm:4.0.1"
@@ -1885,7 +1895,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pixi.js@npm:^8.15.0":
+"pixi.js@npm:^8.0.0, pixi.js@npm:^8.15.0":
   version: 8.15.0
   resolution: "pixi.js@npm:8.15.0"
   dependencies:

@@ -1,0 +1,20 @@
+{
+  "name": "@forestry-pixi/root-container",
+  "version": "1.0.0",
+  "description": "Root container with centered origin and zoom/pan support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "vitest": "^4.0.17"
+  },
+  "dependencies": {
+    "pixi.js": "^8.0.0"
+  }
+}

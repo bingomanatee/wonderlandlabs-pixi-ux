@@ -1,0 +1,52 @@
+import { Container } from 'pixi.js';
+import type { Application, Container as PixiContainer } from 'pixi.js';
+
+export interface RootContainerResult {
+  stage: PixiContainer;
+  root: Container;
+  destroy: () => void;
+}
+
+/**
+ * Creates a root container that centers the origin at screen width/2, height/2
+ * and listens to resize events to maintain centering.
+ *
+ * @param app - The PixiJS Application instance
+ * @returns Object containing stage, root container, and destroy function
+ */
+export function createRootContainer(app: Application): RootContainerResult {
+  const root = new Container();
+  root.label = 'RootContainer';
+
+  // Update position to center
+  const updatePosition = () => {
+    const { width, height } = app.screen;
+    root.position.set(width / 2, height / 2);
+  };
+
+  // Initial centering
+  updatePosition();
+
+  // Listen to resize events
+  const handleResize = () => {
+    updatePosition();
+  };
+
+  app.renderer.on('resize', handleResize);
+
+  // Add root to stage
+  app.stage.addChild(root);
+
+  // Cleanup function
+  const destroy = () => {
+    app.renderer.off('resize', handleResize);
+    root.destroy();
+  };
+
+  return {
+    stage: app.stage,
+    root,
+    destroy,
+  };
+}
+
