@@ -1,32 +1,32 @@
 import type { Application, Container as PixiContainer, FederatedPointerEvent } from 'pixi.js';
 import { Point } from 'pixi.js';
 
-export interface ZoomPanDraggableResult {
+export interface StageDraggableResult {
   destroy: () => void;
 }
 
 /**
- * Stage zoom event data
+ * Stage drag event data
  */
-export interface StageZoomEvent {
-  type: 'zoom-start' | 'zoom-move' | 'zoom-end';
-  zoom: number;
+export interface StageDragEvent {
+  type: 'drag-start' | 'drag-move' | 'drag-end';
   position: { x: number; y: number };
 }
 
 /**
- * Makes a zoom/pan container draggable via stage pointer events.
- * Emits 'stage-zoom' events to the application's event stream.
+ * Makes a container draggable via stage-level pointer events.
+ * Listens on app.stage so dragging works anywhere on the canvas.
+ * Emits 'stage-drag' events to the application's event stream.
  * All container updates happen in ticker handlers for clean PixiJS updates.
- * 
+ *
  * @param app - The PixiJS Application instance
- * @param zoomPan - The zoom/pan container to make draggable
+ * @param container - The container to make draggable
  * @returns Object with destroy function
  */
-export function createZoomPanDraggable(
+export function makeStageDraggable(
   app: Application,
-  zoomPan: PixiContainer
-): ZoomPanDraggableResult {
+  container: PixiContainer
+): StageDraggableResult {
   let isDragging = false;
   const dragStart = new Point();
   const dragOffset = new Point();
@@ -48,14 +48,13 @@ export function createZoomPanDraggable(
     // Schedule ticker update
     app.ticker.addOnce(() => {
       if (pendingPosition) {
-        zoomPan.position.set(pendingPosition.x, pendingPosition.y);
+        container.position.set(pendingPosition.x, pendingPosition.y);
 
-        // Emit zoom-move event
-        app.stage.emit('stage-zoom', {
-          type: 'zoom-move',
-          zoom: zoomPan.scale.x,
-          position: { x: zoomPan.position.x, y: zoomPan.position.y },
-        } as StageZoomEvent);
+        // Emit drag-move event
+        app.stage.emit('stage-drag', {
+          type: 'drag-move',
+          position: { x: container.position.x, y: container.position.y },
+        } as StageDragEvent);
 
         pendingPosition = null;
       }
@@ -71,32 +70,33 @@ export function createZoomPanDraggable(
     app.stage.off('pointerup', onDragEnd);
     app.stage.off('pointerupoutside', onDragEnd);
 
-    // Emit zoom-end event
-    app.stage.emit('stage-zoom', {
-      type: 'zoom-end',
-      zoom: zoomPan.scale.x,
-      position: { x: zoomPan.position.x, y: zoomPan.position.y },
-    } as StageZoomEvent);
+    // Emit drag-end event
+    app.stage.emit('stage-drag', {
+      type: 'drag-end',
+      position: { x: container.position.x, y: container.position.y },
+    } as StageDragEvent);
   };
 
   const onDragStart = (event: FederatedPointerEvent) => {
+    // Prevent multiple simultaneous drags
+    if (isDragging) return;
+
     isDragging = true;
 
     const position = event.global;
     dragStart.set(position.x, position.y);
-    dragOffset.set(zoomPan.position.x, zoomPan.position.y);
+    dragOffset.set(container.position.x, container.position.y);
 
     // Attach move/up listeners only when dragging starts
     app.stage.on('pointermove', onDragMove);
     app.stage.on('pointerup', onDragEnd);
     app.stage.on('pointerupoutside', onDragEnd);
 
-    // Emit zoom-start event
-    app.stage.emit('stage-zoom', {
-      type: 'zoom-start',
-      zoom: zoomPan.scale.x,
-      position: { x: zoomPan.position.x, y: zoomPan.position.y },
-    } as StageZoomEvent);
+    // Emit drag-start event
+    app.stage.emit('stage-drag', {
+      type: 'drag-start',
+      position: { x: container.position.x, y: container.position.y },
+    } as StageDragEvent);
   };
 
   // Make stage interactive and attach pointerdown listener

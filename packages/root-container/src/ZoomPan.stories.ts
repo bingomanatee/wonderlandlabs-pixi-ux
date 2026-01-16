@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/html';
 import { Application, Graphics, Text } from 'pixi.js';
 import { createRootContainer } from './RootContainer';
 import { createZoomPan } from './ZoomPanContainer';
-import { createZoomPanDraggable, type StageZoomEvent } from './ZoomPanDraggable';
+import { makeStageDraggable, type StageDragEvent } from './makeStageDraggable';
+import { makeStageZoomable, type StageZoomEvent } from './makeStageZoomable';
 
 interface ZoomPanArgs {}
 
@@ -11,18 +12,38 @@ const meta: Meta<ZoomPanArgs> = {
   tags: ['autodocs'],
   render: (args) => {
     const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '0';
+    wrapper.style.left = '0';
+    wrapper.style.width = '100vw';
+    wrapper.style.height = '100vh';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.margin = '0';
+    wrapper.style.padding = '0';
 
-    // Add instructions
-    const instructions = document.createElement('p');
-    instructions.textContent = 'Drag to pan, scroll to zoom. The origin is centered at screen center. Try resizing the window!';
-    instructions.style.marginBottom = '10px';
+    // Add instructions (absolute positioning)
+    const instructions = document.createElement('div');
+    instructions.innerHTML = `
+      <strong>Zoom Only Example</strong><br>
+      Scroll your mouse wheel to zoom in/out. Zooming is centered on your mouse cursor.<br>
+      <em>Note: The grid stays fixed - only the content is zoomed.</em>
+    `;
+    instructions.style.position = 'absolute';
+    instructions.style.top = '10px';
+    instructions.style.left = '10px';
+    instructions.style.zIndex = '1000';
     instructions.style.fontFamily = 'sans-serif';
     instructions.style.fontSize = '14px';
+    instructions.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    instructions.style.padding = '10px';
+    instructions.style.borderRadius = '4px';
+    instructions.style.pointerEvents = 'none';
     wrapper.appendChild(instructions);
 
     const container = document.createElement('div');
     container.style.width = '100%';
     container.style.height = '100%';
+    container.style.overflow = 'hidden';
     wrapper.appendChild(container);
 
     // Create PixiJS application
@@ -30,35 +51,43 @@ const meta: Meta<ZoomPanArgs> = {
 
     // Initialize the app
     app.init({
-      resizeTo: container,
+      width: window.innerWidth,
+      height: window.innerHeight,
       backgroundColor: 0xf0f0f0,
       antialias: true,
+      autoDensity: true,
+      resolution: window.devicePixelRatio || 1,
     }).then(() => {
       container.appendChild(app.canvas);
+      app.canvas.style.display = 'block';
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+
+      // Resize handler to prevent overflow
+      const resizeObserver = new ResizeObserver(() => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        app.renderer.resize(width, height);
+      });
+      resizeObserver.observe(container);
 
       // Create root container (centers origin)
       const { root } = createRootContainer(app);
 
       // Create zoom/pan container
-      const { zoomPan, getZoom } = createZoomPan(app, root, {
+      const { zoomPan } = createZoomPan(app, root);
+
+      // Add zoom decorator only (no dragging)
+      const { getZoom } = makeStageZoomable(app, zoomPan, {
         minZoom: 0.5,
         maxZoom: 5,
         zoomSpeed: 0.1,
       });
 
-      // Make it draggable via stage and listen to events
-      createZoomPanDraggable(app, zoomPan);
-
-      // Listen to stage-zoom events
+      // Listen to zoom events
       app.stage.on('stage-zoom', (event: StageZoomEvent) => {
-        console.log(`Stage zoom event: ${event.type}, zoom: ${event.zoom.toFixed(2)}`);
-
-        // Example: Change cursor during drag
-        if (event.type === 'zoom-start') {
-          app.canvas.style.cursor = 'grabbing';
-        } else if (event.type === 'zoom-end') {
-          app.canvas.style.cursor = 'grab';
-        }
+        console.log(`Zoom: ${event.zoom.toFixed(2)}x at mouse=(${event.mousePosition.x.toFixed(1)}, ${event.mousePosition.y.toFixed(1)})`);
+        zoomDisplay.text = `Zoom: ${event.zoom.toFixed(2)}x`;
       });
 
       // Add a grid to show the coordinate system
@@ -146,9 +175,10 @@ const meta: Meta<ZoomPanArgs> = {
       zoomDisplay.position.set(-app.screen.width / 2 + 10, -app.screen.height / 2 + 10);
       root.addChild(zoomDisplay);
 
-      // Update zoom display on wheel
-      zoomPan.on('wheel', () => {
-        zoomDisplay.text = `Zoom: ${getZoom().toFixed(2)}x`;
+      // Cleanup on window unload
+      window.addEventListener('beforeunload', () => {
+        resizeObserver.disconnect();
+        app.destroy(true);
       });
     });
 
@@ -159,23 +189,43 @@ const meta: Meta<ZoomPanArgs> = {
 export default meta;
 type Story = StoryObj<ZoomPanArgs>;
 
-export const Default: Story = {};
+export const ZoomOnly: Story = {};
 
-export const BasicDragging: Story = {
+export const ZoomAndPan: Story = {
   render: () => {
     const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '0';
+    wrapper.style.left = '0';
+    wrapper.style.width = '100vw';
+    wrapper.style.height = '100vh';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.margin = '0';
+    wrapper.style.padding = '0';
 
-    // Add instructions
-    const instructions = document.createElement('p');
-    instructions.textContent = 'Drag anywhere to pan the viewport. Notice the reference graphics move together.';
-    instructions.style.marginBottom = '10px';
+    // Add instructions (absolute positioning)
+    const instructions = document.createElement('div');
+    instructions.innerHTML = `
+      <strong>Zoom + Pan Combined Example</strong><br>
+      Scroll your mouse wheel to zoom in/out. Drag anywhere to pan the viewport.<br>
+      <em>Note: The grid stays fixed - only the content is zoomed and panned.</em>
+    `;
+    instructions.style.position = 'absolute';
+    instructions.style.top = '10px';
+    instructions.style.left = '10px';
+    instructions.style.zIndex = '1000';
     instructions.style.fontFamily = 'sans-serif';
     instructions.style.fontSize = '14px';
+    instructions.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    instructions.style.padding = '10px';
+    instructions.style.borderRadius = '4px';
+    instructions.style.pointerEvents = 'none';
     wrapper.appendChild(instructions);
 
     const container = document.createElement('div');
     container.style.width = '100%';
-    container.style.height = '600px';
+    container.style.height = '100%';
+    container.style.overflow = 'hidden';
     wrapper.appendChild(container);
 
     // Create PixiJS application
@@ -183,11 +233,210 @@ export const BasicDragging: Story = {
 
     // Initialize the app
     app.init({
-      resizeTo: container,
-      backgroundColor: 0x1a1a2e,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 0xf0f0f0,
       antialias: true,
+      autoDensity: true,
+      resolution: window.devicePixelRatio || 1,
     }).then(() => {
       container.appendChild(app.canvas);
+      app.canvas.style.display = 'block';
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+
+      // Resize handler to prevent overflow
+      const resizeObserver = new ResizeObserver(() => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        app.renderer.resize(width, height);
+      });
+      resizeObserver.observe(container);
+
+      // Create root container (centers origin)
+      const { root } = createRootContainer(app);
+
+      // Create zoom/pan container
+      const { zoomPan } = createZoomPan(app, root);
+
+      // Add both decorators
+      const { getZoom } = makeStageZoomable(app, zoomPan, {
+        minZoom: 0.5,
+        maxZoom: 5,
+        zoomSpeed: 0.1,
+      });
+      makeStageDraggable(app, zoomPan);
+
+      // Listen to zoom events
+      app.stage.on('stage-zoom', (event: StageZoomEvent) => {
+        console.log(`Zoom: ${event.zoom.toFixed(2)}x`);
+        zoomDisplay.text = `Zoom: ${event.zoom.toFixed(2)}x`;
+      });
+
+      // Listen to drag events
+      app.stage.on('stage-drag', (event: StageDragEvent) => {
+        console.log(`Drag ${event.type}: pos=(${event.position.x.toFixed(1)}, ${event.position.y.toFixed(1)})`);
+      });
+
+      // Add a grid to show the coordinate system
+      const gridSize = 50;
+      const gridExtent = 500;
+      const gridGraphics = new Graphics();
+
+      // Draw grid lines
+      for (let x = -gridExtent; x <= gridExtent; x += gridSize) {
+        const isAxis = x === 0;
+        gridGraphics.moveTo(x, -gridExtent);
+        gridGraphics.lineTo(x, gridExtent);
+        gridGraphics.stroke({
+          color: isAxis ? 0xff0000 : 0xcccccc,
+          width: isAxis ? 2 : 1,
+          alpha: isAxis ? 1 : 0.5,
+        });
+      }
+
+      for (let y = -gridExtent; y <= gridExtent; y += gridSize) {
+        const isAxis = y === 0;
+        gridGraphics.moveTo(-gridExtent, y);
+        gridGraphics.lineTo(gridExtent, y);
+        gridGraphics.stroke({
+          color: isAxis ? 0x00ff00 : 0xcccccc,
+          width: isAxis ? 2 : 1,
+          alpha: isAxis ? 1 : 0.5,
+        });
+      }
+
+      zoomPan.addChild(gridGraphics);
+
+      // Add origin marker
+      const originMarker = new Graphics();
+      originMarker.circle(0, 0, 10);
+      originMarker.fill({ color: 0x0000ff, alpha: 0.8 });
+      zoomPan.addChild(originMarker);
+
+      // Add origin label
+      const originLabel = new Text({
+        text: 'Origin (0, 0)',
+        style: {
+          fontSize: 16,
+          fill: 0x000000,
+        },
+      });
+      originLabel.position.set(15, -5);
+      zoomPan.addChild(originLabel);
+
+      // Add some colored squares at different positions
+      const squares = [
+        { x: 100, y: 100, color: 0xff6b6b, label: '(100, 100)' },
+        { x: -100, y: 100, color: 0x4ecdc4, label: '(-100, 100)' },
+        { x: 100, y: -100, color: 0xffe66d, label: '(100, -100)' },
+        { x: -100, y: -100, color: 0x95e1d3, label: '(-100, -100)' },
+        { x: 200, y: 0, color: 0xa8e6cf, label: '(200, 0)' },
+        { x: -200, y: 0, color: 0xffd3b6, label: '(-200, 0)' },
+      ];
+
+      squares.forEach(({ x, y, color, label }) => {
+        const square = new Graphics();
+        square.rect(-25, -25, 50, 50);
+        square.fill({ color, alpha: 0.8 });
+        square.position.set(x, y);
+        zoomPan.addChild(square);
+
+        const text = new Text({
+          text: label,
+          style: {
+            fontSize: 12,
+            fill: 0x000000,
+          },
+        });
+        text.anchor.set(0.5);
+        text.position.set(x, y);
+        zoomPan.addChild(text);
+      });
+
+      // Add zoom level display
+      const zoomDisplay = new Text({
+        text: `Zoom: ${getZoom().toFixed(2)}x`,
+        style: {
+          fontSize: 14,
+          fill: 0x000000,
+        },
+      });
+      zoomDisplay.position.set(-app.screen.width / 2 + 10, -app.screen.height / 2 + 10);
+      root.addChild(zoomDisplay);
+
+      // Cleanup on window unload
+      window.addEventListener('beforeunload', () => {
+        resizeObserver.disconnect();
+        app.destroy(true);
+      });
+    });
+
+    return wrapper;
+  },
+};
+
+export const PanOnly: Story = {
+  render: () => {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'fixed';
+    wrapper.style.top = '0';
+    wrapper.style.left = '0';
+    wrapper.style.width = '100vw';
+    wrapper.style.height = '100vh';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.margin = '0';
+    wrapper.style.padding = '0';
+
+    // Add instructions (absolute positioning)
+    const instructions = document.createElement('div');
+    instructions.innerHTML = `
+      <strong>Pan Only Example</strong><br>
+      Drag anywhere on the canvas to pan the viewport.<br>
+      <em>Note: The grid stays fixed - only the content is panned.</em>
+    `;
+    instructions.style.position = 'absolute';
+    instructions.style.top = '10px';
+    instructions.style.left = '10px';
+    instructions.style.zIndex = '1000';
+    instructions.style.fontFamily = 'sans-serif';
+    instructions.style.fontSize = '14px';
+    instructions.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+    instructions.style.padding = '10px';
+    instructions.style.borderRadius = '4px';
+    instructions.style.pointerEvents = 'none';
+    wrapper.appendChild(instructions);
+
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.overflow = 'hidden';
+    wrapper.appendChild(container);
+
+    // Create PixiJS application
+    const app = new Application();
+
+    // Initialize the app
+    app.init({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      backgroundColor: 0xf0f0f0,
+      antialias: true,
+      autoDensity: true,
+      resolution: window.devicePixelRatio || 1,
+    }).then(() => {
+      container.appendChild(app.canvas);
+      app.canvas.style.display = 'block';
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+
+      // Resize handler to prevent overflow
+      const resizeObserver = new ResizeObserver(() => {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        app.renderer.resize(width, height);
+      });
+      resizeObserver.observe(container);
 
       // Add STATIC elements directly to stage (before root)
       // These will NOT move when dragging - they show the stage is stationary
@@ -202,13 +451,13 @@ export const BasicDragging: Story = {
       for (let x = 0; x <= width; x += gridSize) {
         staticLayer.moveTo(x, 0);
         staticLayer.lineTo(x, height);
-        staticLayer.stroke({ color: 0x2a2a3e, width: 1, alpha: 0.3 });
+        staticLayer.stroke({ color: 0xcccccc, width: 1, alpha: 0.5 });
       }
 
       for (let y = 0; y <= height; y += gridSize) {
         staticLayer.moveTo(0, y);
         staticLayer.lineTo(width, y);
-        staticLayer.stroke({ color: 0x2a2a3e, width: 1, alpha: 0.3 });
+        staticLayer.stroke({ color: 0xcccccc, width: 1, alpha: 0.5 });
       }
 
       // Add corner markers (STATIC - attached to stage)
@@ -226,7 +475,7 @@ export const BasicDragging: Story = {
 
         const text = new Text({
           text: label,
-          style: { fontSize: 10, fill: 0xffffff },
+          style: { fontSize: 10, fill: 0x000000 },
         });
         text.position.set(x + 5, y + 5);
         text.eventMode = 'none';
@@ -238,7 +487,7 @@ export const BasicDragging: Story = {
         text: '🔒 STATIC LAYER (attached to stage - does NOT move)',
         style: {
           fontSize: 14,
-          fill: 0xff6666,
+          fill: 0xff0000,
           fontWeight: 'bold',
         },
       });
@@ -251,14 +500,11 @@ export const BasicDragging: Story = {
       // Create root container (centers origin)
       const { root } = createRootContainer(app);
 
-      // Create zoom/pan container (zoom disabled for this example)
-      const { zoomPan } = createZoomPan(app, root, {
-        enableZoom: false,
-        enablePan: false, // We'll use stage dragging instead
-      });
+      // Create zoom/pan container
+      const { zoomPan } = createZoomPan(app, root);
 
-      // Make it draggable via stage
-      createZoomPanDraggable(app, zoomPan);
+      // Make it draggable via stage (no zoom for this example)
+      makeStageDraggable(app, zoomPan);
 
       // Add reference graphics
 
@@ -311,17 +557,23 @@ export const BasicDragging: Story = {
         text: `Position: (0, 0)`,
         style: {
           fontSize: 14,
-          fill: 0xffffff,
+          fill: 0x000000,
         },
       });
       posDisplay.position.set(-app.screen.width / 2 + 10, -app.screen.height / 2 + 10);
       root.addChild(posDisplay);
 
       // Update position display on drag
-      app.stage.on('stage-zoom', (event: StageZoomEvent) => {
-        if (event.type === 'zoom-move' || event.type === 'zoom-end') {
+      app.stage.on('stage-drag', (event: StageDragEvent) => {
+        if (event.type === 'drag-move' || event.type === 'drag-end') {
           posDisplay.text = `Position: (${Math.round(event.position.x)}, ${Math.round(event.position.y)})`;
         }
+      });
+
+      // Cleanup on window unload
+      window.addEventListener('beforeunload', () => {
+        resizeObserver.disconnect();
+        app.destroy(true);
       });
     });
 

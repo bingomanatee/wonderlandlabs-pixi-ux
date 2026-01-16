@@ -2,8 +2,11 @@ export { createRootContainer } from './RootContainer';
 export type { RootContainerResult } from './RootContainer';
 
 export { createZoomPan } from './ZoomPanContainer';
-export type { ZoomPanOptions, ZoomPanResult } from './ZoomPanContainer';
+export type { ZoomPanResult } from './ZoomPanContainer';
 
-export { createZoomPanDraggable } from './ZoomPanDraggable';
-export type { ZoomPanDraggableResult, StageZoomEvent } from './ZoomPanDraggable';
+export { makeStageDraggable } from './makeStageDraggable';
+export type { StageDraggableResult, StageDragEvent } from './makeStageDraggable';
+
+export { makeStageZoomable } from './makeStageZoomable';
+export type { StageZoomableResult, StageZoomEvent, ZoomOptions } from './makeStageZoomable';
 

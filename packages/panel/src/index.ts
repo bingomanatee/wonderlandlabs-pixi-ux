@@ -24,3 +24,6 @@ export type {
   PanelStatus,
 } from './types';
 
+export { makePanelDraggable } from './makePanelDraggable';
+export type { PanelDraggableResult, PanelDragEvent } from './makePanelDraggable';
+

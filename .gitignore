@@ -9,11 +9,13 @@ yarn-error.log*
 .pnp.js
 
 # Build output
-dist
+**/dist
+**/dist/
 *.tsbuildinfo
 
 # Test coverage
-coverage
+**/coverage
+**/coverage/
 
 # Yarn
 .yarn/cache
