@@ -38,9 +38,9 @@ const meta: Meta<ResizerArgs> = {
 
       // Create boxes with different colors and modes
       const boxes = [
-        { x: 100, y: 100, width: 150, height: 100, color: 0xff6b6b, label: 'Red Box (ONLY_CORNER)', mode: 'ONLY_CORNER' as HandleMode },
-        { x: 300, y: 150, width: 120, height: 120, color: 0x4ecdc4, label: 'Cyan Box (ONLY_EDGE)', mode: 'ONLY_EDGE' as HandleMode },
-        { x: 500, y: 200, width: 180, height: 80, color: 0xffe66d, label: 'Yellow Box (EDGE_AND_CORNER)', mode: 'EDGE_AND_CORNER' as HandleMode },
+        { x: 100, y: 100, width: 150, height: 100, color: 0xff6b6b, label: 'Red Box', mode: 'ONLY_CORNER' as HandleMode },
+        { x: 300, y: 150, width: 120, height: 120, color: 0x4ecdc4, label: 'Cyan Box', mode: 'ONLY_EDGE' as HandleMode },
+        { x: 500, y: 200, width: 180, height: 80, color: 0xffe66d, label: 'Yellow Box', mode: 'EDGE_AND_CORNER' as HandleMode },
       ];
 
       let activeControls: ResizerStore | null = null;
@@ -58,7 +58,7 @@ const meta: Meta<ResizerArgs> = {
         boxGraphic.stroke({ color: 0x333333, width: 2 });
         boxContainer.addChild(boxGraphic);
 
-        // Add label
+        // Add label (box name)
         const labelText = new Text({
           text: boxConfig.label,
           style: {
@@ -67,8 +67,20 @@ const meta: Meta<ResizerArgs> = {
           },
         });
         labelText.anchor.set(0.5);
-        labelText.position.set(boxConfig.x + boxConfig.width / 2, boxConfig.y + boxConfig.height / 2);
+        labelText.position.set(boxConfig.x + boxConfig.width / 2, boxConfig.y + boxConfig.height / 2 - 10);
         boxContainer.addChild(labelText);
+
+        // Add mode label (smaller font)
+        const modeText = new Text({
+          text: `(${boxConfig.mode})`,
+          style: {
+            fontSize: 11,
+            fill: 0x666666,
+          },
+        });
+        modeText.anchor.set(0.5);
+        modeText.position.set(boxConfig.x + boxConfig.width / 2, boxConfig.y + boxConfig.height / 2 + 10);
+        boxContainer.addChild(modeText);
 
         // Make box interactive
         boxContainer.eventMode = 'static';

@@ -1,5 +1,5 @@
 import { Rectangle } from "pixi.js";
-import { Color } from "./types";
+import { Color, HandleMode } from "./types";
 
 /**
  * Configuration for enableHandles
@@ -13,4 +13,6 @@ export interface EnableHandlesConfig {
     color?: Color;
     /** Constrain aspect ratio (default: false) */
     constrain?: boolean;
+    /** Handle mode: corner only, edge only, or both (default: ONLY_CORNER) */
+    mode?: HandleMode;
 }

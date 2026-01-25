@@ -23,6 +23,7 @@ export function enableHandles(
     size: config.size,
     color: config.color,
     constrain: config.constrain,
+    mode: config.mode,
   });
 
   return store;
