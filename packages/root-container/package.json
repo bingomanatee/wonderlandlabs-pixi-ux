@@ -15,6 +15,8 @@
     "vitest": "^4.0.17"
   },
   "dependencies": {
+    "@wonderlandlabs/forestry4": "^4.1.10",
+    "immer": "^11.1.3",
     "pixi.js": "^8.0.0"
   }
 }
