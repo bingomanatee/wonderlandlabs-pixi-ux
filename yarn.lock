@@ -258,6 +258,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/grid@workspace:packages/grid"
   dependencies:
+    "@forestry-pixi/ticker-forest": "workspace:*"
     "@wonderlandlabs/forestry4": "npm:^4.1.10"
     pixi.js: "npm:^8.6.6"
     typescript: "npm:^5.5.3"
@@ -290,6 +291,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/resizer@workspace:packages/resizer"
   dependencies:
+    "@forestry-pixi/ticker-forest": "workspace:*"
     "@wonderlandlabs/forestry4": "npm:^4.1.10"
     pixi.js: "npm:^8.15.0"
     typescript: "npm:^5.5.3"
@@ -304,6 +306,17 @@ __metadata:
   dependencies:
     "@wonderlandlabs/forestry4": "npm:^4.1.10"
     immer: "npm:^11.1.3"
+    pixi.js: "npm:^8.0.0"
+    typescript: "npm:^5.5.3"
+    vitest: "npm:^4.0.17"
+  languageName: unknown
+  linkType: soft
+
+"@forestry-pixi/ticker-forest@workspace:*, @forestry-pixi/ticker-forest@workspace:packages/ticker-forest":
+  version: 0.0.0-use.local
+  resolution: "@forestry-pixi/ticker-forest@workspace:packages/ticker-forest"
+  dependencies:
+    "@wonderlandlabs/forestry4": "npm:^4.1.10"
     pixi.js: "npm:^8.0.0"
     typescript: "npm:^5.5.3"
     vitest: "npm:^4.0.17"

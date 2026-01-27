@@ -106,8 +106,11 @@ const meta: Meta<ResizerArgs> = {
               boxGraphic.fill({ color: boxConfig.color, alpha: 0.7 });
               boxGraphic.stroke({ color: 0x333333, width: 2 });
 
-              // Update label position
-              labelText.position.set(newRect.x + newRect.width / 2, newRect.y + newRect.height / 2);
+              // Update label position (main title)
+              labelText.position.set(newRect.x + newRect.width / 2, newRect.y + newRect.height / 2 - 10);
+
+              // Update mode text position (subtitle)
+              modeText.position.set(newRect.x + newRect.width / 2, newRect.y + newRect.height / 2 + 10);
             },
             onRelease: (finalRect) => {
               // Resize complete

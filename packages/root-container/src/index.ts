@@ -10,5 +10,3 @@ export type { StageDraggableResult, StageDragEvent } from './makeStageDraggable'
 export { makeStageZoomable } from './makeStageZoomable';
 export type { StageZoomableResult, StageZoomEvent, ZoomOptions } from './makeStageZoomable';
 
-export { TickerForest } from './TickerForest';
-

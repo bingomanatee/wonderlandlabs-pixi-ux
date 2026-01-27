@@ -1,7 +1,7 @@
 {
-  "name": "@forestry-pixi/grid",
+  "name": "@forestry-pixi/ticker-forest",
   "version": "1.0.0",
-  "description": "PixiJS grid component for forestry-pixi",
+  "description": "TickerForest base class for synchronizing Forestry state with PixiJS ticker",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -10,18 +10,12 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "peerDependencies": {
-    "pixi.js": "^8.0.0"
-  },
   "devDependencies": {
-    "pixi.js": "^8.6.6",
     "typescript": "^5.5.3",
     "vitest": "^4.0.17"
   },
   "dependencies": {
-    "@forestry-pixi/ticker-forest": "workspace:*",
     "@wonderlandlabs/forestry4": "^4.1.10",
-    "pixi.js": "^8.15.0",
-    "zod": "^4.3.5"
+    "pixi.js": "^8.0.0"
   }
 }

@@ -15,6 +15,7 @@
     "vitest": "^4.0.17"
   },
   "dependencies": {
+    "@forestry-pixi/ticker-forest": "workspace:*",
     "@wonderlandlabs/forestry4": "^4.1.10",
     "pixi.js": "^8.15.0",
     "zod": "^4.3.5"
