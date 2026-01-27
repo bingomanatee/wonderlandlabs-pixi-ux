@@ -1,0 +1,24 @@
+{
+  "name": "@forestry-pixi/window",
+  "version": "1.0.0",
+  "description": "Window component for forestry-pixi",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "pixi.js": "^8.0.0"
+  },
+  "dependencies": {
+    "@forestry-pixi/drag": "workspace:*",
+    "@forestry-pixi/resizer": "workspace:*",
+    "@forestry-pixi/ticker-forest": "workspace:*",
+    "@wonderlandlabs/forestry4": "^4.1.10",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}
