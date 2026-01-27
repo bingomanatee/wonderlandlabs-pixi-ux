@@ -4,7 +4,8 @@ import { distinctUntilChanged } from 'rxjs';
 import { trackDrag, TrackDragResult } from './trackDrag';
 import { HandlePosition, HandleMode } from './types';
 import type { Color } from './types';
-import { ImmerableRectangle } from './ImmerableRectangle';
+import type { Rect } from './rectTypes';
+import { RectSchema } from './rectTypes';
 
 export interface ResizerStoreConfig {
   container: Container;
@@ -22,7 +23,7 @@ export interface ResizerStoreConfig {
  * State value for ResizerStore
  */
 export interface ResizerStoreValue {
-  rect: ImmerableRectangle;
+  rect: Rect;
   dirty: boolean;
 }
 
@@ -42,7 +43,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
   // Drag state
   private dragHandle: HandlePosition | null = null;
-  private dragStartRect: ImmerableRectangle | null = null;
+  private dragStartRect: Rect | null = null;
 
   // Handle management
   private handles = new Map<HandlePosition, Graphics>();
@@ -50,11 +51,11 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
   private handlesContainer: Container;
 
   constructor(config: ResizerStoreConfig) {
-    // Convert PixiJS Rectangle to ImmerableRectangle for Immer compatibility
+    // Convert PixiJS Rectangle to ImmutRect for Immer compatibility
     super(
       {
         value: {
-          rect: ImmerableRectangle.fromPixiRectangle(config.rect),
+          rect: RectSchema.parse(config.rect),
           dirty: false
         }
       },
@@ -102,12 +103,9 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
       this.stage = this.stage.parent;
     }
 
-    console.log('ResizerStore stage found:', this.stage.label || 'unlabeled', 'eventMode:', this.stage.eventMode);
-
     // Ensure stage has a comprehensive hit area for capturing pointer events
     if (!this.stage.hitArea) {
       this.stage.hitArea = new Rectangle(0, 0, 10000, 10000);
-      console.log('Set stage hitArea to comprehensive area');
     }
 
     // Create handles
@@ -154,23 +152,20 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
    * Drag start handler - bound via this.$
    */
   onDragStart(event: FederatedPointerEvent, position: HandlePosition) {
-    console.log('Drag started on handle:', position);
     event.stopPropagation();
 
     this.dragHandle = position;
-    // Clone the ImmerableRectangle
-    this.dragStartRect = this.value.rect.clone();
+    // Clone the rect using destructuring
+    this.dragStartRect = { ...this.value.rect };
   }
 
   /**
    * Drag move handler - bound via this.$
    */
   onDragMove(deltaX: number, deltaY: number, event: FederatedPointerEvent) {
-    console.log('---- onDragMove');
     event.stopPropagation();
 
     if (!this.dragHandle || !this.dragStartRect) {
-      console.warn('onDragMove noop');
       return;
     }
 
@@ -192,7 +187,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
    * Drag end handler - bound via this.$
    */
   onDragEnd(event: FederatedPointerEvent) {
-    console.log('Drag ended on handle:', this.dragHandle);
     event.stopPropagation();
 
     this.dragHandle = null;
@@ -200,7 +194,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
     // Call onRelease callback if provided
     if (this.onRelease) {
-      console.log('Calling onRelease callback');
       // Convert ImmerableRectangle to PixiJS Rectangle for callback
       const rect = new Rectangle(this.value.rect.x, this.value.rect.y, this.value.rect.width, this.value.rect.height);
       this.onRelease(rect);
@@ -253,7 +246,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
   /**
    * Get handle local position relative to rect
    */
-  private getHandleLocalPosition(position: HandlePosition, rect: ImmerableRectangle): { x: number; y: number } {
+  private getHandleLocalPosition(position: HandlePosition, rect: Rect): { x: number; y: number } {
     const { x, y, width, height } = rect;
 
     switch (position) {
@@ -344,10 +337,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     position: HandlePosition,
     deltaX: number,
     deltaY: number,
-    startRect: ImmerableRectangle
-  ): ImmerableRectangle {
-    // Clone the ImmerableRectangle
-    const newRect = startRect.clone();
+    startRect: Rect
+  ): Rect {
+    // Clone the rect using spread operator
+    const newRect = { ...startRect };
     const parentScale = this.container.parent?.scale.x ?? 1;
     const scaledDeltaX = deltaX / parentScale;
     const scaledDeltaY = deltaY / parentScale;
@@ -451,9 +444,9 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
    * Programmatically set the rectangle
    */
   public setRect(rect: Rectangle) {
-    // Convert PixiJS Rectangle to ImmerableRectangle and mark dirty
+    // Convert PixiJS Rectangle to ImmutRect and mark dirty
     this.mutate((draft) => {
-      draft.rect = ImmerableRectangle.fromPixiRectangle(rect);
+      draft.rect = RectSchema.parse(rect);
       draft.dirty = true;
     });
   }

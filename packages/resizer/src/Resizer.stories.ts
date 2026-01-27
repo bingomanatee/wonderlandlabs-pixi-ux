@@ -110,7 +110,7 @@ const meta: Meta<ResizerArgs> = {
               labelText.position.set(newRect.x + newRect.width / 2, newRect.y + newRect.height / 2);
             },
             onRelease: (finalRect) => {
-              console.log(`${boxConfig.label} resized to:`, finalRect);
+              // Resize complete
             },
             size: args.handleSize,
             color: { r: 0.2, g: 0.6, b: 1 },

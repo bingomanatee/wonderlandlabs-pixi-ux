@@ -45,8 +45,6 @@ export function trackDrag(
   // Use stage for move/up listeners if provided, otherwise use target
   const moveUpTarget = stage || target;
 
-  console.log('trackDrag: moveUpTarget is', moveUpTarget.label || 'unlabeled', 'eventMode:', moveUpTarget.eventMode);
-
   const onDragMove = (event: FederatedPointerEvent) => {
     if (!isDragging) return;
 

@@ -1,4 +1,4 @@
-import { Forest } from '@wonderlandlabs/forestry4';
+import { TickerForest } from '@forestry-pixi/root-container';
 import { Container, Graphics, TilingSprite, Texture } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import type { GridStoreValue, GridManagerValue } from './types';
@@ -11,11 +11,10 @@ export interface GridManagerConfig {
 
 /**
  * Forestry-based grid manager that listens to zoom/pan events
- * and efficiently redraws the grid using the dirty/ticker pattern.
+ * and efficiently redraws the grid using the TickerForest pattern.
  * Uses lazy getters for container, sprites, and textures.
  */
-export class GridManager extends Forest<GridManagerValue> {
-  #application: Application;
+export class GridManager extends TickerForest<GridManagerValue> {
   #zoomPanContainer: Container;
   #_gridContainer?: Container;
   #_gridTexture?: Texture;
@@ -26,18 +25,52 @@ export class GridManager extends Forest<GridManagerValue> {
   #currentZoom: number = 1;
 
   constructor(config: GridManagerConfig) {
-    super({
-      value: {
-        gridSpec: config.gridSpec,
-        dirty: false,
+    super(
+      {
+        value: {
+          gridSpec: config.gridSpec,
+          dirty: false,
+        },
       },
-    });
+      config.application
+    );
 
     // Store PixiJS references as private properties (not in Forestry state)
-    this.#application = config.application;
     this.#zoomPanContainer = config.zoomPanContainer;
 
     this.#initialize();
+  }
+
+  /**
+   * TickerForest abstract method - check if dirty
+   */
+  protected isDirty(): boolean {
+    return this.value.dirty;
+  }
+
+  /**
+   * TickerForest abstract method - clear dirty flag
+   */
+  protected clearDirty(): void {
+    this.mutate(draft => {
+      draft.dirty = false;
+    });
+  }
+
+  /**
+   * TickerForest abstract method - mark as dirty
+   */
+  protected markDirty(): void {
+    this.mutate(draft => {
+      draft.dirty = true;
+    });
+  }
+
+  /**
+   * TickerForest abstract method - resolve (redraw grid)
+   */
+  protected resolve(): void {
+    this.#redrawGrid();
   }
 
   /**
@@ -207,26 +240,20 @@ export class GridManager extends Forest<GridManagerValue> {
     this.#artboard;
 
     // Listen to stage zoom events - mark dirty
-    this.#application.stage.on('stage-zoom', () => {
-      this.mutate(draft => {
-        draft.dirty = true;
-      });
+    this.application.stage.on('stage-zoom', () => {
+      this.markDirty();
+      this.queueResolve();
     });
 
     // Listen to stage drag events - mark dirty
-    this.#application.stage.on('stage-drag', () => {
-      this.mutate(draft => {
-        draft.dirty = true;
-      });
+    this.application.stage.on('stage-drag', () => {
+      this.markDirty();
+      this.queueResolve();
     });
-
-    // Add ticker listener to redraw when dirty
-    this.#application.ticker.add(this.#onTick, this);
 
     // Initial draw
-    this.mutate(draft => {
-      draft.dirty = true;
-    });
+    this.markDirty();
+    this.kickoff();
   }
 
   /**
@@ -391,12 +418,12 @@ export class GridManager extends Forest<GridManagerValue> {
    * Clean up resources
    */
   cleanup(): void {
-    // Remove ticker listener
-    this.#application.ticker.remove(this.#onTick, this);
+    // Call parent cleanup to remove ticker listener
+    super.cleanup();
 
     // Remove event listeners
-    this.#application.stage.off('stage-zoom');
-    this.#application.stage.off('stage-drag');
+    this.application.stage.off('stage-zoom');
+    this.application.stage.off('stage-drag');
 
     // Destroy textures
     if (this.#_gridTexture) {

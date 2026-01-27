@@ -1,7 +1,8 @@
 export { enableHandles } from './enableHandles';
 export { trackDrag } from './trackDrag';
 export { ResizerStore } from './ResizerStore';
-export { ImmerableRectangle } from './ImmerableRectangle';
+export type { Rect } from './rectTypes';
+export { RectSchema } from './rectTypes';
 
 export {
   ColorSchema,
