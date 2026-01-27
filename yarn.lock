@@ -341,7 +341,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@forestry-pixi/drag@workspace:packages/drag":
+"@forestry-pixi/drag@workspace:*, @forestry-pixi/drag@workspace:packages/drag":
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/drag@workspace:packages/drag"
   dependencies:
@@ -376,25 +376,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@forestry-pixi/panel@workspace:packages/panel":
-  version: 0.0.0-use.local
-  resolution: "@forestry-pixi/panel@workspace:packages/panel"
-  dependencies:
-    "@types/react": "npm:^18.2.0"
-    "@types/react-dom": "npm:^18.2.0"
-    "@wonderlandlabs/forestry4": "npm:^4.1.10"
-    react: "npm:^18.2.0"
-    react-dom: "npm:^18.2.0"
-    typescript: "npm:^5.5.3"
-    vitest: "npm:^4.0.17"
-    zod: "npm:^4.3.5"
-  peerDependencies:
-    react: ^18.0.0
-    react-dom: ^18.0.0
-  languageName: unknown
-  linkType: soft
-
-"@forestry-pixi/resizer@workspace:packages/resizer":
+"@forestry-pixi/resizer@workspace:*, @forestry-pixi/resizer@workspace:packages/resizer":
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/resizer@workspace:packages/resizer"
   dependencies:
@@ -427,6 +409,21 @@ __metadata:
     pixi.js: "npm:^8.0.0"
     typescript: "npm:^5.5.3"
     vitest: "npm:^4.0.17"
+  languageName: unknown
+  linkType: soft
+
+"@forestry-pixi/window@workspace:packages/window":
+  version: 0.0.0-use.local
+  resolution: "@forestry-pixi/window@workspace:packages/window"
+  dependencies:
+    "@forestry-pixi/drag": "workspace:*"
+    "@forestry-pixi/resizer": "workspace:*"
+    "@forestry-pixi/ticker-forest": "workspace:*"
+    "@wonderlandlabs/forestry4": "npm:^4.1.10"
+    typescript: "npm:^5.5.3"
+    zod: "npm:^4.3.5"
+  peerDependencies:
+    pixi.js: ^8.0.0
   languageName: unknown
   linkType: soft
 

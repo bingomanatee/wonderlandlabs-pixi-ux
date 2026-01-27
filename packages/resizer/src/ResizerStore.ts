@@ -17,6 +17,7 @@ export interface ResizerStoreConfig {
     color?: Color;
     constrain?: boolean;
     mode?: HandleMode;
+    handleContainer?: Container;
 }
 
 /**
@@ -62,6 +63,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     private handles = new Map<HandlePosition, Graphics>();
     private dragTrackers = new Map<Graphics, TrackDragResult>();
     private handlesContainer: Container;
+    private ownsHandlesContainer: boolean;
 
     constructor(config: ResizerStoreConfig) {
         // Convert PixiJS Rectangle to ImmutRect for Immer compatibility
@@ -83,16 +85,22 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         this.constrain = config.constrain ?? false;
         this.mode = config.mode ?? 'ONLY_CORNER';
 
-        // Create handles container
-        this.handlesContainer = new Container();
-        this.handlesContainer.label = 'ResizerHandles';
-
-        // Add handles container to parent
+        // Get parent container for stage traversal and handle container management
         const parent = this.container.parent;
         if (!parent) {
             throw new Error('Container must have a parent to add resize handles');
         }
-        parent.addChild(this.handlesContainer);
+
+        // Create or use provided handles container
+        if (config.handleContainer) {
+            this.handlesContainer = config.handleContainer;
+            this.ownsHandlesContainer = false;
+        } else {
+            this.handlesContainer = new Container();
+            this.handlesContainer.label = 'ResizerHandles';
+            this.ownsHandlesContainer = true;
+            parent.addChild(this.handlesContainer);
+        }
 
         // Watch for rect changes and queue resolve when rect values change
         const self = this;
@@ -431,8 +439,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         });
         this.handles.clear();
 
-        // Remove handles container
-        this.handlesContainer.destroy();
+        // Only destroy handles container if we created it
+        if (this.ownsHandlesContainer) {
+            this.handlesContainer.destroy();
+        }
     }
 
     /**

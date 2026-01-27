@@ -59,7 +59,7 @@ import type {Application} from 'pixi.js';
  * ```
  */
 export abstract class TickerForest<T> extends Forest<T> {
-    protected application: Application;
+    application: Application;
 
     /**
      * @param args - The Forestry configuration object (includes {value: ..., res: ...} and other Forest options)
@@ -96,7 +96,7 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Uses `ticker.addOnce()` to ensure the resolve happens once on the next frame.
      * Subclasses should call this after calling markDirty().
      */
-    protected queueResolve(): void {
+    queueResolve(): void {
         if (!this.#resolveQueued) {
             this.application.ticker.addOnce(this.$.onTick, this);
             this.#resolveQueued = true;
@@ -108,7 +108,7 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call this in their constructor after initialization
      * to ensure initial PixiJS operations are performed.
      */
-    protected kickoff(): void {
+    kickoff(): void {
         this.queueResolve();
     }
 
@@ -138,7 +138,7 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call `super.cleanup()` in their cleanup/destroy methods.
      */
     public cleanup(): void {
-        this.application.ticker.remove(this.$.onTick, this);
+        this.application?.ticker?.remove(this.$.onTick, this);
     }
 }
 

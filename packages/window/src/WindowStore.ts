@@ -1,14 +1,12 @@
 import {TickerForest} from "@forestry-pixi/ticker-forest";
-import type {Color, WindowDef} from "./types";
-import {Container, Graphics} from "pixi.js";
+import type {WindowDef} from "./types";
+import {Color, Container, Graphics} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 
 export class WindowStore extends TickerForest<WindowDef> {
-    get application() {
-        if (this.$root && !this.$isRoot) {
-            return (this.$root as unknown as WindowsManager).app;
-        }
-        return undefined;
+
+    constructor(config, app) {
+        super(config, app);
     }
 
     resolveComponents(parentContainer?: Container) {
@@ -48,18 +46,20 @@ export class WindowStore extends TickerForest<WindowDef> {
     #background?: Graphics;
 
     protected isDirty(): boolean {
-        throw new Error('Method not implemented.');
+        return this.value.isDirty;
     }
 
     protected clearDirty(): void {
-        throw new Error('Method not implemented.');
+        this.set('isDirty', false);
     }
 
     protected resolve(): void {
         if (this.isDirty()) {
-            const rootStore = this.$root as unknown as WindowsManager;
-            if ((rootStore !== this) && rootStore?.container) {
-                this.resolveComponents(rootStore.container);
+            if (!this.$isRoot) {
+                const rootStore = this.$root as unknown as WindowsManager;
+                if (rootStore?.container) {
+                    this.resolveComponents(rootStore.container);
+                }
             }
         }
     }
