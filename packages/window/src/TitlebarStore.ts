@@ -5,6 +5,8 @@ import {Container, Graphics, Text} from "pixi.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import rgbToColor from "./rgbToColor";
 import type {Subscription} from "rxjs";
+import {TITLEBAR_MODE} from "./constants";
+import {WindowStore} from "./WindowStore";
 
 interface TitlebarStoreValue extends TitlebarConfig {
     isDirty: boolean;
@@ -12,10 +14,10 @@ interface TitlebarStoreValue extends TitlebarConfig {
 }
 
 export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
+
     #container?: Container;
     #background?: Graphics;
     #titleText?: Text;
-    #parentContainer?: Container;
     widthSubscription?: Subscription;
     configSubscription?: Subscription;
 
@@ -57,8 +59,31 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         }
     }
 
-    setParentContainer(container: Container) {
-        this.#parentContainer = container;
+    addHoverForTitlebar() {
+        const windowStore = this.$parent as WindowStore;
+        const titlebar = this.value;
+        // Set up hover listeners for ON_HOVER mode
+        if (titlebar.mode === TITLEBAR_MODE.ON_HOVER && windowStore.rootContainer) {
+            console.info('hover hooks');
+            windowStore.rootContainer?.on('pointerenter', () => {
+                this.mutate((draft) => {
+                    draft.isVisible = true;
+                })
+            });
+            windowStore.rootContainer?.on('pointerleave', () => {
+                this.mutate((draft) => {
+                    draft.isVisible = false;
+                })
+            });
+            this.set('isVisible', false);
+        } else {
+            this.set('isVisible', true);
+        }
+    }
+
+    get parentContainer() {
+        const parent = this.$parent as WindowStore;
+        return parent?.rootContainer;
     }
 
     resolveComponents() {
@@ -67,13 +92,19 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         this.#refreshTitle();
     }
 
+    #contentContainer?: Container;
     #refreshContainer() {
         if (!this.#container) {
             this.#container = new Container({
                 label: 'titlebar',
                 position: {x: 0, y: 0}
             });
-            this.#parentContainer?.addChild(this.#container);
+            this.parentContainer?.addChild(this.#container);
+        }
+        if (!this.#contentContainer) {
+            this.#contentContainer = new Container({x: this.value.padding ?? 0,
+            y: this.value.height/2 + this.value.padding});
+            this.#container?.addChild(this.#contentContainer);
         }
         console.log('resolve with visibliity', this.value.isVisible);
         this.#container!.visible = this.value.isVisible;
@@ -95,23 +126,22 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     }
 
     #refreshTitle() {
-        const {title, height} = this.value;
-
+        const {title, fontSize, textColor} = this.value;
+        const {zIndex} = (this.$parent! as WindowStore).value;
         if (!this.#titleText) {
             this.#titleText = new Text({
                 text: title,
                 style: {
-                    fontSize: 14,
-                    fill: 0xffffff,
+                    fontSize: fontSize,
+                    fill: rgbToColor(textColor),
                 },
             });
-            this.#titleText.position.set(10, height / 2);
-            this.#titleText.anchor.set(0, 0.5);
-            this.#container?.addChild(this.#titleText);
-        } else {
-            this.#titleText.text = title;
-            this.#titleText.position.set(10, height / 2);
+            this.#contentContainer?.addChild(this.#titleText);
         }
+        this.#titleText.text = `${title} [${zIndex}]`;
+        this.#titleText.style.fontSize = fontSize;
+        this.#titleText.style.fill = rgbToColor(textColor);
+        this.#titleText.y = -0.66 * fontSize;
     }
 
     protected isDirty(): boolean {
@@ -146,7 +176,7 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         }
 
         if (this.#container) {
-            this.#parentContainer?.removeChild(this.#container);
+            this.parentContainer?.removeChild(this.#container);
             this.#container.destroy({children: true});
             this.#container = undefined;
         }

@@ -110,7 +110,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             self.queueResolve();
         });
 
-        // Find the stage (root container) for global event listeners
+        // Find the stage (rootContainer container) for global event listeners
         this.stage = parent;
         while (this.stage.parent) {
             this.stage = this.stage.parent;

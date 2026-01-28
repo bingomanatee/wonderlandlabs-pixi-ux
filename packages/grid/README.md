@@ -84,14 +84,14 @@ Forestry-based grid manager that automatically listens to zoom/pan events and re
 ```typescript
 import { GridManager } from '@forestry-pixi/grid';
 import { Application } from 'pixi.js';
-import { createRootContainer, createZoomPan, makeStageZoomable, makeStageDraggable } from '@forestry-pixi/root-container';
+import { createRootContainer, createZoomPan, makeStageZoomable, makeStageDraggable } from '@forestry-pixi/rootContainer-container';
 
 const app = new Application();
 await app.init();
 
 // Set up zoom/pan
-const { root } = createRootContainer(app);
-const { zoomPan } = createZoomPan(app, root);
+const { rootContainer } = createRootContainer(app);
+const { zoomPan } = createZoomPan(app, rootContainer);
 makeStageZoomable(app, zoomPan);
 makeStageDraggable(app, zoomPan);
 

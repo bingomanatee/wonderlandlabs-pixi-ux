@@ -114,7 +114,7 @@ export const WithZoomPan: Story = {
       });
       resizeObserver.observe(container);
 
-      // Create root container (centers origin)
+      // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
 
       // Create zoom/pan container

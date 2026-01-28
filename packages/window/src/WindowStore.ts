@@ -24,7 +24,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#refreshRoot();
         this.#refreshBackground();
         this.#refreshTitlebar();
-        parentContainer?.addChild(this.#root!);
+        parentContainer?.addChild(this.#rootContainer!);
     }
 
     #dragStore?: DragStore;
@@ -35,8 +35,8 @@ export class WindowStore extends TickerForest<WindowDef> {
     #refreshRoot() {
         const {x, y, isDraggable} = this.value;
 
-        if (!this.#root) {
-            this.#root = new Container({
+        if (!this.#rootContainer) {
+            this.#rootContainer = new Container({
                 eventMode: "static",
                 position: {x, y}
             });
@@ -54,29 +54,29 @@ export class WindowStore extends TickerForest<WindowDef> {
                             const pos = self.#dragStore?.getCurrentItemPosition();
                             // @TODO: localize?
                             if (pos) {
-                                self.#root?.position.set(pos.x, pos.y);
+                                self.#rootContainer?.position.set(pos.x, pos.y);
                             }
                         },
                         onDragEnd() {
-                            self.#root!.cursor = 'grab';
+                            self.#rootContainer!.cursor = 'grab';
                         },
                     },
                 });
 
-                this.#root.cursor = 'grab';
-                this.#root.on('pointerdown', (event) => {
+                this.#rootContainer.cursor = 'grab';
+                this.#rootContainer.on('pointerdown', (event) => {
                     event.stopPropagation();
-                    self.#root!.cursor = 'grabbing';
+                    self.#rootContainer!.cursor = 'grabbing';
 
                     // Start drag with current container position
                     self.#dragStore!.startDragContainer(
                         self.value.id,
-                        event, self.#root!
+                        event, self.#rootContainer!
                     );
                 });
             }
         } else {
-            this.#root.position.set(x, y);
+            this.#rootContainer.position.set(x, y);
         }
     }
 
@@ -85,7 +85,7 @@ export class WindowStore extends TickerForest<WindowDef> {
 
         if (!this.#background) {
             this.#background = new Graphics();
-            this.#root?.addChildAt(this.#background, 0);
+            this.#rootContainer?.addChildAt(this.#background, 0);
         } else {
             this.#background.clear();
         }
@@ -111,17 +111,15 @@ export class WindowStore extends TickerForest<WindowDef> {
                     isDirty: true,
                 }
             }, this.application) as unknown as TitlebarStore;
-            // Set parent container and initialize
-            if (this.#root) {
-                this.#titlebarStore.setParentContainer(this.#root);
+            if (this.#rootContainer) {
                 this.#titlebarStore.application = this.application;
                 this.#titlebarStore.kickoff();
             }
 
-            const titlebarStore = this.#titlebarStore;
+            const self = this;
 
             // Width subscription
-            titlebarStore.widthSubscription = this.$subject.pipe(
+            this.#titlebarStore.widthSubscription = this.$subject.pipe(
                 map((v) => {
                     if (!v) {
                         console.warn('no value');
@@ -131,36 +129,24 @@ export class WindowStore extends TickerForest<WindowDef> {
                 }),
                 distinctUntilChanged()
             ).subscribe(() => {
-                titlebarStore.set('isDirty', true);
-                titlebarStore.queueResolve()
+                self.#titlebarStore?.set('isDirty', true);
+                self.#titlebarStore?.queueResolve()
             });
-            const self = this;
-            // Titlebar config subscription - subscribe directly to titlebar branch
-
-            // Set up hover listeners for ON_HOVER mode
-            if (titlebar.mode === TITLEBAR_MODE.ON_HOVER && this.#root) {
-                console.info('hover hooks');
-                self.#root?.on('pointerenter', () => {
-                    console.info('titlebar:show');
-                    titlebarStore.mutate((draft) => {
-                        draft.isVisible = true;
-                    })
-                });
-                self.#root?.on('pointerleave', () => {
-                    console.info('titlebar:hide');
-                    titlebarStore.mutate((draft) => {
-                        draft.isVisible = false;
-                    })
-                });
-                titlebarStore.set('isVisible', false);
-            } else {
-                titlebarStore.set('isVisible', true);
-            }
+            this.#titlebarStore.addHoverForTitlebar();
         }
     }
 
-    #root?: Container;
+
+
+    #rootContainer?: Container;
     #background?: Graphics;
+
+    /**
+     * Get the rootContainer container for this window (needed for z-index management)
+     */
+    get rootContainer(): Container | undefined {
+        return this.#rootContainer;
+    }
 
     protected isDirty(): boolean {
         return this.value.isDirty;
@@ -176,6 +162,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                 const rootStore = this.$root as unknown as WindowsManager;
                 if (rootStore?.container) {
                     this.resolveComponents(rootStore.container);
+                    rootStore.updateZIndices();
                 }
             }
         }

@@ -71,7 +71,7 @@ const meta: Meta<ZoomPanArgs> = {
       });
       resizeObserver.observe(container);
 
-      // Create root container (centers origin)
+      // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
 
       // Create zoom/pan container
@@ -253,7 +253,7 @@ export const ZoomAndPan: Story = {
       });
       resizeObserver.observe(container);
 
-      // Create root container (centers origin)
+      // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
 
       // Create zoom/pan container
@@ -438,7 +438,7 @@ export const PanOnly: Story = {
       });
       resizeObserver.observe(container);
 
-      // Add STATIC elements directly to stage (before root)
+      // Add STATIC elements directly to stage (before rootContainer)
       // These will NOT move when dragging - they show the stage is stationary
       const staticLayer = new Graphics();
       staticLayer.eventMode = 'none'; // Make it non-interactive so it doesn't block events
@@ -497,7 +497,7 @@ export const PanOnly: Story = {
 
       app.stage.addChild(staticLayer);
 
-      // Create root container (centers origin)
+      // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
 
       // Create zoom/pan container

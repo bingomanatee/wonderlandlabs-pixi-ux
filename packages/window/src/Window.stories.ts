@@ -29,17 +29,44 @@ const meta: Meta<WindowArgs> = {
 
             wm.addWindow('alpha', {
                 id: 'alpha',
-                x: 10, y: 20, width: 500, height: 300, backgroundColor: {
+                x: 10, y: 20,
+                width: 500,
+                height: 300,
+                backgroundColor: {
                     r: 1, g: 0, b: 0
                 },
                 isDraggable: true,
+                zIndex: 1,
                 titlebar: {
-                    title: 'foo',
+                    title: 'On Hover Mode',
                     mode: 'onHover',
                     height: 20,
                     showCloseButton: false,
                     backgroundColor: {r: 0.5, g: 0.5, b: 0.5},
-                    isVisible: false
+                    isVisible: false,
+                    fontSize: 10
+                }
+            })
+
+            wm.addWindow('beta', {
+                id: 'beta',
+                x: 520,
+                y: 20,
+                width: 400,
+                height: 250,
+                backgroundColor: {
+                    r: 0, g: 0.5, b: 1
+                },
+                isDraggable: true,
+                zIndex: 0,
+                titlebar: {
+                    title: 'Persistent Titlebar',
+                    mode: 'persistent',
+                    height: 30,
+                    padding: 4,
+                    showCloseButton: false,
+                    backgroundColor: {r: 0.3, g: 0.3, b: 0.3},
+                    textColor: {r: 1, g: 1, b: 1}
                 }
             })
         });

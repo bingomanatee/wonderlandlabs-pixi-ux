@@ -49,7 +49,7 @@ const meta: Meta<ZoomPanDecoratorsArgs> = {
       });
       resizeObserver.observe(container);
 
-      // Create root container (centered origin)
+      // Create rootContainer container (centered origin)
       const { root } = createRootContainer(app);
 
       // Create two separate containers to demonstrate different combinations

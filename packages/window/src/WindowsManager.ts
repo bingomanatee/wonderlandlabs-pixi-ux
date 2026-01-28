@@ -1,7 +1,6 @@
 import {Application, Container} from 'pixi.js';
 import {Forest} from "@wonderlandlabs/forestry4";
-
-import {WindowDef, WindowDefSchema, WindowStoreValue} from './types';
+import {WindowDef, WindowDefSchema, WindowStoreValue, ZIndexData} from './types';
 import {WindowStore} from "./WindowStore";
 
 export interface WindowsManagerConfig {
@@ -26,9 +25,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
                     windows: new Map(), // if we don't need any further variables we may collapse this to a map
                 },
                 prep(next: WindowStoreValue) {
-                    const self = this as WindowsManager;
-                    self.initNewWindows(next.windows);
-
+                    this.initNewWindows(next.windows);
                     return next;
                 }
             }
@@ -68,7 +65,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         }
         for (const key of this.value.windows.keys()) {
             if (!nextWindows.has(key)) {
-                this.removeWindow(key, true);
+                this.#removeWindowBranch(key);
             }
         }
     }
@@ -105,20 +102,64 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         return this.#windowsBranches.get(id);
     }
 
+    #flattenZIndices(): ZIndexData[] {
+        const sortedWindows: Omit<ZIndexData, 'zIndexFlat'>[] = Array.from(this.#windowsBranches.entries())
+            .map(([id, branch]) => ({
+                id,
+                branch,
+                zIndex: branch.value.zIndex
+            }))
+            .sort((a, b) => a.zIndex - b.zIndex);
+
+        return sortedWindows.map((data, index) => {
+            return {...data, zIndexFlat: index}
+        })
+    }
+
+
     /**
-     * Remove a window
+     * Update z-indices of all windows to respect their zIndex property
      */
-    removeWindow(id: string, noMutate = false) {
+    updateZIndices() {
+        // Get all window branches and sort by zIndex
+        const indices = this.#flattenZIndices()
+        let maxIndex = 0;
+        // Apply the sorted order using setChildIndex
+        indices.forEach(({branch, zIndexFlat}) => {
+            const branchStore = branch as WindowStore;
+            maxIndex = Math.max(maxIndex, zIndexFlat);
+            if (branchStore.rootContainer && this.container.children.includes(branchStore.rootContainer)) {
+                try {
+                    this.container.setChildIndex(branchStore.rootContainer, zIndexFlat);
+                } catch (err) {
+                }
+            }
+        });
+
+        // Ensure handleContainer stays on top of all the other windows
+        if (this.handleContainer && this.container.children.includes(this.handleContainer)) {
+            try {
+                this.container.setChildIndex(this.handleContainer, maxIndex + 1);
+            } catch (err) {
+            }
+        }
+    }
+
+    #removeWindowBranch(id: string) {
         if (this.#windowsBranches.has(id)) {
             this.#windowsBranches.get(id)?.cleanup();
             this.#windowsBranches.delete(id);
         }
+    }
 
-        if (!noMutate) {
-            this.mutate((draft) => {
-                draft.windows.delete(id);
-            });
-        }
+    /**
+     * Remove a window
+     */
+    removeWindow(id: string) {
+        this.#removeWindowBranch(id);
+        this.mutate((draft) => {
+            draft.windows.delete(id);
+        });
     }
 }
 

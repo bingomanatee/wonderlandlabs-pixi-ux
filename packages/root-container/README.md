@@ -1,4 +1,4 @@
-# @forestry-pixi/root-container
+# @forestry-pixi/rootContainer-container
 
 Root container system with centered origin and zoom/pan support for PixiJS applications.
 
@@ -23,18 +23,18 @@ import {
   createZoomPan,
   createZoomPanDraggable,
   type StageZoomEvent
-} from '@forestry-pixi/root-container';
+} from '@forestry-pixi/rootContainer-container';
 
 const app = new Application();
 await app.init({ resizeTo: window });
 
-// Create root container (centers origin)
-const { root, destroy: destroyRoot } = createRootContainer(app);
+// Create rootContainer container (centers origin)
+const { rootContainer, destroy: destroyRoot } = createRootContainer(app);
 
 // Create zoom/pan container
 const { zoomPan, getZoom, setZoom, reset, destroy: destroyZoomPan } = createZoomPan(
   app, // Application instance
-  root, // optional parent container
+  rootContainer, // optional parent container
   {
     minZoom: 0.5,
     maxZoom: 5,
@@ -87,7 +87,7 @@ Creates a container that centers the origin at screen center and listens to resi
 
 **Returns:**
 - `stage: Container` - The app.stage reference
-- `root: Container` - The root container (centered)
+- `rootContainer: Container` - The rootContainer container (centered)
 - `destroy: () => void` - Cleanup function
 
 ### createZoomPan
@@ -95,7 +95,7 @@ Creates a container that centers the origin at screen center and listens to resi
 ```typescript
 function createZoomPan(
   app: Application,
-  root?: Container,
+  rootContainer?: Container,
   options?: ZoomPanOptions
 ): ZoomPanResult
 ```
@@ -104,7 +104,7 @@ Creates a zoom/pan container with user interaction handlers. All container updat
 
 **Parameters:**
 - `app: Application` - The PixiJS Application instance
-- `root?: Container` - Optional parent container (from createRootContainer)
+- `rootContainer?: Container` - Optional parent container (from createRootContainer)
 - `options?: ZoomPanOptions` - Configuration options
 
 **Options:**
@@ -160,7 +160,7 @@ interface StageZoomEvent {
 
 ```
 app.stage
-  └── root (origin at screen center, handles resize)
+  └── rootContainer (origin at screen center, handles resize)
       └── zoomPan (handles user pan/zoom)
           └── Your content here
 ```

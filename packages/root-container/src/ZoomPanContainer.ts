@@ -21,7 +21,7 @@ export function createZoomPan(
   const zoomPan = new Container();
   zoomPan.label = 'ZoomPanContainer';
 
-  // Add to parent (root or stage)
+  // Add to parent (rootContainer or stage)
   const parent = root ?? app.stage;
   parent.addChild(zoomPan);
 

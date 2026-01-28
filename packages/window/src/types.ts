@@ -18,7 +18,10 @@ export const TitlebarConfigSchema = z.object({
     backgroundColor: RgbColorSchema.default({r: 0.2, g: 0.2, b: 0.2}),
     title: z.string().default('Window'),
     isVisible: z.boolean().default(true),
+    padding: z.number().default(2),
     showCloseButton: z.boolean().default(false),
+    fontSize: z.number().min(0).default(14),
+    textColor: RgbColorSchema.default({r: 0, g: 0, b: 0}),
 });
 
 export type TitlebarConfig = z.infer<typeof TitlebarConfigSchema>;
@@ -64,3 +67,12 @@ export const WindowStoreSchema = z.object({
 });
 
 export type WindowStoreValue = z.infer<typeof WindowStoreSchema>;
+
+export const ZIndexDataSchema = z.object({
+    zIndex: z.number(),
+    id: z.string(),
+    zIndexFlat: z.number(),
+    branch: z.unknown()
+})
+
+export type ZIndexData = z.infer<typeof ZIndexDataSchema>;
