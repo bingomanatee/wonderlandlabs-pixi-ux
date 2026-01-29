@@ -23,43 +23,50 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
 
     constructor(config: StoreParams<TitlebarStoreValue>, app: Application) {
         super({
-            ...config, prep(next) {
-                console.log('prep:', next);
+            // @ts-ignore
+            ...config, prep(next: TitlebarStoreValue) {
                 if (!next) {
                     return next;
                 }
                 if (!this.value && next) {
                     queueMicrotask(() => {
-                        this.queueResolve();
+                        (this as TitlebarStore).queueResolve();
                     })
                     return {...next, isDirty: true};
                 }
-                let nonDirtyChanged = false;
+                let nonDirtyChanged: false | string = false;
                 Array.from(Object.keys(next)).forEach((key) => {
                     if (key === 'isDirty') {
                         return;
                     }
-                    if (next[key] !== this.value[key]) {
+                    // @ts-ignore
+                    if (next[key] !== (this as TitlebarStore).value[key]) {
                         console.log('changed field:', key);
-                        nonDirtyChanged = key;
+                        nonDirtyChanged = `${key}`;
                     }
                 });
                 if (nonDirtyChanged) {
-                    console.log('change:', nonDirtyChanged);
                     queueMicrotask(() => {
-                        this.queueResolve();
+                        (this as TitlebarStore).queueResolve();
                     });
                     return {...next, isDirty: true};
                 }
                 return next
             }
         }, app);
-        if (app) {
+        if (!this.application) {
+            if (this.$parent?.application) {
+                this.application = this.$parent.application;
+            }
+        }
+        if (this.application) {
             this.kickoff();
         }
     }
 
-    addHoverForTitlebar() {
+    #hoverAdded = false;
+    addHover() {
+        if (this.#hoverAdded) return;
         const windowStore = this.$parent as WindowStore;
         const titlebar = this.value;
         // Set up hover listeners for ON_HOVER mode
@@ -79,6 +86,7 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         } else {
             this.set('isVisible', true);
         }
+        this.#hoverAdded = true;
     }
 
     get parentContainer() {
@@ -106,7 +114,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
             y: this.value.height/2 + this.value.padding});
             this.#container?.addChild(this.#contentContainer);
         }
-        console.log('resolve with visibliity', this.value.isVisible);
         this.#container!.visible = this.value.isVisible;
     }
 

@@ -33,6 +33,9 @@ export const WindowStatusSchema = z.enum([
     WINDOW_STATUS.DELETED,
 ]);
 
+export const RGB_BLACK = {r: 0, g: 0, b: 0};
+export const RGB_WHITE = {r: 1, g: 1, b: 1}
+
 // Window definition schema
 export const WindowDefSchema = z.object({
     id: z.string(),
@@ -48,6 +51,9 @@ export const WindowDefSchema = z.object({
         height: 30,
         backgroundColor: {r: 0.2, g: 0.2, b: 0.2},
         title: 'Window',
+        padding: 2,
+        fontSize: 14,
+        textColor: RGB_BLACK,
         showCloseButton: false,
         isVisible: true
     }),

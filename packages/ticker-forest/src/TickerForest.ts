@@ -97,7 +97,11 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call this after calling markDirty().
      */
     queueResolve(): void {
-        if (!this.#resolveQueued) {
+        if (!this.application) {
+            console.warn('attempt to queueResolve without application');
+            return;
+        }
+        if (!this.#resolveQueued && this.application) {
             this.application.ticker.addOnce(this.$.onTick, this);
             this.#resolveQueued = true;
         }

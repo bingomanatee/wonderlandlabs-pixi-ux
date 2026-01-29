@@ -15,8 +15,9 @@ export interface WindowsManagerConfig {
  */
 export class WindowsManager extends Forest<WindowStoreValue> {
     app: Application;
-    container!: Container;
-    handleContainer?: Container;
+    container!: Container; // Parent container that holds both windowsContainer and handlesContainer
+    windowsContainer!: Container; // Container for all windows
+    handlesContainer!: Container; // Container for all resize handles (sibling to windowsContainer)
 
     constructor(config: WindowsManagerConfig) {
         super(
@@ -24,8 +25,9 @@ export class WindowsManager extends Forest<WindowStoreValue> {
                 value: {
                     windows: new Map(), // if we don't need any further variables we may collapse this to a map
                 },
+                // @ts-ignore
                 prep(next: WindowStoreValue) {
-                    this.initNewWindows(next.windows);
+                    (this as WindowsManager).initNewWindows(next.windows);
                     return next;
                 }
             }
@@ -36,21 +38,29 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     }
 
     #initContainers(config: Partial<WindowsManagerConfig>) {
-        const {container, handleContainer} = config
+        const {container} = config
 
         if (!this.container && container) {
             this.container = container;
-            this.container.label = 'windows';
+            this.container.label = 'WindowsManager';
         }
         this.container?.position.set(0, 0);
 
-        if (!this.handleContainer && handleContainer) {
-            this.handleContainer = handleContainer;
-            this.handleContainer.label = 'handles';
+        // Create windowsContainer as a child of the main container
+        // This will hold all the windows and be used for z-index management
+        if (!this.windowsContainer) {
+            this.windowsContainer = new Container();
+            this.windowsContainer.label = 'windows';
+            this.container?.addChild(this.windowsContainer);
         }
-        if (this.container && this.handleContainer) {
-            this.container.removeChild(this.handleContainer);
-            this.container.addChild(this.handleContainer);
+
+        // Create handlesContainer as a sibling to windowsContainer
+        // Added after windowsContainer so it renders on top
+        // This ensures handles are always visible regardless of window z-index
+        if (!this.handlesContainer) {
+            this.handlesContainer = new Container();
+            this.handlesContainer.label = 'handles';
+            this.container?.addChild(this.handlesContainer);
         }
     }
 
@@ -87,11 +97,12 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         // @ts-ignore
         const branch = this.$branch<WindowDef, WindowStore>(['windows', key], {
             subclass: WindowStore,
-        }) as unknown as WindowStore;
+        }, this.app) as unknown as WindowStore;
 
         branch.set('isDirty', true);
         this.#windowsBranches.set(key, branch);
         branch.application = this.app;
+        branch.handlesContainer = this.handlesContainer; // Pass shared handles container
         branch.kickoff();
         return branch;
     }
@@ -128,21 +139,13 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         indices.forEach(({branch, zIndexFlat}) => {
             const branchStore = branch as WindowStore;
             maxIndex = Math.max(maxIndex, zIndexFlat);
-            if (branchStore.rootContainer && this.container.children.includes(branchStore.rootContainer)) {
+            if (branchStore.rootContainer && this.windowsContainer.children.includes(branchStore.rootContainer)) {
                 try {
-                    this.container.setChildIndex(branchStore.rootContainer, zIndexFlat);
+                    this.windowsContainer.setChildIndex(branchStore.rootContainer, zIndexFlat);
                 } catch (err) {
                 }
             }
         });
-
-        // Ensure handleContainer stays on top of all the other windows
-        if (this.handleContainer && this.container.children.includes(this.handleContainer)) {
-            try {
-                this.container.setChildIndex(this.handleContainer, maxIndex + 1);
-            } catch (err) {
-            }
-        }
     }
 
     #removeWindowBranch(id: string) {

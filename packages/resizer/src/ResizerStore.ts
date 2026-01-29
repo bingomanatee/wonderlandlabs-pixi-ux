@@ -47,7 +47,7 @@ function rectDiff(r1: unknown, r2: unknown) {
  */
 export class ResizerStore extends TickerForest<ResizerStoreValue> {
     private container: Container;
-    private stage: Container;
+    private stage?: Container;
     private drawRect?: (rect: Rectangle, container: Container) => void;
     private onRelease?: (rect: Rectangle) => void;
     private size: number;
@@ -102,30 +102,25 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             parent.addChild(this.handlesContainer);
         }
 
-        // Watch for rect changes and queue resolve when rect values change
-        const self = this;
-        this.$subject.pipe(distinctUntilChanged(rectDiff, (value) => {
-            return value.rect
-        })).subscribe(() => {
-            self.queueResolve();
-        });
-
         // Find the stage (rootContainer container) for global event listeners
-        this.stage = parent;
-        while (this.stage.parent) {
-            this.stage = this.stage.parent;
-        }
-
-        // Ensure stage has a comprehensive hit area for capturing pointer events
-        if (!this.stage.hitArea) {
-            this.stage.hitArea = new Rectangle(0, 0, 10000, 10000);
-        }
+       this.#initHitArea();
 
         // Create handles
         this.createHandles();
         this.kickoff();
     }
 
+    #initHitArea() {
+        this.stage = this.container.parent ?? undefined;
+        while (this.stage?.parent) {
+            this.stage = this.stage.parent;
+        }
+
+        // Ensure stage has a comprehensive hit area for capturing pointer events
+        if (this.stage && !this.stage?.hitArea) {
+            this.stage.hitArea = new Rectangle(0, 0, 10000, 10000);
+        }
+    }
     // TickerForest abstract methods implementation
     protected isDirty(): boolean {
         return this.value.dirty;
@@ -320,15 +315,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
      * Update handle positions based on current rect
      */
     private updateHandles() {
-        const containerPos = this.container.getGlobalPosition();
-
         this.handles.forEach((handle, position) => {
             const localPos = this.getHandleLocalPosition(position);
-            const worldX = containerPos.x + localPos.x;
-            const worldY = containerPos.y + localPos.y;
 
-            handle.position.set(worldX, worldY);
-
+            handle.position.set(localPos.x, localPos.y);
             // Counter-scale to maintain constant size
             const parentScale = this.container.parent?.scale.x ?? 1;
             const scale = 1 / parentScale;
@@ -429,6 +419,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
      * Remove all handles and cleanup
      */
     public removeHandles() {
+
         // Destroy all drag trackers
         this.dragTrackers.forEach((tracker) => tracker.destroy());
         this.dragTrackers.clear();

@@ -69,6 +69,32 @@ const meta: Meta<WindowArgs> = {
                     textColor: {r: 1, g: 1, b: 1}
                 }
             })
+
+            wm.addWindow('gamma', {
+                id: 'gamma',
+                x: 200,
+                y: 350,
+                width: 300,
+                height: 200,
+                minWidth: 100,
+                minHeight: 100,
+                backgroundColor: {
+                    r: 0, g: 0.8, b: 0.3
+                },
+                isDraggable: true,
+                isResizeable: true,
+                resizeMode: 'ONLY_CORNER',
+                zIndex: 2,
+                titlebar: {
+                    title: 'Resizable Window',
+                    mode: 'persistent',
+                    height: 30,
+                    padding: 4,
+                    showCloseButton: false,
+                    backgroundColor: {r: 0.2, g: 0.5, b: 0.2},
+                    textColor: {r: 1, g: 1, b: 1}
+                }
+            })
         });
 
         return wrapper;

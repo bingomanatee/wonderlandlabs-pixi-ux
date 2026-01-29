@@ -1,36 +1,69 @@
 import {TickerForest} from "@forestry-pixi/ticker-forest";
 import type {WindowDef} from "./types";
-import {Application, Container, Graphics} from "pixi.js";
+import {Application, Container, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 import rgbToColor from "./rgbToColor";
 import {DragStore} from "@forestry-pixi/drag";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
-import {distinctUntilChanged, map} from "rxjs";
-import {isEqual} from "lodash-es";
-import {TITLEBAR_MODE} from "./constants";
+import {ResizerStore} from "@forestry-pixi/resizer";
 
 export class WindowStore extends TickerForest<WindowDef> {
+    handlesContainer?: Container; // Shared container for resize handles
 
     constructor(config: StoreParams<WindowDef>, app: Application) {
         super(config, app);
+        this.#initTitlebar();
         if (app) {
             this.kickoff();
         }
     }
 
-    resolveComponents(parentContainer?: Container) {
+    #initTitlebar() {
+        if (!this.value.titlebar) {
+            console.error('no titlebar def');
+        }
+        // Create titlebar store as a branch using $branch
+        // @ts-ignore
+        this.#titlebarStore = this.$branch(['titlebar'], {
+            subclass: TitlebarStore,
+        }, this.application) as unknown as TitlebarStore;
+        this.#titlebarStore.application = this.application;
+
+        const self = this;
+
+        // Width subscription
+        let width = this.value?.width;
+        self.subscribe({
+            next(w) {
+                console.log('width observer', w, 'direct = ', self.value)
+                if (w?.width === width) {
+                    return;
+                }
+                width = w?.width;
+                self.#titlebarStore?.set('isDirty', true);
+                self.#titlebarStore?.queueResolve()
+            }, error(e) {
+                console.log('width error', e)
+            }, complete() {
+                console.log('widnows store - completed')
+            }
+        });
+    }
+
+    resolveComponents(parentContainer?: Container, handlesContainer?: Container) {
         console.log('windowStore:resolveComponents');
         this.#refreshRoot();
         this.#refreshBackground();
         this.#refreshTitlebar();
+        // Add container to parent BEFORE creating resizer (resizer needs parent to exist)
         parentContainer?.addChild(this.#rootContainer!);
+        this.#refreshResizer(handlesContainer);
     }
 
     #dragStore?: DragStore;
     #titlebarStore?: TitlebarStore;
-    #hoverEnterHandler?: () => void;
-    #hoverLeaveHandler?: () => void;
+    #resizerStore?: ResizerStore;
 
     #refreshRoot() {
         const {x, y, isDraggable} = this.value;
@@ -52,9 +85,17 @@ export class WindowStore extends TickerForest<WindowDef> {
                         },
                         onDrag(state) {
                             const pos = self.#dragStore?.getCurrentItemPosition();
-                            // @TODO: localize?
                             if (pos) {
                                 self.#rootContainer?.position.set(pos.x, pos.y);
+                                // Update resizer rect to match new position
+                                if (self.#resizerStore) {
+                                    self.#resizerStore.setRect(new Rectangle(
+                                        pos.x,
+                                        pos.y,
+                                        self.value.width,
+                                        self.value.height
+                                    ));
+                                }
                             }
                         },
                         onDragEnd() {
@@ -95,48 +136,67 @@ export class WindowStore extends TickerForest<WindowDef> {
 
     }
 
+    #tbKicked = false;
     #refreshTitlebar() {
-        const {titlebar} = this.value;
-
-        if (!this.#titlebarStore) {
-            if (!this.value.titlebar) {
-                console.error('no titlebar def');
-            }
-            // Create titlebar store as a branch using $branch
-            // @ts-ignore
-            this.#titlebarStore = this.$branch(['titlebar'], {
-                subclass: TitlebarStore,
-                value: {
-                    ...titlebar,
-                    isDirty: true,
-                }
-            }, this.application) as unknown as TitlebarStore;
-            if (this.#rootContainer) {
-                this.#titlebarStore.application = this.application;
-                this.#titlebarStore.kickoff();
-            }
-
-            const self = this;
-
-            // Width subscription
-            this.#titlebarStore.widthSubscription = this.$subject.pipe(
-                map((v) => {
-                    if (!v) {
-                        console.warn('no value');
-                        return 0;
-                    }
-                    return v.width;
-                }),
-                distinctUntilChanged()
-            ).subscribe(() => {
-                self.#titlebarStore?.set('isDirty', true);
-                self.#titlebarStore?.queueResolve()
-            });
-            this.#titlebarStore.addHoverForTitlebar();
+        if (!this.#tbKicked) {
+            this.#titlebarStore?.kickoff();
+            this.#tbKicked = true;
         }
+        this.#titlebarStore?.addHover();
     }
 
+    #refreshResizer(handlesContainer?: Container) {
+        const {isResizeable, width, height, x, y, resizeMode, minWidth, minHeight} = this.value;
 
+        // Remove existing resizer if isResizeable is false
+        if (!isResizeable && this.#resizerStore) {
+            this.#resizerStore.removeHandles();
+            this.#resizerStore = undefined;
+            return;
+        }
+
+        // Create resizer if isResizeable is true and it doesn't exist
+        if (isResizeable && !this.#resizerStore && this.#rootContainer) {
+            const self = this;
+
+            this.#resizerStore = new ResizerStore({
+                container: this.#rootContainer,
+                handleContainer: handlesContainer,
+                rect: new Rectangle(x, y, width, height),
+                app: this.application,
+                mode: resizeMode || 'ONLY_CORNER',
+                size: 8,
+                color: {r: 0.3, g: 0.6, b: 1},
+                drawRect: (rect: Rectangle) => {
+                    // Update window dimensions when resizing
+                    self.mutate((draft) => {
+                        draft.width = Math.max(rect.width, minWidth || 50);
+                        draft.height = Math.max(rect.height, minHeight || 50);
+                        draft.isDirty = true;
+                    });
+                },
+                onRelease: (rect: Rectangle) => {
+                    // Final update when resize is complete
+                    self.mutate((draft) => {
+                        draft.width = Math.max(rect.width, minWidth || 50);
+                        draft.height = Math.max(rect.height, minHeight || 50);
+                        draft.x = rect.x;
+                        draft.y = rect.y;
+                        draft.isDirty = true;
+                    });
+                    self.queueResolve();
+                }
+            });
+        }
+
+        // Update resizer rect if dimensions changed externally
+        if (this.#resizerStore) {
+            const currentRect = this.#resizerStore.value.rect;
+            if (currentRect.width !== width || currentRect.height !== height) {
+                this.#resizerStore.setRect(new Rectangle(0, 0, width, height));
+            }
+        }
+    }
 
     #rootContainer?: Container;
     #background?: Graphics;
@@ -160,12 +220,43 @@ export class WindowStore extends TickerForest<WindowDef> {
         if (this.isDirty()) {
             if (!this.$isRoot) {
                 const rootStore = this.$root as unknown as WindowsManager;
-                if (rootStore?.container) {
-                    this.resolveComponents(rootStore.container);
+                if (rootStore?.windowsContainer) {
+                    this.resolveComponents(rootStore.windowsContainer, rootStore.handlesContainer);
                     rootStore.updateZIndices();
                 }
             }
         }
+    }
+
+    cleanup(): void {
+        super.cleanup();
+
+        // Cleanup drag store
+        if (this.#dragStore) {
+            this.#dragStore.cleanup();
+            this.#dragStore = undefined;
+        }
+
+        // Cleanup titlebar store
+        if (this.#titlebarStore) {
+            this.#titlebarStore.cleanup();
+            this.#titlebarStore = undefined;
+        }
+
+        // Cleanup resizer store
+        if (this.#resizerStore) {
+            this.#resizerStore.removeHandles();
+            this.#resizerStore.cleanup();
+            this.#resizerStore = undefined;
+        }
+
+        // Cleanup containers
+        if (this.#rootContainer) {
+            this.#rootContainer.destroy({children: true});
+            this.#rootContainer = undefined;
+        }
+
+        this.#background = undefined;
     }
 
 }
