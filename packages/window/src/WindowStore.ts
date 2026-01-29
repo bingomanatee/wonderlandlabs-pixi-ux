@@ -11,6 +11,13 @@ import {ResizerStore} from "@forestry-pixi/resizer";
 export class WindowStore extends TickerForest<WindowDef> {
     handlesContainer?: Container; // Shared container for resize handles
 
+    // Pixi components - created in property definitions
+    #rootContainer: Container = new Container({
+        eventMode: "static",
+        position: {x: 0, y: 0}
+    });
+    #background: Graphics = new Graphics();
+
     constructor(config: StoreParams<WindowDef>, app: Application) {
         super(config, app);
         this.#initTitlebar();
@@ -29,7 +36,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             subclass: TitlebarStore,
         }, this.application) as unknown as TitlebarStore;
         this.#titlebarStore.application = this.application;
-
+        this.#titlebarStore.set('isDirty', true);
         const self = this;
 
         // Width subscription
@@ -55,9 +62,11 @@ export class WindowStore extends TickerForest<WindowDef> {
         console.log('windowStore:resolveComponents');
         this.#refreshRoot();
         this.#refreshBackground();
+        // Add container to parent BEFORE titlebar (titlebar needs parent to exist)
+        if (!this.#rootContainer.parent && parentContainer) {
+            parentContainer.addChild(this.#rootContainer);
+        }
         this.#refreshTitlebar();
-        // Add container to parent BEFORE creating resizer (resizer needs parent to exist)
-        parentContainer?.addChild(this.#rootContainer!);
         this.#refreshResizer(handlesContainer);
     }
 
@@ -68,75 +77,72 @@ export class WindowStore extends TickerForest<WindowDef> {
     #refreshRoot() {
         const {x, y, isDraggable} = this.value;
 
-        if (!this.#rootContainer) {
-            this.#rootContainer = new Container({
-                eventMode: "static",
-                position: {x, y}
-            });
+        // Update position
+        this.#rootContainer.position.set(x, y);
 
-            const self = this;
-
-            // Only add drag behavior if isDraggable is true
-            if (isDraggable) {
-                this.#dragStore = new DragStore({
-                    app: this.application,
-                    callbacks: {
-                        onDragStart() {
-                        },
-                        onDrag(state) {
-                            const pos = self.#dragStore?.getCurrentItemPosition();
-                            if (pos) {
-                                self.#rootContainer?.position.set(pos.x, pos.y);
-                                // Update resizer rect to match new position
-                                if (self.#resizerStore) {
-                                    self.#resizerStore.setRect(new Rectangle(
-                                        pos.x,
-                                        pos.y,
-                                        self.value.width,
-                                        self.value.height
-                                    ));
-                                }
-                            }
-                        },
-                        onDragEnd() {
-                            self.#rootContainer!.cursor = 'grab';
-                        },
-                    },
-                });
-
-                this.#rootContainer.cursor = 'grab';
-                this.#rootContainer.on('pointerdown', (event) => {
-                    event.stopPropagation();
-                    self.#rootContainer!.cursor = 'grabbing';
-
-                    // Start drag with current container position
-                    self.#dragStore!.startDragContainer(
-                        self.value.id,
-                        event, self.#rootContainer!
-                    );
-                });
-            }
-        } else {
-            this.#rootContainer.position.set(x, y);
+        // Only add drag behavior if isDraggable is true and not already initialized
+        if (isDraggable && !this.#dragStore) {
+            this.#initDrag();
         }
+    }
+
+    #initDrag() {
+        const self = this;
+        this.#dragStore = new DragStore({
+            app: this.application,
+            callbacks: {
+                onDragStart() {
+                },
+                onDrag(state) {
+                    const pos = self.#dragStore?.getCurrentItemPosition();
+                    if (pos) {
+                        self.#rootContainer.position.set(pos.x, pos.y);
+                        // Update resizer rect to match new position
+                        if (self.#resizerStore) {
+                            self.#resizerStore.setRect(new Rectangle(
+                                pos.x,
+                                pos.y,
+                                self.value.width,
+                                self.value.height
+                            ));
+                        }
+                    }
+                },
+                onDragEnd() {
+                    self.#rootContainer.cursor = 'grab';
+                },
+            },
+        });
+
+        this.#rootContainer.cursor = 'grab';
+        this.#rootContainer.on('pointerdown', (event) => {
+            event.stopPropagation();
+            self.#rootContainer.cursor = 'grabbing';
+
+            // Start drag with current container position
+            self.#dragStore!.startDragContainer(
+                self.value.id,
+                event, self.#rootContainer
+            );
+        });
     }
 
     #refreshBackground() {
         const {width, height, backgroundColor} = this.value;
 
-        if (!this.#background) {
-            this.#background = new Graphics();
-            this.#rootContainer?.addChildAt(this.#background, 0);
-        } else {
-            this.#background.clear();
+        // Add to container if not already added
+        if (!this.#background.parent) {
+            this.#rootContainer.addChildAt(this.#background, 0);
         }
 
+        // Update graphics
+        this.#background.clear();
         this.#background.rect(0, 0, width, height)
             .fill(rgbToColor(backgroundColor));
-
     }
 
     #tbKicked = false;
+
     #refreshTitlebar() {
         if (!this.#tbKicked) {
             this.#titlebarStore?.kickoff();
@@ -198,13 +204,10 @@ export class WindowStore extends TickerForest<WindowDef> {
         }
     }
 
-    #rootContainer?: Container;
-    #background?: Graphics;
-
     /**
      * Get the rootContainer container for this window (needed for z-index management)
      */
-    get rootContainer(): Container | undefined {
+    get rootContainer(): Container {
         return this.#rootContainer;
     }
 
@@ -251,12 +254,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         }
 
         // Cleanup containers
-        if (this.#rootContainer) {
-            this.#rootContainer.destroy({children: true});
-            this.#rootContainer = undefined;
-        }
-
-        this.#background = undefined;
+        this.#rootContainer.destroy({children: true});
     }
 
 }

@@ -22,6 +22,7 @@ export const TitlebarConfigSchema = z.object({
     showCloseButton: z.boolean().default(false),
     fontSize: z.number().min(0).default(14),
     textColor: RgbColorSchema.default({r: 0, g: 0, b: 0}),
+    isDirty: z.boolean().default(true)
 });
 
 export type TitlebarConfig = z.infer<typeof TitlebarConfigSchema>;

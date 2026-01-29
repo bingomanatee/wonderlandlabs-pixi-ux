@@ -113,6 +113,7 @@ export abstract class TickerForest<T> extends Forest<T> {
      * to ensure initial PixiJS operations are performed.
      */
     kickoff(): void {
+        console.log('titlebar kickoff for ', this.value);
         this.queueResolve();
     }
 
