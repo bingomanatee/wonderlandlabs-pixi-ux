@@ -15,7 +15,7 @@
     "@forestry-pixi/drag": "workspace:*",
     "@forestry-pixi/resizer": "workspace:*",
     "@forestry-pixi/ticker-forest": "workspace:*",
-    "@wonderlandlabs/forestry4": "^4.1.11",
+    "@wonderlandlabs/forestry4": "^4.1.12",
     "lodash-es": "^4.17.23",
     "zod": "^4.3.5"
   },

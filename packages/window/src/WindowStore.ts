@@ -7,6 +7,7 @@ import {DragStore} from "@forestry-pixi/drag";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
 import {ResizerStore} from "@forestry-pixi/resizer";
+import {distinctUntilChanged, map} from 'rxjs';
 
 export class WindowStore extends TickerForest<WindowDef> {
     handlesContainer?: Container; // Shared container for resize handles
@@ -40,16 +41,16 @@ export class WindowStore extends TickerForest<WindowDef> {
         const self = this;
 
         // Width subscription
-        let width = this.value?.width;
-        self.subscribe({
-            next(w) {
-                console.log(self.fullPath, 'width observer', w, 'direct = ', self.value)
-                if (w?.width === width) {
-                    return;
-                }
-                width = w?.width;
+        const [_, id] = this.fullPath;
+        self.$subject.pipe(map(() => {
+            return `${self.value?.width}-${self.value?.height}`
+        }), distinctUntilChanged()).subscribe({
+            next(size) {
+                console.log('size changed to:', size);
                 self.#titlebarStore?.set('isDirty', true);
-                self.#titlebarStore?.queueResolve()
+                self.#titlebarStore?.queueResolve();
+                self.set('isDirty', true);
+                self.queueResolve();
             }, error(e) {
                 console.log('width error', e)
             }, complete() {
@@ -176,6 +177,8 @@ export class WindowStore extends TickerForest<WindowDef> {
                 drawRect: (rect: Rectangle) => {
                     // Update window dimensions when resizing
                     self.mutate((draft) => {
+                        draft.x = rect.x;
+                        draft.y = rect.y;
                         draft.width = Math.max(rect.width, minWidth || 50);
                         draft.height = Math.max(rect.height, minHeight || 50);
                         draft.isDirty = true;
