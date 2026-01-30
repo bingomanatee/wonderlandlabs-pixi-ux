@@ -43,7 +43,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         let width = this.value?.width;
         self.subscribe({
             next(w) {
-                console.log('width observer', w, 'direct = ', self.value)
+                console.log(self.fullPath, 'width observer', w, 'direct = ', self.value)
                 if (w?.width === width) {
                     return;
                 }

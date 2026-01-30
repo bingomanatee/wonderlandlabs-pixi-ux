@@ -414,7 +414,7 @@ __metadata:
     "@forestry-pixi/resizer": "workspace:*"
     "@forestry-pixi/ticker-forest": "workspace:*"
     "@types/lodash-es": "npm:^4.17.12"
-    "@wonderlandlabs/forestry4": "npm:^4.1.10"
+    "@wonderlandlabs/forestry4": "npm:^4.1.11"
     lodash-es: "npm:^4.17.23"
     typescript: "npm:^5.5.3"
     zod: "npm:^4.3.5"
@@ -1089,6 +1089,18 @@ __metadata:
     lodash-es: "npm:^4.17.21"
     rxjs: "npm:^7.8.1"
   checksum: 5f3898f6e362e6e41a80bcf6bf0ce0bada55ce876b737f105b64af7ca23a3ab7f19372a26a399422ebe55dc3a24b86fac31f8f86a4015ebf43a258d9978ce788
+  languageName: node
+  linkType: hard
+
+"@wonderlandlabs/forestry4@npm:^4.1.11":
+  version: 4.1.11
+  resolution: "@wonderlandlabs/forestry4@npm:4.1.11"
+  dependencies:
+    "@wonderlandlabs/walrus": "npm:0.1.3"
+    immer: "npm:^10.1.1"
+    lodash-es: "npm:^4.17.21"
+    rxjs: "npm:^7.8.1"
+  checksum: b90d4dcbf8103a5f94af1275984903842cc5e7bc23e84abd67be39ae6e6bf0ed042c35a843521fe26979b03719c70c959eba8e4ed8c26daffdbdd31560b94374
   languageName: node
   linkType: hard
 
