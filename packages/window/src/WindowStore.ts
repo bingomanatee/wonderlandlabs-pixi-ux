@@ -1,5 +1,5 @@
 import {TickerForest} from "@forestry-pixi/ticker-forest";
-import type {WindowDef} from "./types";
+import type {WindowDef, RgbColor, PartialWindowStyle, WindowStyle} from "./types";
 import {Application, Container, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 import rgbToColor from "./rgbToColor";
@@ -8,9 +8,15 @@ import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
 import {ResizerStore} from "@forestry-pixi/resizer";
 import {distinctUntilChanged, map} from 'rxjs';
+import {resolveWindowStyle} from './styles';
+import {STYLE_VARIANT} from './constants';
+
+// Default color for handles and selection border (blue)
+const HANDLE_COLOR: RgbColor = {r: 0.3, g: 0.6, b: 1};
 
 export class WindowStore extends TickerForest<WindowDef> {
     handlesContainer?: Container; // Shared container for resize handles
+    customStyle?: PartialWindowStyle; // User style overrides
 
     // Pixi components - created in property definitions
     #rootContainer: Container = new Container({
@@ -24,6 +30,14 @@ export class WindowStore extends TickerForest<WindowDef> {
         position: {x: 0, y: 0}
     });
     #contentMask: Graphics = new Graphics();
+
+    /**
+     * Get the resolved style for this window (variant + custom overrides)
+     */
+    get resolvedStyle(): WindowStyle {
+        const variant = this.value.variant ?? STYLE_VARIANT.DEFAULT;
+        return resolveWindowStyle(variant, this.customStyle);
+    }
 
     constructor(config: StoreParams<WindowDef>, app: Application) {
         super(config, app);
@@ -69,6 +83,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         console.log('windowStore:resolveComponents');
         this.#refreshRoot();
         this.#refreshBackground();
+        this.#refreshSelectionBorder();
         // Add container to parent BEFORE titlebar (titlebar needs parent to exist)
         if (!this.#rootContainer.parent && parentContainer) {
             parentContainer.addChild(this.#rootContainer);
@@ -81,6 +96,14 @@ export class WindowStore extends TickerForest<WindowDef> {
     #dragStore?: DragStore;
     #titlebarStore?: TitlebarStore;
     #resizerStore?: ResizerStore;
+    #dragInitialized = false;
+
+    /**
+     * Get the titlebar store for custom configuration
+     */
+    get titlebarStore(): TitlebarStore | undefined {
+        return this.#titlebarStore;
+    }
 
     #refreshRoot() {
         const {x, y, isDraggable} = this.value;
@@ -96,6 +119,8 @@ export class WindowStore extends TickerForest<WindowDef> {
 
     #initDrag() {
         const self = this;
+        const {dragFromTitlebar} = this.value;
+
         this.#dragStore = new DragStore({
             app: this.application,
             callbacks: {
@@ -117,37 +142,183 @@ export class WindowStore extends TickerForest<WindowDef> {
                     }
                 },
                 onDragEnd() {
-                    self.#rootContainer.cursor = 'grab';
+                    // Reset cursor on the drag target
+                    if (dragFromTitlebar && self.#titlebarStore) {
+                        self.#titlebarStore.container.cursor = 'grab';
+                    } else {
+                        self.#rootContainer.cursor = 'grab';
+                    }
                 },
             },
         });
 
-        this.#rootContainer.cursor = 'grab';
-        this.#rootContainer.on('pointerdown', (event) => {
-            event.stopPropagation();
-            self.#rootContainer.cursor = 'grabbing';
+        // Attach drag to titlebar or root container based on dragFromTitlebar setting
+        if (dragFromTitlebar) {
+            // Drag will be initialized after titlebar is ready
+            // Mark as pending - will be set up in #initTitlebarDrag
+            this.#dragInitialized = false;
+        } else {
+            this.#rootContainer.cursor = 'grab';
+            this.#rootContainer.on('pointerdown', (event) => {
+                event.stopPropagation();
+                self.#rootContainer.cursor = 'grabbing';
 
-            // Start drag with current container position
+                // Start drag with current container position
+                self.#dragStore!.startDragContainer(
+                    self.value.id,
+                    event, self.#rootContainer
+                );
+            });
+            this.#dragInitialized = true;
+        }
+    }
+
+    // Click detection state
+    #clickStartTime = 0;
+    #clickStartX = 0;
+    #clickStartY = 0;
+    #clickTimeout?: ReturnType<typeof setTimeout>;
+    static readonly CLICK_MAX_TIME = 800; // ms
+    static readonly CLICK_MAX_DISTANCE = 10; // pixels
+
+    #initTitlebarDrag() {
+        if (this.#dragInitialized || !this.#dragStore || !this.#titlebarStore) {
+            return;
+        }
+
+        const self = this;
+        const titlebarContainer = this.#titlebarStore.container;
+
+        titlebarContainer.cursor = 'grab';
+        titlebarContainer.on('pointerdown', (event) => {
+            event.stopPropagation();
+            titlebarContainer.cursor = 'grabbing';
+
+            // Record click start for click detection
+            self.#clickStartTime = Date.now();
+            self.#clickStartX = event.global.x;
+            self.#clickStartY = event.global.y;
+
+            // Start drag with current container position (root container moves)
             self.#dragStore!.startDragContainer(
                 self.value.id,
                 event, self.#rootContainer
             );
+
+            // Set up click detection timeout
+            self.#clickTimeout = setTimeout(() => {
+                self.#clickTimeout = undefined;
+            }, WindowStore.CLICK_MAX_TIME);
         });
+
+        titlebarContainer.on('pointerup', (event) => {
+            self.#handlePotentialClick(event.global.x, event.global.y);
+        });
+
+        titlebarContainer.on('pointerupoutside', (event) => {
+            self.#handlePotentialClick(event.global.x, event.global.y);
+        });
+
+        this.#dragInitialized = true;
     }
 
+    #handlePotentialClick(endX: number, endY: number) {
+        // Check if this qualifies as a click
+        const elapsed = Date.now() - this.#clickStartTime;
+        const dx = Math.abs(endX - this.#clickStartX);
+        const dy = Math.abs(endY - this.#clickStartY);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (elapsed <= WindowStore.CLICK_MAX_TIME && distance <= WindowStore.CLICK_MAX_DISTANCE) {
+            // This is a click! Cancel the drag and select the window
+            this.#dragStore?.cancelDrag();
+
+            // Reset the window position to where it was before drag started
+            const {x, y} = this.value;
+            this.#rootContainer.position.set(x, y);
+
+            // Select this window
+            const rootStore = this.$root as unknown as WindowsManager;
+            if (rootStore?.setSelectedWindow) {
+                rootStore.setSelectedWindow(this.value.id);
+            }
+
+            // Reset cursor
+            if (this.#titlebarStore) {
+                this.#titlebarStore.container.cursor = 'grab';
+            }
+        }
+
+        // Clear timeout if still pending
+        if (this.#clickTimeout) {
+            clearTimeout(this.#clickTimeout);
+            this.#clickTimeout = undefined;
+        }
+    }
+
+    #backgroundClickInitialized = false;
+
     #refreshBackground() {
-        const {width, height, backgroundColor} = this.value;
+        const {width, height, backgroundColor, id} = this.value;
+        const style = this.resolvedStyle;
 
         // Add to container if not already added
         if (!this.#background.parent) {
             this.#rootContainer.addChild(this.#background);
             this.#background.zIndex = 0;  // Background layer
+            this.#background.eventMode = 'static';
         }
 
-        // Update graphics
+        // Use style background color if variant is set, otherwise use explicit backgroundColor
+        const bgColor = this.value.variant ? style.backgroundColor : backgroundColor;
+
+        // Check if window is selected
+        const rootStore = this.$root as unknown as WindowsManager;
+        const isSelected = rootStore?.isWindowSelected?.(id) ?? false;
+
+        // Update graphics - draw background with optional selection border
         this.#background.clear();
         this.#background.rect(0, 0, width, height)
-            .fill(rgbToColor(backgroundColor));
+            .fill(rgbToColor(bgColor));
+
+        // Draw selection border as part of background (not overlaying content)
+        // Uses same color as resize handles for visual consistency
+        if (isSelected) {
+            const borderColor = style?.selectedBorderColor ?? HANDLE_COLOR;
+            const borderWidth = style?.selectedBorderWidth ?? 2;
+            const color = rgbToColor(borderColor);
+
+            // Draw border inside the background rect (alignment: 1 = inside)
+            this.#background
+                .rect(0, 0, width, height)
+                .stroke({width: borderWidth, color, alignment: 1});
+        }
+
+        // Add click-to-select handler (only once)
+        if (!this.#backgroundClickInitialized) {
+            this.#initBackgroundClick();
+        }
+    }
+
+    #initBackgroundClick() {
+        if (this.#backgroundClickInitialized) {
+            return;
+        }
+
+        const self = this;
+        this.#background.on('pointerdown', (event) => {
+            // Select this window via WindowsManager
+            const rootStore = self.$root as unknown as WindowsManager;
+            if (rootStore?.setSelectedWindow) {
+                rootStore.setSelectedWindow(self.value.id);
+            }
+        });
+        this.#backgroundClickInitialized = true;
+    }
+
+    // Selection border is now drawn as part of #refreshBackground, this method is kept for compatibility
+    #refreshSelectionBorder() {
+        // No-op: selection border is now integrated into background rendering
     }
 
     #refreshContentContainer() {
@@ -169,7 +340,18 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #refreshContentMask() {
-        const {width, height} = this.value;
+        const {width, height, id} = this.value;
+
+        // Check if window is selected
+        const rootStore = this.$root as unknown as WindowsManager;
+        const isSelected = rootStore?.isWindowSelected?.(id) ?? false;
+
+        // When selected, disable mask to show content overflow
+        if (isSelected) {
+            this.#contentContainer.mask = null;
+            return;
+        }
+
         // Update content mask - simple rectangle matching window dimensions
         if (!this.#contentMask.parent) {
             this.#rootContainer.addChild(this.#contentMask);
@@ -191,10 +373,15 @@ export class WindowStore extends TickerForest<WindowDef> {
             this.#tbKicked = true;
         }
         this.#titlebarStore?.addHover();
+
+        // Initialize titlebar drag if dragFromTitlebar is enabled
+        if (this.value.dragFromTitlebar && this.#titlebarStore) {
+            this.#initTitlebarDrag();
+        }
     }
 
     #refreshResizer(handlesContainer?: Container) {
-        const {isResizeable, width, height, x, y, resizeMode, minWidth, minHeight} = this.value;
+        const {isResizeable, width, height, x, y, resizeMode, minWidth, minHeight, id} = this.value;
 
         // Remove existing resizer if isResizeable is false
         if (!isResizeable && this.#resizerStore) {
@@ -214,7 +401,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                 app: this.application,
                 mode: resizeMode || 'ONLY_CORNER',
                 size: 8,
-                color: {r: 0.3, g: 0.6, b: 1},
+                color: HANDLE_COLOR,
                 drawRect: (rect: Rectangle) => {
                     // Update window dimensions when resizing
                     self.mutate((draft) => {
@@ -245,6 +432,11 @@ export class WindowStore extends TickerForest<WindowDef> {
             if (currentRect.width !== width || currentRect.height !== height) {
                 this.#resizerStore.setRect(new Rectangle(0, 0, width, height));
             }
+
+            // Only show handles when window is selected
+            const rootStore = this.$root as unknown as WindowsManager;
+            const isSelected = rootStore?.isWindowSelected?.(id) ?? false;
+            this.#resizerStore.setVisible(isSelected);
         }
     }
 

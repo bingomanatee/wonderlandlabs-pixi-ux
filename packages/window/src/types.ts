@@ -1,10 +1,8 @@
 import {z} from 'zod';
-import {DIMENSION_TYPE, LOAD_STATUS, TITLEBAR_MODE, WINDOW_STATUS} from './constants';
+import {DIMENSION_TYPE, LOAD_STATUS, TITLEBAR_MODE, WINDOW_STATUS, STYLE_VARIANT} from './constants';
 import type {HandleMode} from '@forestry-pixi/resizer';
+import type {Application, Container} from 'pixi.js';
 
-export const LoadStateSchema = z.enum([LOAD_STATUS.START, LOAD_STATUS.LOADED, LOAD_STATUS.ERROR]);
-
-export const DimensionTypeSchema = z.enum([DIMENSION_TYPE.SIZE, DIMENSION_TYPE.SCALE]);
 // Color schema for RGB values (0..1)
 export const RgbColorSchema = z.object({
     r: z.number().min(0).max(1).default(1),
@@ -14,10 +12,50 @@ export const RgbColorSchema = z.object({
 
 export type RgbColor = z.infer<typeof RgbColorSchema>;
 
+// Window style schema - defines all styleable properties
+export const WindowStyleSchema = z.object({
+    // Window background
+    backgroundColor: RgbColorSchema,
+
+    // Titlebar colors
+    titlebarBackgroundColor: RgbColorSchema,
+    titlebarTextColor: RgbColorSchema,
+
+    // Border colors
+    borderColor: RgbColorSchema.optional(),
+    borderWidth: z.number().min(0).default(0),
+
+    // Selection state
+    selectedBorderColor: RgbColorSchema,
+    selectedBorderWidth: z.number().min(0).default(2),
+
+    // Hover state (optional)
+    hoverBorderColor: RgbColorSchema.optional(),
+    hoverBorderWidth: z.number().min(0).optional(),
+});
+
+export type WindowStyle = z.infer<typeof WindowStyleSchema>;
+
+// Partial style for user overrides
+export type PartialWindowStyle = Partial<WindowStyle>;
+
+export const LoadStateSchema = z.enum([LOAD_STATUS.START, LOAD_STATUS.LOADED, LOAD_STATUS.ERROR]);
+
+export const DimensionTypeSchema = z.enum([DIMENSION_TYPE.SIZE, DIMENSION_TYPE.SCALE]);
+
 export const PointSchema = z.object({
     x: z.number().default(0),
     y: z.number().default(0),
 });
+
+// Icon configuration for titlebar
+export const TitlebarIconSchema = z.object({
+    url: z.string(),
+    width: z.number().min(0).default(16),
+    height: z.number().min(0).default(16),
+});
+
+export type TitlebarIcon = z.infer<typeof TitlebarIconSchema>;
 
 // Titlebar configuration
 export const TitlebarConfigSchema = z.object({
@@ -30,10 +68,18 @@ export const TitlebarConfigSchema = z.object({
     showCloseButton: z.boolean().default(false),
     fontSize: z.number().min(0).default(14),
     textColor: RgbColorSchema.default({r: 0, g: 0, b: 0}),
-    isDirty: z.boolean().default(true)
+    isDirty: z.boolean().default(true),
+    icon: TitlebarIconSchema.optional(),
 });
 
 export type TitlebarConfig = z.infer<typeof TitlebarConfigSchema>;
+
+// Type for custom titlebar render function (not in schema since functions can't be serialized)
+export type RenderTitlebarFn = (
+    titlebarStore: unknown,
+    windowData: WindowDef,
+    contentContainer: Container
+) => void;
 
 // Window status schema
 export const WindowStatusSchema = z.enum([
@@ -51,6 +97,17 @@ export const RectSchema = z.object({
     width: z.number().min(0).default(200),
     height: z.number().min(0).default(200),
 });
+
+// Style variant schema
+export const StyleVariantSchema = z.enum([
+    STYLE_VARIANT.DEFAULT,
+    STYLE_VARIANT.LIGHT_GRAYSCALE,
+    STYLE_VARIANT.INVERTED,
+    STYLE_VARIANT.BLUE,
+    STYLE_VARIANT.ALERT_INFO,
+    STYLE_VARIANT.ALERT_DANGER,
+    STYLE_VARIANT.ALERT_WARNING,
+]).default(STYLE_VARIANT.DEFAULT);
 
 // Window definition schema
 export const WindowDefSchema = z.object({
@@ -72,14 +129,31 @@ export const WindowDefSchema = z.object({
     }),
     isResizeable: z.boolean().default(false),
     isDraggable: z.boolean().default(false),
+    dragFromTitlebar: z.boolean().default(false), // If true, drag only from titlebar, not entire window
     resizeMode: z.string().optional() as z.ZodType<HandleMode | undefined>,
     status: WindowStatusSchema.default(WINDOW_STATUS.CLEAN),
     zIndex: z.number().default(0),
     isDirty: z.boolean().default(true),
-    contentClickable: z.boolean().default(false)
+    contentClickable: z.boolean().default(false),
+    // Style system
+    variant: StyleVariantSchema,
 }).merge(RectSchema)
 
 export type WindowDef = z.infer<typeof WindowDefSchema>;
+
+// Type for WindowStore class constructor
+export type WindowStoreClass<T extends WindowDef = WindowDef> = new (
+    config: any,
+    app: Application
+) => any;
+
+// Input type for addWindow - allows partial titlebar config and custom style
+export type WindowDefInput = Omit<Partial<WindowDef>, 'titlebar'> & {
+    id: string;
+    titlebar?: Partial<TitlebarConfig>;
+    customStyle?: PartialWindowStyle; // User style overrides
+    storeClass?: WindowStoreClass; // Custom WindowStore subclass
+};
 
 // WindowsManager state schema
 export const WindowStoreSchema = z.object({

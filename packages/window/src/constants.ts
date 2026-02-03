@@ -28,3 +28,15 @@ export const DIMENSION_TYPE = {
 } as const;
 
 export type DimensionType = (typeof DIMENSION_TYPE)[keyof typeof DIMENSION_TYPE];
+
+export const STYLE_VARIANT = {
+  DEFAULT: 'default',
+  LIGHT_GRAYSCALE: 'light-grayscale',
+  INVERTED: 'inverted',
+  BLUE: 'blue',
+  ALERT_INFO: 'alert-info',
+  ALERT_DANGER: 'alert-danger',
+  ALERT_WARNING: 'alert-warning',
+} as const;
+
+export type StyleVariant = (typeof STYLE_VARIANT)[keyof typeof STYLE_VARIANT];

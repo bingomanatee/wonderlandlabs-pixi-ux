@@ -447,4 +447,20 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         });
         this.queueResolve();
     }
+
+    /**
+     * Show or hide all resize handles
+     */
+    public setVisible(visible: boolean) {
+        this.handles.forEach((handle) => {
+            handle.visible = visible;
+        });
+    }
+
+    /**
+     * Get the handle color
+     */
+    public getColor(): Color {
+        return this.color;
+    }
 }

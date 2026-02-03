@@ -1,6 +1,6 @@
 import {Application, Container} from 'pixi.js';
 import {Forest} from "@wonderlandlabs/forestry4";
-import {WindowDef, WindowDefSchema, WindowStoreValue, ZIndexData} from './types';
+import {WindowDef, WindowDefInput, WindowDefSchema, WindowStoreClass, WindowStoreValue, ZIndexData, PartialWindowStyle} from './types';
 import {WindowStore} from "./WindowStore";
 
 export interface WindowsManagerConfig {
@@ -81,8 +81,16 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         }
     }
 
-    addWindow(key: string, value: Partial<WindowDef>) {
-        this.set(['windows', key], WindowDefSchema.parse({id: key, ...value}));
+    addWindow(key: string, value: Omit<WindowDefInput, 'id'>) {
+        // Extract customStyle and storeClass before parsing (they're not part of the schema)
+        const {customStyle, storeClass, ...windowDef} = value;
+        if (customStyle) {
+            this.#customStyles.set(key, customStyle);
+        }
+        if (storeClass) {
+            this.#storeClasses.set(key, storeClass);
+        }
+        this.set(['windows', key], WindowDefSchema.parse({...windowDef, id: key}));
     }
 
     /**
@@ -95,15 +103,25 @@ export class WindowsManager extends Forest<WindowStoreValue> {
             return this.#windowsBranches.get(key)!;
         }
 
+        // Use custom store class if provided, otherwise default to WindowStore
+        const StoreClass = this.#storeClasses.get(key) || WindowStore;
+
         // @ts-ignore
         const branch = this.$branch<WindowDef, WindowStore>(['windows', key], {
-            subclass: WindowStore,
+            subclass: StoreClass,
         }, this.app) as unknown as WindowStore;
 
         branch.set('isDirty', true);
         this.#windowsBranches.set(key, branch);
         branch.application = this.app;
         branch.handlesContainer = this.handlesContainer; // Pass shared handles container
+
+        // Pass custom style if available
+        const customStyle = this.#customStyles.get(key);
+        if (customStyle) {
+            branch.customStyle = customStyle;
+        }
+
         branch.kickoff();
 
         // Add content container to content map
@@ -114,6 +132,8 @@ export class WindowsManager extends Forest<WindowStoreValue> {
 
     #windowsBranches = new Map<string, WindowStore>();
     #contentMap = new Map<string, Container>();
+    #customStyles = new Map<string, PartialWindowStyle>();
+    #storeClasses = new Map<string, WindowStoreClass>();
 
     windowBranch(id: string) {
         return this.#windowsBranches.get(id);
@@ -189,6 +209,17 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     }
 
     /**
+     * Refresh window for selection border update
+     */
+    #refreshWindowSelection(id: string) {
+        const windowStore = this.#windowsBranches.get(id);
+        if (windowStore) {
+            windowStore.set('isDirty', true);
+            windowStore.queueResolve();
+        }
+    }
+
+    /**
      * Select a window (adds to selection set)
      */
     selectWindow(id: string) {
@@ -196,6 +227,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
             this.mutate((draft) => {
                 draft.selected.add(id);
             });
+            this.#refreshWindowSelection(id);
         }
     }
 
@@ -206,6 +238,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         this.mutate((draft) => {
             draft.selected.delete(id);
         });
+        this.#refreshWindowSelection(id);
     }
 
     /**
@@ -213,10 +246,17 @@ export class WindowsManager extends Forest<WindowStoreValue> {
      */
     setSelectedWindow(id: string) {
         if (this.value.windows.has(id)) {
+            // Get previously selected windows to refresh them
+            const previouslySelected = Array.from(this.value.selected);
+
             this.mutate((draft) => {
                 draft.selected.clear();
                 draft.selected.add(id);
             });
+
+            // Refresh all affected windows
+            previouslySelected.forEach(prevId => this.#refreshWindowSelection(prevId));
+            this.#refreshWindowSelection(id);
         }
     }
 
@@ -224,6 +264,9 @@ export class WindowsManager extends Forest<WindowStoreValue> {
      * Set the selection to multiple windows (clears other selections)
      */
     setSelectedWindows(ids: string[]) {
+        // Get previously selected windows to refresh them
+        const previouslySelected = Array.from(this.value.selected);
+
         this.mutate((draft) => {
             draft.selected.clear();
             ids.forEach(id => {
@@ -232,15 +275,21 @@ export class WindowsManager extends Forest<WindowStoreValue> {
                 }
             });
         });
+
+        // Refresh all affected windows
+        const allAffected = new Set([...previouslySelected, ...ids]);
+        allAffected.forEach(id => this.#refreshWindowSelection(id));
     }
 
     /**
      * Clear all selections
      */
     clearSelection() {
+        const previouslySelected = Array.from(this.value.selected);
         this.mutate((draft) => {
             draft.selected.clear();
         });
+        previouslySelected.forEach(id => this.#refreshWindowSelection(id));
     }
 
     /**
@@ -262,6 +311,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
      */
     toggleWindowSelection(id: string) {
         if (this.value.windows.has(id)) {
+            const wasSelected = this.value.selected.has(id);
             this.mutate((draft) => {
                 if (draft.selected.has(id)) {
                     draft.selected.delete(id);
@@ -269,6 +319,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
                     draft.selected.add(id);
                 }
             });
+            this.#refreshWindowSelection(id);
         }
     }
 }

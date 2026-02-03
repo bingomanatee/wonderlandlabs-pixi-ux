@@ -28,7 +28,6 @@ const meta: Meta<WindowArgs> = {
             wm = new WindowsManager({container, handleContainer, app});
 
             wm.addWindow('alpha', {
-                id: 'alpha',
                 x: 10, y: 20,
                 width: 500,
                 height: 300,
@@ -49,7 +48,6 @@ const meta: Meta<WindowArgs> = {
             })
 
             wm.addWindow('beta', {
-                id: 'beta',
                 x: 520,
                 y: 20,
                 width: 400,
@@ -71,7 +69,6 @@ const meta: Meta<WindowArgs> = {
             })
 
             wm.addWindow('gamma', {
-                id: 'gamma',
                 x: 200,
                 y: 350,
                 width: 300,
