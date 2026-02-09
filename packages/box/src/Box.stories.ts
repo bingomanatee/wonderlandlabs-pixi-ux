@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/html';
 import { Application, Graphics } from 'pixi.js';
-import { BoxStore } from './BoxStore';
-import type { HorizontalAlign, VerticalAlign } from './types';
+import { BoxLeafStore } from './BoxLeafStore';
+import type { Align } from './types';
 
 interface BoxArgs {
     padding: number;
-    alignX: HorizontalAlign;
-    alignY: VerticalAlign;
+    alignX: Align;
+    alignY: Align;
     boxWidth: number;
     boxHeight: number;
     contentWidth: number;
@@ -14,7 +14,7 @@ interface BoxArgs {
 }
 
 const meta: Meta<BoxArgs> = {
-    title: 'Box/BoxStore',
+    title: 'Box/BoxLeafStore',
     argTypes: {
         padding: {
             control: { type: 'range', min: 0, max: 50, step: 5 },
@@ -22,12 +22,12 @@ const meta: Meta<BoxArgs> = {
         },
         alignX: {
             control: { type: 'select' },
-            options: ['left', 'center', 'right'],
+            options: ['start', 'center', 'end'],
             description: 'Horizontal alignment of content',
         },
         alignY: {
             control: { type: 'select' },
-            options: ['top', 'center', 'bottom'],
+            options: ['start', 'center', 'end'],
             description: 'Vertical alignment of content',
         },
         boxWidth: {
@@ -68,7 +68,7 @@ export const AlignmentDemo: Story = {
         wrapper.style.height = '600px';
         wrapper.style.position = 'relative';
 
-        let boxStore: BoxStore | undefined;
+        let boxStore: BoxLeafStore | undefined;
 
         const app = new Application();
         app.init({
@@ -79,59 +79,41 @@ export const AlignmentDemo: Story = {
         }).then(() => {
             wrapper.appendChild(app.canvas);
 
-            // Create the box store
-            boxStore = new BoxStore({
+            // Create the box store with new config format
+            boxStore = new BoxLeafStore({
                 id: 'demo-box',
-                forestryProps: {
-                    rect: {
-                        x: 250,
-                        y: 200,
-                        width: args.boxWidth,
-                        height: args.boxHeight,
-                    },
-                    align: {
-                        horizontal: args.alignX,
-                        vertical: args.alignY,
-                    },
-                    padding: {
-                        top: args.padding,
-                        right: args.padding,
-                        bottom: args.padding,
-                        left: args.padding,
-                    },
+                x: 250,
+                y: 200,
+                xDef: { size: args.boxWidth, align: args.alignX, sizeMode: 'px' },
+                yDef: { size: args.boxHeight, align: args.alignY, sizeMode: 'px' },
+                padding: {
+                    top: args.padding,
+                    right: args.padding,
+                    bottom: args.padding,
+                    left: args.padding,
                 },
-                boxProps: {
-                    style: {
-                        fill: {
-                            color: { r: 0.2, g: 0.3, b: 0.5 },
-                            alpha: 1,
-                        },
-                        stroke: {
-                            color: { r: 0.4, g: 0.5, b: 0.8 },
-                            alpha: 1,
-                            width: 2,
-                        },
-                        borderRadius: 8,
+                style: {
+                    fill: {
+                        color: { r: 0.2, g: 0.3, b: 0.5 },
+                        alpha: 1,
                     },
-                    render: (store: BoxStore) => {
-                        // Render a smaller content box inside
-                        const contentBox = store.contentContainer.getChildByLabel('content-box') as Graphics;
-                        if (contentBox) {
-                            contentBox.clear();
-                            contentBox.roundRect(0, 0, args.contentWidth, args.contentHeight, 4);
-                            contentBox.fill({ color: 0xff6b6b, alpha: 0.9 });
-                            contentBox.stroke({ color: 0xffffff, alpha: 0.5, width: 1 });
-                        }
+                    stroke: {
+                        color: { r: 0.4, g: 0.5, b: 0.8 },
+                        alpha: 1,
+                        width: 2,
                     },
+                    borderRadius: 8,
                 },
             }, app);
 
-            // Add content box to the content container
+            // Create content graphics
             const contentBox = new Graphics({ label: 'content-box' });
             contentBox.roundRect(0, 0, args.contentWidth, args.contentHeight, 4);
             contentBox.fill({ color: 0xff6b6b, alpha: 0.9 });
             contentBox.stroke({ color: 0xffffff, alpha: 0.5, width: 1 });
-            boxStore.contentContainer.addChild(contentBox);
+
+            // Set content on the leaf store
+            boxStore.setContent(contentBox);
 
             // Add box to stage
             app.stage.addChild(boxStore.container);
@@ -143,4 +125,3 @@ export const AlignmentDemo: Story = {
         return wrapper;
     },
 };
-

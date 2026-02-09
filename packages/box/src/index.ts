@@ -1,9 +1,19 @@
 export { BoxStore } from './BoxStore';
+export { BoxLeafStore } from './BoxLeafStore';
+export { BoxListStore } from './BoxListStore';
+export { BoxTextStore, type BoxTextConfig } from './BoxTextStore';
 export {
     // Schemas
+    SizeModeSchema,
+    AlignSchema,
+    AxisDefSchema,
+    DirectionSchema,
+    BaseBoxConfigSchema,
+    BoxLeafConfigSchema,
+    BoxListConfigSchema,
+    // Legacy Schemas (for backward compatibility)
     HorizontalAlignSchema,
     VerticalAlignSchema,
-    AlignSchema,
     RectSchema,
     PaddingSchema,
     RgbColorSchema,
@@ -12,9 +22,19 @@ export {
     BoxStyleSchema,
     ForestryPropsSchema,
     // Types
+    type SizeMode,
+    type Align,
+    type AxisDef,
+    type Direction,
+    type BaseBoxConfig,
+    type BoxLeafConfig,
+    type BoxListConfig,
+    type BoxConfig,
+    type BoxState,
+    type BoxListState,
+    // Legacy Types (for backward compatibility)
     type HorizontalAlign,
     type VerticalAlign,
-    type Align,
     type Rect,
     type Padding,
     type RgbColor,
@@ -23,11 +43,12 @@ export {
     type BoxStyle,
     type BoxProps,
     type ForestryProps,
-    type BoxState,
-    type BoxConfig,
+    type LegacyBoxConfig,
     type ContentArea,
     // Helpers
     uniformPadding,
     symmetricPadding,
+    resolveMeasurement,
+    resolveSizeValue,
 } from './types';
 

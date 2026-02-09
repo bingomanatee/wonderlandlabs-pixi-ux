@@ -1,104 +1,161 @@
 import { TickerForest } from '@forestry-pixi/ticker-forest';
-import { Application, Container, Graphics } from 'pixi.js';
-import type { BoxState, BoxConfig, BoxStyle, BoxProps, RgbColor, ContentArea, Rect, Padding } from './types';
+import { Application, Container, Graphics, ContainerOptions } from 'pixi.js';
+import type {
+    BoxState, BaseBoxConfig, BoxStyle, BoxProps, RgbColor, ContentArea, Padding, AxisDef, AxisDefInput
+} from './types';
+import { normalizeAxisDef } from './types';
 
 /**
- * BoxStore manages a rectangular box with:
- * - Container hierarchy: container → background + contentContainer
- * - contentContainer pivot changes based on alignment
- * - maskGraphics clips content to box bounds (optional via noMask)
- * - Custom render function and pointer event handling
+ * Default axis definition (input format)
+ */
+const DEFAULT_AXIS_DEF: AxisDefInput = { size: 0, align: 'start', sizeMode: 'px' };
+
+/**
+ * BoxStore - Base class for all box types
  *
- * Constructor args:
- * - forestryProps: { rect, align, noMask } - state managed by Forestry
- * - boxProps: { style, render, onPointerDown } - non-state config
- * - rootProps: ContainerOptions for the root container
+ * Manages a rectangular box with:
+ * - Container hierarchy: container → background + contentContainer
+ * - xDef/yDef: axis definitions (size, align, sizeMode)
+ * - x, y: position (absolute for root, set by parent for children)
+ * - width, height: derived from xDef.size/yDef.size
+ *
+ * Subclasses:
+ * - BoxLeafStore: contains a single Graphics/Sprite/Text
+ * - BoxListStore: contains child BoxStores with direction and gap
  */
 export class BoxStore extends TickerForest<BoxState> {
     readonly id: string;
 
-    #container: Container;
-    #background: Graphics = new Graphics();
-    #contentContainer: Container = new Container();
+    protected _container: Container;
+    protected _background: Graphics = new Graphics();
+    protected _contentContainer: Container = new Container();
 
     /** Public mask graphics - by default a rect the same size as the box */
     maskGraphics: Graphics = new Graphics();
 
     // Non-state props
-    #boxProps: BoxProps;
+    protected _boxProps: BoxProps;
 
-    constructor(config: BoxConfig, app: Application) {
-        const { id, forestryProps, boxProps, rootProps } = config;
+    // Parent reference (for fill mode and % calculations)
+    protected _parent: BoxStore | null = null;
 
-        super({
-            value: {
-                ...forestryProps,
-                align: forestryProps.align ?? { horizontal: 'left', vertical: 'top' },
-                isDirty: true,
-            }
-        }, app);
+    constructor(
+        config: BaseBoxConfig,
+        app: Application,
+        boxProps?: BoxProps,
+        rootProps?: ContainerOptions
+    ) {
+        // Merge config axis defs with defaults and normalize (fill -> percentFree: 1)
+        const xDef: AxisDef = normalizeAxisDef({
+            size: config.xDef?.size ?? DEFAULT_AXIS_DEF.size,
+            align: config.xDef?.align ?? DEFAULT_AXIS_DEF.align,
+            sizeMode: config.xDef?.sizeMode ?? DEFAULT_AXIS_DEF.sizeMode,
+        });
+        const yDef: AxisDef = normalizeAxisDef({
+            size: config.yDef?.size ?? DEFAULT_AXIS_DEF.size,
+            align: config.yDef?.align ?? DEFAULT_AXIS_DEF.align,
+            sizeMode: config.yDef?.sizeMode ?? DEFAULT_AXIS_DEF.sizeMode,
+        });
 
-        this.id = id;
-        this.#boxProps = boxProps ?? {};
+        // Merge padding with defaults
+        const padding: Padding = {
+            top: config.padding?.top ?? 0,
+            right: config.padding?.right ?? 0,
+            bottom: config.padding?.bottom ?? 0,
+            left: config.padding?.left ?? 0,
+        };
+
+        const initialState: BoxState = {
+            id: config.id,
+            x: config.x ?? 0,
+            y: config.y ?? 0,
+            width: xDef.size,
+            height: yDef.size,
+            xDef,
+            yDef,
+            padding,
+            noMask: config.noMask ?? false,
+            isDirty: true,
+        };
+
+        super({ value: initialState }, app);
+
+        this.id = config.id;
+        this._boxProps = boxProps ?? { style: config.style };
 
         // Create root container with optional props
-        this.#container = new Container({
-            label: `box-${id}`,
+        this._container = new Container({
+            label: `box-${config.id}`,
             ...rootProps,
         });
 
-        // Set position from rect
-        this.#container.position.set(forestryProps.rect.x, forestryProps.rect.y);
+        // Set position
+        this._container.position.set(initialState.x, initialState.y);
 
         // Build container hierarchy
-        this.#container.addChild(this.#background);
-        this.#container.addChild(this.#contentContainer);
-        this.#container.addChild(this.maskGraphics);
+        this._container.addChild(this._background);
+        this._container.addChild(this._contentContainer);
+        this._container.addChild(this.maskGraphics);
 
         // Setup pointer event if provided
-        if (this.#boxProps.onPointerDown) {
-            this.#container.eventMode = 'static';
-            this.#container.on('pointerdown', (event) => {
-                this.#boxProps.onPointerDown?.(event, this);
+        if (this._boxProps.onPointerDown) {
+            this._container.eventMode = 'static';
+            this._container.on('pointerdown', (event) => {
+                this._boxProps.onPointerDown?.(event, this);
             });
         }
 
         // Initial mask setup (will be updated in resolve)
-        this.#updateMask();
+        this._updateMask();
     }
 
     /**
      * Get the root container for this box
      */
     get container(): Container {
-        return this.#container;
+        return this._container;
     }
 
     /**
      * Get the content container where child elements should be added
      */
     get contentContainer(): Container {
-        return this.#contentContainer;
+        return this._contentContainer;
     }
 
     /**
-     * Get the current rect from state
+     * Get the current rect (x, y, width, height) from state
      */
-    get rect(): Rect {
-        return this.value.rect;
+    get rect(): { x: number; y: number; width: number; height: number } {
+        const { x, y, width, height } = this.value;
+        return { x, y, width, height };
+    }
+
+    /**
+     * Get xDef (axis definition for x)
+     */
+    get xDef(): AxisDef {
+        return this.value.xDef;
+    }
+
+    /**
+     * Get yDef (axis definition for y)
+     */
+    get yDef(): AxisDef {
+        return this.value.yDef;
     }
 
     /**
      * Get the computed content area (after padding)
      */
     getContentArea(): ContentArea {
-        const { rect, padding } = this.value;
+        const { width, height, padding } = this.value;
         const p = padding ?? { top: 0, right: 0, bottom: 0, left: 0 };
         return {
             x: p.left,
             y: p.top,
-            width: rect.width - p.left - p.right,
-            height: rect.height - p.top - p.bottom,
+            width: width - p.left - p.right,
+            height: height - p.top - p.bottom,
         };
     }
 
@@ -114,21 +171,50 @@ export class BoxStore extends TickerForest<BoxState> {
     }
 
     /**
-     * Update box rect (position and size)
+     * Update box position (called by parent for layout)
      */
-    setRect(rect: Partial<Rect>): void {
+    setPosition(x: number, y: number): void {
         this.mutate(draft => {
-            draft.rect = { ...draft.rect, ...rect };
+            draft.x = x;
+            draft.y = y;
             draft.isDirty = true;
         });
         this.queueResolve();
     }
 
     /**
+     * Update box size
+     */
+    setSize(width: number, height: number): void {
+        this.mutate(draft => {
+            draft.width = width;
+            draft.height = height;
+            draft.xDef = { ...draft.xDef, size: width };
+            draft.yDef = { ...draft.yDef, size: height };
+            draft.isDirty = true;
+        });
+        this.queueResolve();
+    }
+
+    /**
+     * Get parent box
+     */
+    get parent(): BoxStore | null {
+        return this._parent;
+    }
+
+    /**
+     * Set parent (called by BoxListStore when adding children)
+     */
+    setParent(parent: BoxStore | null): void {
+        this._parent = parent;
+    }
+
+    /**
      * Update style (non-state, triggers re-render)
      */
     setStyle(style: Partial<BoxStyle>): void {
-        this.#boxProps.style = { ...this.#boxProps.style, ...style };
+        this._boxProps.style = { ...this._boxProps.style, ...style };
         this.markDirty();
     }
 
@@ -136,95 +222,66 @@ export class BoxStore extends TickerForest<BoxState> {
      * Get current style
      */
     get style(): BoxStyle | undefined {
-        return this.#boxProps.style;
+        return this._boxProps.style;
     }
 
-    #rgbToNumber(rgb: RgbColor): number {
+    protected _rgbToNumber(rgb: RgbColor): number {
         const r = Math.round(rgb.r * 255);
         const g = Math.round(rgb.g * 255);
         const b = Math.round(rgb.b * 255);
         return (r << 16) | (g << 8) | b;
     }
 
-    #renderBackground(): void {
-        const { rect } = this.value;
-        const style = this.#boxProps.style;
+    protected _renderBackground(): void {
+        const { width, height } = this.value;
+        const style = this._boxProps.style;
 
-        this.#background.clear();
+        this._background.clear();
 
         if (!style) return;
 
         const radius = style.borderRadius ?? 0;
 
         if (style.fill?.color) {
-            const color = this.#rgbToNumber(style.fill.color);
+            const color = this._rgbToNumber(style.fill.color);
             const alpha = style.fill.alpha ?? 1;
-            this.#background.roundRect(0, 0, rect.width, rect.height, radius);
-            this.#background.fill({ color, alpha });
+            this._background.roundRect(0, 0, width, height, radius);
+            this._background.fill({ color, alpha });
         }
 
         if (style.stroke?.color && style.stroke.width) {
-            const color = this.#rgbToNumber(style.stroke.color);
+            const color = this._rgbToNumber(style.stroke.color);
             const alpha = style.stroke.alpha ?? 1;
             const strokeWidth = style.stroke.width;
-            this.#background.roundRect(0, 0, rect.width, rect.height, radius);
-            this.#background.stroke({ color, alpha, width: strokeWidth });
+            this._background.roundRect(0, 0, width, height, radius);
+            this._background.stroke({ color, alpha, width: strokeWidth });
         }
     }
 
-    #updateMask(): void {
-        const { rect, noMask } = this.value;
+    protected _updateMask(): void {
+        const { width, height, noMask } = this.value;
 
         this.maskGraphics.clear();
 
         if (noMask) {
-            this.#contentContainer.mask = null;
+            this._contentContainer.mask = null;
             return;
         }
 
         // Draw mask rect same size as box
-        this.maskGraphics.rect(0, 0, rect.width, rect.height);
+        this.maskGraphics.rect(0, 0, width, height);
         this.maskGraphics.fill(0xffffff);
 
-        this.#contentContainer.mask = this.maskGraphics;
+        this._contentContainer.mask = this.maskGraphics;
     }
 
-    #updateContentPivot(): void {
-        const { rect, align, padding } = this.value;
-        const horizontal = align?.horizontal ?? 'left';
-        const vertical = align?.vertical ?? 'top';
+    /**
+     * Position content container at padding offset
+     */
+    protected _updateContentPosition(): void {
+        const { padding } = this.value;
         const p = padding ?? { top: 0, right: 0, bottom: 0, left: 0 };
-
-        // Content area after padding
-        const contentArea = this.getContentArea();
-
-        // Calculate pivot based on alignment
-        // Pivot determines the origin point of the content container
-        let pivotX = 0;
-        let pivotY = 0;
-
-        // Position content container based on alignment within padded area
-        let posX = p.left;
-        let posY = p.top;
-
-        if (horizontal === 'center') {
-            posX = p.left + contentArea.width / 2;
-            pivotX = 0; // Content's left edge aligns to center
-        } else if (horizontal === 'right') {
-            posX = p.left + contentArea.width;
-            pivotX = 0; // Content's left edge aligns to right
-        }
-
-        if (vertical === 'center') {
-            posY = p.top + contentArea.height / 2;
-            pivotY = 0;
-        } else if (vertical === 'bottom') {
-            posY = p.top + contentArea.height;
-            pivotY = 0;
-        }
-
-        this.#contentContainer.pivot.set(pivotX, pivotY);
-        this.#contentContainer.position.set(posX, posY);
+        this._contentContainer.position.set(p.left, p.top);
     }
 
     protected isDirty(): boolean {
@@ -244,27 +301,27 @@ export class BoxStore extends TickerForest<BoxState> {
     }
 
     protected resolve(): void {
-        const { rect } = this.value;
+        const { x, y } = this.value;
 
         // Update container position
-        this.#container.position.set(rect.x, rect.y);
+        this._container.position.set(x, y);
 
         // Render background
-        this.#renderBackground();
+        this._renderBackground();
 
         // Update mask
-        this.#updateMask();
+        this._updateMask();
 
-        // Update content pivot/position based on alignment
-        this.#updateContentPivot();
+        // Update content position based on padding
+        this._updateContentPosition();
 
         // Call custom render if provided
-        this.#boxProps.render?.(this);
+        this._boxProps.render?.(this);
     }
 
     cleanup(): void {
         super.cleanup();
-        this.#container.destroy({ children: true });
+        this._container.destroy({ children: true });
     }
 }
 
