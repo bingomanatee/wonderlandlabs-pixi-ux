@@ -47,12 +47,13 @@ export class ButtonStore extends BoxLeafStore {
             }
         }
 
-        // Initialize with hug sizing - button sizes to content
-        // Default 6px gap between buttons when used in a list
+        // ButtonStore computes its own size in resolve(), so use px mode
+        // to avoid BoxLeafStore hug logic overriding calculated dimensions.
+        // Default 6px gap between buttons when used in a list.
         super({
             id: config.id,
-            xDef: { sizeMode: 'hug', gap: 6 },
-            yDef: { sizeMode: 'hug', gap: 6 },
+            xDef: { sizeMode: 'px', gap: 6 },
+            yDef: { sizeMode: 'px', gap: 6 },
             noMask: true,  // Buttons don't need masking
         }, app, undefined, rootProps);
 
@@ -201,6 +202,8 @@ export class ButtonStore extends BoxLeafStore {
             modePrefix = ['text'];
         } else if (this.#mode === 'inline') {
             modePrefix = ['inline'];
+        } else if (this.#mode === 'iconVertical') {
+            modePrefix = ['iconVertical'];
         }
 
         // Try variant-specific style first
@@ -641,4 +644,3 @@ export class ButtonStore extends BoxLeafStore {
         return { width, height };
     }
 }
-

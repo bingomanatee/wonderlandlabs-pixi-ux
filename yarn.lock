@@ -355,6 +355,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@forestry-pixi/button@workspace:packages/button":
+  version: 0.0.0-use.local
+  resolution: "@forestry-pixi/button@workspace:packages/button"
+  dependencies:
+    "@forestry-pixi/box": "workspace:*"
+    "@forestry-pixi/style-tree": "workspace:*"
+    "@forestry-pixi/ticker-forest": "workspace:*"
+    "@wonderlandlabs/forestry4": "npm:^4.1.12"
+    typescript: "npm:^5.5.3"
+    vitest: "npm:^4.0.18"
+    zod: "npm:^4.3.5"
+  peerDependencies:
+    pixi.js: ^8.0.0
+  languageName: unknown
+  linkType: soft
+
 "@forestry-pixi/drag@workspace:*, @forestry-pixi/drag@workspace:packages/drag":
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/drag@workspace:packages/drag"
@@ -424,7 +440,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@forestry-pixi/style-tree@workspace:^, @forestry-pixi/style-tree@workspace:packages/style-tree":
+"@forestry-pixi/style-tree@workspace:*, @forestry-pixi/style-tree@workspace:^, @forestry-pixi/style-tree@workspace:packages/style-tree":
   version: 0.0.0-use.local
   resolution: "@forestry-pixi/style-tree@workspace:packages/style-tree"
   dependencies:
