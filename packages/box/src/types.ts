@@ -55,8 +55,6 @@ export const AxisDefInputSchema = z.object({
     max: z.number().optional(),            // maximum size constraint
     align: AlignSchema.default('start'),   // how content aligns within this axis
     sizeMode: SizeModeInputSchema.default('px'),
-    gap: z.number().optional(),            // gap size in layout direction
-    gapMode: GapModeSchema.optional(),     // where gaps are applied (default: 'between')
 });
 export type AxisDefInput = z.input<typeof AxisDefInputSchema>;
 
@@ -76,8 +74,6 @@ export const AxisDefSchema = z.object({
     max: z.number().optional(),
     align: AlignSchema.default('start'),
     sizeMode: SizeModeSchema.default('px'),
-    gap: z.number().optional(),            // gap size in layout direction
-    gapMode: GapModeSchema.optional(),     // where gaps are applied (default: 'between')
 });
 export type AxisDef = z.infer<typeof AxisDefSchema>;
 
@@ -388,4 +384,3 @@ export function resolveSizeValue(size: SizeValue | undefined, parentSize: number
 
     return resolved;
 }
-

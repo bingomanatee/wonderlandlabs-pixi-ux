@@ -1,0 +1,646 @@
+import { BoxLeafStore } from '@forestry-pixi/box';
+import type { StyleTree } from '@forestry-pixi/style-tree';
+import { Application, Graphics, Sprite, Text, BitmapText, ContainerOptions, Container } from 'pixi.js';
+import type { ButtonConfig, ButtonMode, RgbColor } from './types';
+import { rgbToHex } from './types';
+
+/**
+ * ButtonStore - A button component built on the box system with StyleTree styling
+ *
+ * Modes:
+ * - icon: sprite/graphic centered, optional label below
+ * - text: text only, centered
+ * - inline: icon + text side-by-side horizontally
+ *
+ * States: normal, hover, disabled
+ * Styling via StyleTree with noun paths like:
+ *   button.fill.color, button.stroke.width, button.icon.size.x, etc.
+ */
+export class ButtonStore extends BoxLeafStore {
+    #styleTree: StyleTree;
+    #config: ButtonConfig;
+    #mode: ButtonMode;
+    #isHovered: boolean = false;
+    #isDisabled: boolean;
+
+    // Visual elements
+    #border: Graphics;
+    #sprite?: Sprite;
+    #icon?: Container;
+    #rightSprite?: Sprite;
+    #rightIcon?: Container;
+    #labelText?: Text | BitmapText;
+
+    constructor(
+        config: ButtonConfig,
+        styleTree: StyleTree,
+        app: Application,
+        rootProps?: ContainerOptions
+    ) {
+        // Determine mode: explicit or inferred
+        let mode: ButtonMode = config.mode ?? 'icon';
+        if (!config.mode) {
+            if (!config.sprite && !config.icon && config.label) {
+                mode = 'text';
+            } else if ((config.sprite || config.icon) && config.label) {
+                mode = 'inline';
+            }
+        }
+
+        // ButtonStore computes its own size in resolve(), so use px mode
+        // to avoid BoxLeafStore hug logic overriding calculated dimensions.
+        // Default 6px gap between buttons when used in a list.
+        super({
+            id: config.id,
+            xDef: { sizeMode: 'px', gap: 6 },
+            yDef: { sizeMode: 'px', gap: 6 },
+            noMask: true,  // Buttons don't need masking
+        }, app, undefined, rootProps);
+
+        this.#styleTree = styleTree;
+        this.#config = config;
+        this.#mode = mode;
+        this.#isDisabled = config.isDisabled ?? false;
+
+        // Create border graphics for background/stroke
+        this.#border = new Graphics({ label: 'button-border' });
+        this._contentContainer.addChild(this.#border);
+
+        // Add sprite if provided
+        if (config.sprite) {
+            this.#sprite = config.sprite;
+            this.#sprite.anchor.set(0.5);
+            this._contentContainer.addChild(this.#sprite);
+        }
+
+        // Add icon (Container) if provided
+        if (config.icon) {
+            this.#icon = config.icon;
+            this._contentContainer.addChild(this.#icon);
+        }
+
+        // Add right sprite if provided (inline mode)
+        if (config.rightSprite) {
+            this.#rightSprite = config.rightSprite;
+            this.#rightSprite.anchor.set(0.5);
+            this._contentContainer.addChild(this.#rightSprite);
+        }
+
+        // Add right icon (Container) if provided (inline mode)
+        if (config.rightIcon) {
+            this.#rightIcon = config.rightIcon;
+            this._contentContainer.addChild(this.#rightIcon);
+        }
+
+        // Create label if provided
+        if (config.label) {
+            this.#labelText = this.#createLabel(config.label, config.bitmapFont);
+            this._contentContainer.addChild(this.#labelText);
+        }
+
+        // Setup interactivity
+        this.#setupInteractivity();
+    }
+
+    // ==================== Label Creation ====================
+
+    #createLabel(text: string, bitmapFontName?: string): Text | BitmapText {
+        const fontSize = this.#getStyle('label', 'fontSize') ?? 13;
+        const labelColor = this.#getStyle('label', 'color') ?? { r: 1, g: 1, b: 1 };
+        const labelAlpha = this.#getStyle('label', 'alpha') ?? 1;
+
+        if (bitmapFontName) {
+            const bitmapText = new BitmapText({
+                text,
+                style: { fontFamily: bitmapFontName, fontSize },
+            });
+            bitmapText.anchor.set(0.5, 0.5);
+            bitmapText.tint = rgbToHex(labelColor);
+            bitmapText.alpha = labelAlpha;
+            return bitmapText;
+        } else {
+            const textObj = new Text({
+                text,
+                style: { fontSize, fill: rgbToHex(labelColor), align: 'center', fontFamily: 'Arial' },
+            });
+            textObj.anchor.set(0.5, 0.5);
+            textObj.alpha = labelAlpha;
+            return textObj;
+        }
+    }
+
+    // ==================== Interactivity ====================
+
+    #setupInteractivity(): void {
+        this.container.eventMode = this.#isDisabled ? 'none' : 'static';
+        this.container.cursor = this.#isDisabled ? 'default' : 'pointer';
+
+        this.container.on('pointerenter', () => {
+            if (!this.#isDisabled) {
+                this.setHovered(true);
+            }
+        });
+
+        this.container.on('pointerleave', () => {
+            if (!this.#isDisabled) {
+                this.setHovered(false);
+            }
+        });
+
+        this.container.on('pointertap', () => {
+            if (!this.#isDisabled && this.#config.onClick) {
+                this.#config.onClick();
+            }
+        });
+    }
+
+    setHovered(isHovered: boolean): void {
+        if (this.#isHovered !== isHovered) {
+            this.#isHovered = isHovered;
+            this.markDirty();
+        }
+    }
+
+    setDisabled(isDisabled: boolean): void {
+        if (this.#isDisabled !== isDisabled) {
+            this.#isDisabled = isDisabled;
+            this.container.eventMode = isDisabled ? 'none' : 'static';
+            this.container.cursor = isDisabled ? 'default' : 'pointer';
+            this.markDirty();
+        }
+    }
+
+    get isHovered(): boolean {
+        return this.#isHovered;
+    }
+
+    get isDisabled(): boolean {
+        return this.#isDisabled;
+    }
+
+    get mode(): ButtonMode {
+        return this.#mode;
+    }
+
+    // ==================== Style Matching ====================
+
+    #getCurrentStates(): string[] {
+        return this.#isDisabled ? ['disabled'] : (this.#isHovered ? ['hover'] : []);
+    }
+
+    /**
+     * Get a style value from StyleTree for the current button state
+     * Builds noun path: button[.variant][.modePrefix]...propertyPath
+     */
+    #getStyle(...propertyPath: string[]): any {
+        const states = this.#getCurrentStates();
+        const variant = this.#config.variant;
+
+        // Build noun path based on mode
+        let modePrefix: string[] = [];
+        if (this.#mode === 'text') {
+            modePrefix = ['text'];
+        } else if (this.#mode === 'inline') {
+            modePrefix = ['inline'];
+        } else if (this.#mode === 'iconVertical') {
+            modePrefix = ['iconVertical'];
+        }
+
+        // Try variant-specific style first
+        if (variant) {
+            const variantMatch = this.#styleTree.match({
+                nouns: ['button', variant, ...modePrefix, ...propertyPath],
+                states
+            });
+            if (variantMatch !== undefined) {
+                return variantMatch;
+            }
+        }
+
+        // Fall back to default style
+        return this.#styleTree.match({
+            nouns: ['button', ...modePrefix, ...propertyPath],
+            states
+        });
+    }
+
+    // ==================== Resolve (Render) ====================
+
+    protected override resolve(): void {
+        switch (this.#mode) {
+            case 'text':
+                this.#resolveTextMode();
+                break;
+            case 'inline':
+                this.#resolveInlineMode();
+                break;
+            case 'iconVertical':
+                this.#resolveIconVerticalMode();
+                break;
+            case 'icon':
+            default:
+                this.#resolveIconMode();
+                break;
+        }
+
+        // Call parent resolve for positioning
+        super.resolve();
+    }
+
+    #resolveIconMode(): void {
+        const defaultColor = { r: 0.5, g: 0.5, b: 0.5 };
+        const defaultIconSize = { x: 32, y: 32 };
+
+        // Get styles
+        const padding = {
+            x: this.#getStyle('padding', 'x') ?? 4,
+            y: this.#getStyle('padding', 'y') ?? 4,
+        };
+        const borderRadius = this.#getStyle('borderRadius') ?? 0;
+        const iconSize = {
+            x: this.#getStyle('icon', 'size', 'x') ?? defaultIconSize.x,
+            y: this.#getStyle('icon', 'size', 'y') ?? defaultIconSize.y,
+        };
+        const iconAlpha = this.#getStyle('icon', 'alpha') ?? 1;
+        const iconTint = this.#getStyle('icon', 'tint');
+
+        // Get stroke
+        const stroke = {
+            color: this.#getStyle('stroke', 'color') ?? defaultColor,
+            alpha: this.#getStyle('stroke', 'alpha') ?? 1,
+            width: this.#getStyle('stroke', 'width') ?? 1,
+        };
+
+        // Get fill (may be undefined)
+        const fillColor = this.#getStyle('fill', 'color');
+        const fillAlpha = this.#getStyle('fill', 'alpha');
+        const fill = fillColor ? { color: fillColor, alpha: fillAlpha ?? 1 } : undefined;
+
+        // Calculate button size (icon only, no label)
+        const buttonWidth = iconSize.x + padding.x * 2;
+        const buttonHeight = iconSize.y + padding.y * 2;
+
+        // Update box size
+        this.setSize(buttonWidth, buttonHeight);
+
+        // Draw background
+        this.#border.clear();
+
+        if (fill && fill.alpha > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.fill({
+                color: rgbToHex(fill.color),
+                alpha: this.#isDisabled ? fill.alpha * 0.5 : fill.alpha
+            });
+        }
+
+        if (stroke.width > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.stroke({
+                color: rgbToHex(stroke.color),
+                width: stroke.width,
+                alpha: stroke.alpha
+            });
+        }
+
+        // Position sprite/icon centered
+        const iconContent = this.#sprite ?? this.#icon;
+        if (iconContent) {
+            if (this.#sprite) {
+                // Scale sprite to icon size
+                const textureWidth = this.#sprite.texture.width;
+                const textureHeight = this.#sprite.texture.height;
+                this.#sprite.scale.set(iconSize.x / textureWidth, iconSize.y / textureHeight);
+                this.#sprite.position.set(buttonWidth / 2, buttonHeight / 2);
+                this.#sprite.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+                if (iconTint) {
+                    this.#sprite.tint = rgbToHex(iconTint);
+                } else {
+                    this.#sprite.tint = 0xffffff;
+                }
+            } else if (this.#icon) {
+                // Center icon container
+                const bounds = this.#icon.getBounds();
+                this.#icon.position.set(
+                    buttonWidth / 2 - bounds.width / 2,
+                    buttonHeight / 2 - bounds.height / 2
+                );
+                this.#icon.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+            }
+        }
+
+        // Hide label in icon-only mode
+        if (this.#labelText) {
+            this.#labelText.visible = false;
+        }
+    }
+
+    #resolveIconVerticalMode(): void {
+        const defaultColor = { r: 0.5, g: 0.5, b: 0.5 };
+        const defaultIconSize = { x: 32, y: 32 };
+
+        // Get styles
+        const padding = {
+            x: this.#getStyle('padding', 'x') ?? 4,
+            y: this.#getStyle('padding', 'y') ?? 4,
+        };
+        const borderRadius = this.#getStyle('borderRadius') ?? 0;
+        const iconSize = {
+            x: this.#getStyle('icon', 'size', 'x') ?? defaultIconSize.x,
+            y: this.#getStyle('icon', 'size', 'y') ?? defaultIconSize.y,
+        };
+        const iconAlpha = this.#getStyle('icon', 'alpha') ?? 1;
+        const iconTint = this.#getStyle('icon', 'tint');
+        const iconGap = this.#getStyle('iconGap') ?? 4;
+
+        // Get stroke
+        const stroke = {
+            color: this.#getStyle('stroke', 'color') ?? defaultColor,
+            alpha: this.#getStyle('stroke', 'alpha') ?? 1,
+            width: this.#getStyle('stroke', 'width') ?? 1,
+        };
+
+        // Get fill (may be undefined)
+        const fillColor = this.#getStyle('fill', 'color');
+        const fillAlpha = this.#getStyle('fill', 'alpha');
+        const fill = fillColor ? { color: fillColor, alpha: fillAlpha ?? 1 } : undefined;
+
+        // Calculate button size
+        let buttonWidth = iconSize.x + padding.x * 2;
+        let buttonHeight = iconSize.y + padding.y * 2;
+
+        // Add label height if present
+        if (this.#labelText) {
+            this.#labelText.visible = true;
+            buttonHeight += iconGap + this.#labelText.height;
+            // Ensure button is wide enough for label
+            buttonWidth = Math.max(buttonWidth, this.#labelText.width + padding.x * 2);
+        }
+
+        // Update box size
+        this.setSize(buttonWidth, buttonHeight);
+
+        // Draw background
+        this.#border.clear();
+
+        if (fill && fill.alpha > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.fill({
+                color: rgbToHex(fill.color),
+                alpha: this.#isDisabled ? fill.alpha * 0.5 : fill.alpha
+            });
+        }
+
+        if (stroke.width > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.stroke({
+                color: rgbToHex(stroke.color),
+                width: stroke.width,
+                alpha: stroke.alpha
+            });
+        }
+
+        // Position sprite/icon
+        const iconContent = this.#sprite ?? this.#icon;
+        if (iconContent) {
+            if (this.#sprite) {
+                // Scale sprite to icon size
+                const textureWidth = this.#sprite.texture.width;
+                const textureHeight = this.#sprite.texture.height;
+                this.#sprite.scale.set(iconSize.x / textureWidth, iconSize.y / textureHeight);
+                this.#sprite.position.set(buttonWidth / 2, padding.y + iconSize.y / 2);
+                this.#sprite.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+                if (iconTint) {
+                    this.#sprite.tint = rgbToHex(iconTint);
+                } else {
+                    this.#sprite.tint = 0xffffff;
+                }
+            } else if (this.#icon) {
+                // Center icon container horizontally
+                const bounds = this.#icon.getBounds();
+                this.#icon.position.set(
+                    buttonWidth / 2 - bounds.width / 2,
+                    padding.y + iconSize.y / 2 - bounds.height / 2
+                );
+                this.#icon.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+            }
+        }
+
+        // Position label below icon
+        if (this.#labelText) {
+            const labelColor = this.#getStyle('label', 'color') ?? { r: 0, g: 0, b: 0 };
+            const labelAlpha = this.#getStyle('label', 'alpha') ?? 0.5;
+
+            this.#labelText.position.set(buttonWidth / 2, padding.y + iconSize.y + iconGap + this.#labelText.height / 2);
+            this.#applyLabelStyle(labelColor, this.#isDisabled ? labelAlpha * 0.5 : labelAlpha);
+        }
+    }
+
+    #resolveTextMode(): void {
+        const defaultColor = { r: 0.33, g: 0.67, b: 0.6 };
+
+        // Get styles
+        const padding = {
+            x: this.#getStyle('padding', 'x') ?? 12,
+            y: this.#getStyle('padding', 'y') ?? 6,
+        };
+        const borderRadius = this.#getStyle('borderRadius') ?? 4;
+
+        // Get stroke
+        const strokeStyle = this.#getStyle('stroke');
+        const stroke = strokeStyle?.width > 0 ? strokeStyle : undefined;
+
+        // Get fill
+        const fill = this.#getStyle('fill') ?? { color: defaultColor, alpha: 1 };
+
+        // Get label styles
+        const labelColor = this.#getStyle('label', 'color') ?? { r: 1, g: 1, b: 1 };
+        const labelAlpha = this.#getStyle('label', 'alpha') ?? 1;
+
+        if (!this.#labelText) return;
+
+        // Calculate button size
+        const buttonWidth = this.#labelText.width + padding.x * 2 + (stroke?.width ?? 0) * 2;
+        const buttonHeight = this.#labelText.height + padding.y * 2 + (stroke?.width ?? 0) * 2;
+
+        // Update box size
+        this.setSize(buttonWidth, buttonHeight);
+
+        // Draw background
+        this.#border.clear();
+
+        if (fill && fill.alpha > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.fill({
+                color: rgbToHex(fill.color),
+                alpha: this.#isDisabled ? fill.alpha * 0.5 : fill.alpha
+            });
+        }
+
+        if (stroke && stroke.width > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.stroke({
+                color: rgbToHex(stroke.color),
+                width: stroke.width,
+                alpha: stroke.alpha ?? 1
+            });
+        }
+
+        // Center label
+        this.#labelText.position.set(buttonWidth / 2, buttonHeight / 2);
+        this.#applyLabelStyle(labelColor, this.#isDisabled ? labelAlpha * 0.5 : labelAlpha);
+    }
+
+    #resolveInlineMode(): void {
+        const defaultColor = { r: 0.33, g: 0.67, b: 0.6 };
+        const defaultIconSize = { x: 16, y: 16 };
+
+        // Get styles
+        const padding = {
+            x: this.#getStyle('padding', 'x') ?? 12,
+            y: this.#getStyle('padding', 'y') ?? 6,
+        };
+        const borderRadius = this.#getStyle('borderRadius') ?? 4;
+        const iconGap = this.#getStyle('iconGap') ?? 8;
+        const iconSize = {
+            x: this.#getStyle('icon', 'size', 'x') ?? defaultIconSize.x,
+            y: this.#getStyle('icon', 'size', 'y') ?? defaultIconSize.y,
+        };
+        const iconAlpha = this.#getStyle('icon', 'alpha') ?? 1;
+
+        // Right icon styles (defaults to same as left icon)
+        const rightIconGap = this.#getStyle('rightIconGap') ?? iconGap;
+        const rightIconSize = {
+            x: this.#getStyle('rightIcon', 'size', 'x') ?? iconSize.x,
+            y: this.#getStyle('rightIcon', 'size', 'y') ?? iconSize.y,
+        };
+        const rightIconAlpha = this.#getStyle('rightIcon', 'alpha') ?? iconAlpha;
+
+        // Get stroke (individual properties)
+        const strokeWidth = this.#getStyle('stroke', 'width') ?? 0;
+        const strokeColor = this.#getStyle('stroke', 'color');
+        const strokeAlpha = this.#getStyle('stroke', 'alpha') ?? 1;
+        const stroke = strokeWidth > 0 && strokeColor ? { color: strokeColor, width: strokeWidth, alpha: strokeAlpha } : undefined;
+
+        // Get fill
+        const fillColor = this.#getStyle('fill', 'color') ?? defaultColor;
+        const fillAlpha = this.#getStyle('fill', 'alpha') ?? 1;
+        const fill = { color: fillColor, alpha: fillAlpha };
+
+        // Get label styles
+        const labelColor = this.#getStyle('label', 'color') ?? { r: 1, g: 1, b: 1 };
+        const labelAlpha = this.#getStyle('label', 'alpha') ?? 1;
+
+        // Calculate dimensions
+        const hasLeftIcon = !!(this.#sprite || this.#icon);
+        const hasRightIcon = !!(this.#rightSprite || this.#rightIcon);
+        const textWidth = this.#labelText?.width ?? 0;
+        const textHeight = this.#labelText?.height ?? 0;
+
+        // Content width: [leftIcon + gap] + text + [gap + rightIcon]
+        let contentWidth = textWidth;
+        if (hasLeftIcon) contentWidth += iconSize.x + iconGap;
+        if (hasRightIcon) contentWidth += rightIconGap + rightIconSize.x;
+
+        const contentHeight = Math.max(
+            hasLeftIcon ? iconSize.y : 0,
+            textHeight,
+            hasRightIcon ? rightIconSize.y : 0
+        );
+
+        const buttonWidth = contentWidth + padding.x * 2 + (stroke?.width ?? 0) * 2;
+        const buttonHeight = contentHeight + padding.y * 2 + (stroke?.width ?? 0) * 2;
+
+        // Update box size
+        this.setSize(buttonWidth, buttonHeight);
+
+        // Draw background
+        this.#border.clear();
+
+        if (fill && fill.alpha > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.fill({
+                color: rgbToHex(fill.color),
+                alpha: this.#isDisabled ? fill.alpha * 0.5 : fill.alpha
+            });
+        }
+
+        if (stroke && stroke.width > 0) {
+            this.#border.roundRect(0, 0, buttonWidth, buttonHeight, borderRadius);
+            this.#border.stroke({
+                color: rgbToHex(stroke.color),
+                width: stroke.width,
+                alpha: stroke.alpha ?? 1
+            });
+        }
+
+        // Position elements: [leftIcon] [label] [rightIcon]
+        const centerY = buttonHeight / 2;
+        let currentX = padding.x + (stroke?.width ?? 0);
+
+        // Position left icon
+        if (hasLeftIcon) {
+            if (this.#sprite) {
+                const textureWidth = this.#sprite.texture.width;
+                const textureHeight = this.#sprite.texture.height;
+                this.#sprite.scale.set(iconSize.x / textureWidth, iconSize.y / textureHeight);
+                this.#sprite.position.set(currentX + iconSize.x / 2, centerY);
+                this.#sprite.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+            } else if (this.#icon) {
+                const bounds = this.#icon.getBounds();
+                this.#icon.position.set(currentX, centerY - bounds.height / 2);
+                this.#icon.alpha = this.#isDisabled ? iconAlpha * 0.5 : iconAlpha;
+            }
+            currentX += iconSize.x + iconGap;
+        }
+
+        // Position label
+        if (this.#labelText) {
+            this.#labelText.position.set(currentX + textWidth / 2, centerY);
+            this.#applyLabelStyle(labelColor, this.#isDisabled ? labelAlpha * 0.5 : labelAlpha);
+            currentX += textWidth + rightIconGap;
+        }
+
+        // Position right icon
+        if (hasRightIcon) {
+            if (this.#rightSprite) {
+                const textureWidth = this.#rightSprite.texture.width;
+                const textureHeight = this.#rightSprite.texture.height;
+                this.#rightSprite.scale.set(rightIconSize.x / textureWidth, rightIconSize.y / textureHeight);
+                this.#rightSprite.position.set(currentX + rightIconSize.x / 2, centerY);
+                this.#rightSprite.alpha = this.#isDisabled ? rightIconAlpha * 0.5 : rightIconAlpha;
+            } else if (this.#rightIcon) {
+                const bounds = this.#rightIcon.getBounds();
+                this.#rightIcon.position.set(currentX, centerY - bounds.height / 2);
+                this.#rightIcon.alpha = this.#isDisabled ? rightIconAlpha * 0.5 : rightIconAlpha;
+            }
+        }
+    }
+
+    #applyLabelStyle(color: RgbColor, alpha: number): void {
+        if (!this.#labelText) return;
+
+        if ('tint' in this.#labelText && !('style' in this.#labelText && 'fill' in (this.#labelText.style as any))) {
+            // BitmapText
+            this.#labelText.tint = rgbToHex(color);
+        } else {
+            // Regular Text
+            (this.#labelText as Text).style.fill = rgbToHex(color);
+        }
+        this.#labelText.alpha = alpha;
+    }
+
+    // ==================== Public API ====================
+
+    getConfig(): ButtonConfig {
+        return this.#config;
+    }
+
+    /**
+     * Get preferred size based on mode and content
+     */
+    getPreferredSize(): { width: number; height: number } {
+        const { width, height } = this.value;
+        return { width, height };
+    }
+}

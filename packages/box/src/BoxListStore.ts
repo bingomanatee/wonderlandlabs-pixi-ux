@@ -190,8 +190,6 @@ export class BoxListStore extends BoxStore {
         for (let i = 0; i < this.#children.length; i++) {
             const child = this.#children[i];
             const childRect = child.rect;
-            const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            const childGap = childMainDef.gap ?? this.#gap;
             const isLast = i === this.#children.length - 1;
 
             if (isHorizontal) {
@@ -199,14 +197,14 @@ export class BoxListStore extends BoxStore {
                 mainPos += childRect.width;
                 // Add gap after unless it's the last child and we don't have 'after' mode
                 if (!isLast || hasAfter) {
-                    mainPos += childGap;
+                    mainPos += this.#gap;
                 }
                 maxCrossSize = Math.max(maxCrossSize, childRect.height);
             } else {
                 child.setPosition(0, mainPos);
                 mainPos += childRect.height;
                 if (!isLast || hasAfter) {
-                    mainPos += childGap;
+                    mainPos += this.#gap;
                 }
                 maxCrossSize = Math.max(maxCrossSize, childRect.width);
             }
@@ -282,7 +280,6 @@ export class BoxListStore extends BoxStore {
     #calculateTotalGaps(): number {
         if (this.#children.length === 0) return 0;
 
-        const isHorizontal = this.#direction === 'horizontal';
         let totalGaps = 0;
 
         // Gap before first child
@@ -290,18 +287,14 @@ export class BoxListStore extends BoxStore {
             totalGaps += this.#gap;
         }
 
-        // Gaps between children (use each child's gap or fall back to list gap)
+        // Gaps between children
         for (let i = 0; i < this.#children.length - 1; i++) {
-            const child = this.#children[i];
-            const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            totalGaps += childMainDef.gap ?? this.#gap;
+            totalGaps += this.#gap;
         }
 
         // Gap after last child
         if (this.#gapMode === 'after' || this.#gapMode === 'all') {
-            const lastChild = this.#children[this.#children.length - 1];
-            const lastChildMainDef = isHorizontal ? lastChild.xDef : lastChild.yDef;
-            totalGaps += lastChildMainDef.gap ?? this.#gap;
+            totalGaps += this.#gap;
         }
 
         return totalGaps;
