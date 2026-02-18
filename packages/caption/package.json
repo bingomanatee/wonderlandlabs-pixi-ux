@@ -1,7 +1,7 @@
 {
-  "name": "@wonderlandlabs-pixi-ux/button",
+  "name": "@wonderlandlabs-pixi-ux/caption",
   "version": "1.0.0",
-  "description": "Button component using box system with StyleTree styling for wonderlandlabs-pixi-ux",
+  "description": "Caption bubbles for PixiJS with rectangle/oval shapes and optional speaker pointers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -14,10 +14,9 @@
     "pixi.js": "^8.15.0"
   },
   "dependencies": {
-    "@wonderlandlabs-pixi-ux/box": "workspace:^",
-    "@wonderlandlabs-pixi-ux/style-tree": "workspace:^",
     "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
     "@wonderlandlabs/forestry4": "^4.1.15",
+    "rxjs": "^7.8.1",
     "zod": "^4.3.5"
   },
   "devDependencies": {

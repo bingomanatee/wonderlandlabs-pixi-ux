@@ -1,96 +1,99 @@
 import type {Meta, StoryObj} from '@storybook/html';
-import {Application, Assets, Container, Graphics, Sprite, Text, Texture} from 'pixi.js';
+import {Application, Assets, Container, Graphics, Sprite, Text} from 'pixi.js';
+import {ToolbarStore} from '@wonderlandlabs-pixi-ux/toolbar';
+import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
 import {WindowsManager, TEXTURE_STATUS} from "./WindowsManager";
 import type {RenderTitlebarFn, WindowDef} from "./types";
 import type {TitlebarStore} from "./TitlebarStore";
 import {STYLE_VARIANT} from "./constants";
 import {EditableWindowStore} from "./EditableWindowStore";
 
-// PixiJS Toolbar button helper
-function createToolbarButton(
-    label: string,
-    bgColor: number,
-    hoverColor: number,
-    onClick: () => void,
-    strokeColor?: number,
-    strokeWidth: number = 0
-): Container {
-    const btn = new Container();
-    btn.eventMode = 'static';
-    btn.cursor = 'pointer';
-
-    const bg = new Graphics();
-    const padding = {x: 12, y: 6};
-
-    const text = new Text({
-        text: label,
-        style: {fontSize: 13, fill: 0xffffff, fontFamily: 'Arial'}
-    });
-
-    const width = text.width + padding.x * 2 + strokeWidth * 2;
-    const height = text.height + padding.y * 2 + strokeWidth * 2;
-
-    const drawBg = (color: number) => {
-        bg.clear();
-        bg.roundRect(0, 0, width, height, 4).fill(color);
-        if (strokeColor !== undefined && strokeWidth > 0) {
-            bg.roundRect(0, 0, width, height, 4).stroke({color: strokeColor, width: strokeWidth});
+const toolbarStyleTree = fromJSON({
+    button: {
+        text: {
+            padding: {
+                '$*': {x: 10, y: 5}
+            },
+            borderRadius: {
+                '$*': 4
+            },
+            label: {
+                fontSize: {
+                    '$*': 12
+                },
+                color: {
+                    '$*': {r: 1, g: 1, b: 1}
+                },
+                alpha: {
+                    '$*': 1
+                }
+            },
+            stroke: {
+                '$*': {
+                    color: {r: 0.4, g: 0.4, b: 0.4},
+                    alpha: 0,
+                    width: 0
+                }
+            }
+        },
+        image: {
+            text: {
+                fill: {
+                    '$*': {color: {r: 0.333, g: 0.667, b: 0.6}, alpha: 1},
+                    '$hover': {color: {r: 0.267, g: 0.733, b: 0.533}, alpha: 1}
+                }
+            }
+        },
+        caption: {
+            text: {
+                fill: {
+                    '$*': {color: {r: 0.333, g: 0.6, b: 0.667}, alpha: 1},
+                    '$hover': {color: {r: 0.267, g: 0.533, b: 0.733}, alpha: 1}
+                }
+            }
+        },
+        done: {
+            text: {
+                fill: {
+                    '$*': {color: {r: 0.4, g: 0.4, b: 0.4}, alpha: 1},
+                    '$hover': {color: {r: 0.533, g: 0.533, b: 0.533}, alpha: 1}
+                },
+                stroke: {
+                    '$*': {
+                        color: {r: 0.667, g: 0.667, b: 0.667},
+                        alpha: 1,
+                        width: 2
+                    }
+                }
+            }
         }
-    };
+    }
+});
 
-    drawBg(bgColor);
-    text.x = padding.x + strokeWidth;
-    text.y = padding.y + strokeWidth;
-
-    btn.addChild(bg, text);
-
-    btn.on('pointerenter', () => drawBg(hoverColor));
-    btn.on('pointerleave', () => drawBg(bgColor));
-    btn.on('pointerdown', (e) => {
-        e.stopPropagation();
-        onClick();
-    });
-
-    return btn;
-}
-
-// Create PixiJS toolbar container
-function createPixiToolbar(
+function createStoryToolbar(
+    app: Application,
     onAddImage: () => void,
     onAddCaption: () => void,
     onDone: () => void
-): Container {
-    const toolbar = new Container();
-    toolbar.visible = false;
-
-    const bg = new Graphics();
-    const padding = 10;
-    const gap = 8;
-
-    // Create buttons
-    const imageBtn = createToolbarButton('Image', 0x55aa99, 0x44bb88, onAddImage);
-    const captionBtn = createToolbarButton('Caption', 0x5599aa, 0x4488bb, onAddCaption);
-    const doneBtn = createToolbarButton('Done', 0x666666, 0x888888, onDone, 0xaaaaaa, 2);
-
-    // Position buttons
-    imageBtn.x = padding;
-    imageBtn.y = padding;
-    captionBtn.x = imageBtn.x + imageBtn.width + gap;
-    captionBtn.y = padding;
-    doneBtn.x = captionBtn.x + captionBtn.width + gap;
-    doneBtn.y = padding;
-
-    // Draw background
-    const totalWidth = padding + imageBtn.width + gap + captionBtn.width + gap + doneBtn.width + padding;
-    const totalHeight = padding + Math.max(imageBtn.height, captionBtn.height, doneBtn.height) + padding;
-    bg.roundRect(0, 0, totalWidth, totalHeight, 6).fill(0x444444);
-
-    toolbar.addChild(bg, imageBtn, captionBtn, doneBtn);
-
-    // Store dimensions for positioning
-    (toolbar as any)._toolbarWidth = totalWidth;
-    (toolbar as any)._toolbarHeight = totalHeight;
-
+): ToolbarStore {
+    const toolbar = new ToolbarStore({
+        id: 'window-floating-toolbar',
+        spacing: 8,
+        orientation: 'horizontal',
+        padding: 10,
+        style: toolbarStyleTree,
+        background: {
+            fill: { color: { r: 0.27, g: 0.27, b: 0.27 }, alpha: 1 },
+            borderRadius: 6,
+        },
+        buttons: [
+            { id: 'toolbar-image', label: 'Image', mode: 'text', variant: 'image', onClick: onAddImage },
+            { id: 'toolbar-caption', label: 'Caption', mode: 'text', variant: 'caption', onClick: onAddCaption },
+            { id: 'toolbar-done', label: 'Done', mode: 'text', variant: 'done', onClick: onDone },
+        ],
+    }, app);
+    toolbar.container.visible = false;
+    toolbar.kickoff();
     return toolbar;
 }
 
@@ -261,7 +264,7 @@ const meta: Meta<EditableWindowArgs> = {
         selectionInfo.textContent = 'Selected: none';
         wrapper.appendChild(selectionInfo);
 
-        let toolbar: Container;
+        let toolbar: ToolbarStore;
         const stageWidth = 1000;
         const stageHeight = 550;
         const toolbarGap = 8; // Gap between window and toolbar
@@ -281,8 +284,8 @@ const meta: Meta<EditableWindowArgs> = {
             if (!windowStore) return;
 
             const {x, y, width, height} = windowStore.value;
-            const toolbarWidth = (toolbar as any)._toolbarWidth || 150;
-            const toolbarHeight = (toolbar as any)._toolbarHeight || 40;
+            const toolbarWidth = toolbar.rect.width > 0 ? toolbar.rect.width : 150;
+            const toolbarHeight = toolbar.rect.height > 0 ? toolbar.rect.height : 40;
 
             // Ideal position: centered below the window
             let toolbarX = x + (width - toolbarWidth) / 2;
@@ -300,8 +303,7 @@ const meta: Meta<EditableWindowArgs> = {
                 }
             }
 
-            toolbar.x = toolbarX;
-            toolbar.y = toolbarY;
+            toolbar.setPosition(toolbarX, toolbarY);
         };
 
         const app = new Application();
@@ -316,7 +318,7 @@ const meta: Meta<EditableWindowArgs> = {
             const handleContainer = new Container();
 
             // Create toolbar and add to stage (above everything)
-            toolbar = createPixiToolbar(addImageToWindow, addCaptionToWindow, handleDeselect);
+            toolbar = createStoryToolbar(app, addImageToWindow, addCaptionToWindow, handleDeselect);
 
             // Create background for click-to-deselect
             const background = new Graphics();
@@ -327,7 +329,7 @@ const meta: Meta<EditableWindowArgs> = {
                 handleDeselect();
             });
 
-            app.stage.addChild(background, container, handleContainer, toolbar);
+            app.stage.addChild(background, container, handleContainer, toolbar.container);
             app.stage.eventMode = 'static';
             wm = new WindowsManager({
                 container,
@@ -498,11 +500,12 @@ const meta: Meta<EditableWindowArgs> = {
                 // Show toolbar only when exactly one window is selected
                 if (selectedArray.length === 1) {
                     currentSelectedId = selectedArray[0];
-                    toolbar.visible = true;
+                    toolbar.container.visible = true;
                     positionToolbar();
+                    app.ticker.addOnce(positionToolbar);
                 } else {
                     currentSelectedId = null;
-                    toolbar.visible = false;
+                    toolbar.container.visible = false;
                 }
             });
         });
@@ -517,4 +520,3 @@ type Story = StoryObj<EditableWindowArgs>;
 export const EditableWindows: Story = {
     args: {},
 };
-

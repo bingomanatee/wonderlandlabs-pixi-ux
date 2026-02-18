@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Application } from 'pixi.js';
-import { fromJSON, type StyleTree } from '@forestry-pixi/style-tree';
+import { fromJSON, type StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import { ToolbarStore } from '../src/ToolbarStore';
 import toolbarDefaultStyles from '../src/styles/toolbar.default.json';
 

@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {TickerForest} from '@forestry-pixi/ticker-forest';
+import {TickerForest} from '@wonderlandlabs-pixi-ux/ticker-forest';
 import {Application, FederatedEvent, FederatedPointerEvent, Point} from 'pixi.js';
 // Schema for drag state
 const DragStoreSchema = z.object({

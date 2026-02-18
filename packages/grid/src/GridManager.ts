@@ -1,4 +1,4 @@
-import { TickerForest } from '@forestry-pixi/ticker-forest';
+import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import { Container, Graphics, TilingSprite, Texture } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import type { GridStoreValue, GridManagerValue } from './types';

@@ -1,4 +1,4 @@
-import { TickerForest } from '@forestry-pixi/ticker-forest';
+import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import { Application, Container, Graphics, ContainerOptions } from 'pixi.js';
 import type {
     BoxState, BaseBoxConfig, BoxStyle, BoxProps, RgbColor, ContentArea, Padding, AxisDef, AxisDefInput
@@ -36,7 +36,7 @@ export class BoxStore extends TickerForest<BoxState> {
     // Non-state props
     protected _boxProps: BoxProps;
 
-    // Parent reference (for fill mode and % calculations)
+    // Parent reference for layout relationships (separate from Forestry state branching).
     protected _parent: BoxStore | null = null;
 
     constructor(

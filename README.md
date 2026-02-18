@@ -1,14 +1,15 @@
-# Forestry Pixi - Yarn Berry Monorepo
+# Pixi Utils - Yarn Berry Monorepo
 
-A Yarn Berry (v4) monorepo with workspace packages for grid, panel, and drag functionality, plus a Vite React demo application.
+A Yarn Berry (v4) monorepo with workspace packages for grid, drag, window, toolbar, and related Pixi utilities.
 
 ## Structure
 
 ```
-forestry-pixi/
+wonderlandlabs-pixi-ux/
 ├── packages/
 │   ├── grid/          # Grid component with configurable rows/cols
-│   ├── panel/         # Panel component with remove functionality
+│   ├── window/        # Window system with drag/resize support
+│   ├── caption/       # Caption bubbles and thought balloons
 │   └── drag/          # Drag hook utilities
 └── apps/
     └── demo/          # Vite React demo application
@@ -18,7 +19,7 @@ forestry-pixi/
 
 - **Yarn Berry (v4.0.2)** with `node-modules` linker for traditional node_modules everywhere
 - **TypeScript** support across all packages
-- **Workspace dependencies** using `workspace:*` protocol
+- **Workspace dependencies** using `workspace:^` protocol
 - **Vite** for fast development and building
 
 ## Getting Started
@@ -53,13 +54,13 @@ yarn clean
 
 ## Packages
 
-### @forestry-pixi/grid
+### @wonderlandlabs-pixi-ux/grid
 
 Grid component with configurable size and Forestry state controller.
 
 **Component:**
 ```tsx
-import { Grid } from '@forestry-pixi/grid';
+import { Grid } from '@wonderlandlabs-pixi-ux/grid';
 
 <Grid rows={3} cols={3} gap={16}>
   {/* children */}
@@ -68,52 +69,19 @@ import { Grid } from '@forestry-pixi/grid';
 
 **Controller:**
 ```tsx
-import { GridStore } from '@forestry-pixi/grid';
+import { GridStore } from '@wonderlandlabs-pixi-ux/grid';
 
 const gridStore = new GridStore({ rows: 4, cols: 4, gap: 10 });
 gridStore.setRows(5);
 ```
 
-### @forestry-pixi/panel
-
-Panel component with optional remove functionality and Forestry state controller for managing collections.
-
-**Component:**
-```tsx
-import { Panel } from '@forestry-pixi/panel';
-
-<Panel
-  id="panel-1"
-  title="My Panel"
-  onRemove={(id) => console.log('Remove', id)}
->
-  {/* content */}
-</Panel>
-```
-
-**Controller:**
-```tsx
-import { PanelStore } from '@forestry-pixi/panel';
-
-const panelStore = new PanelStore();
-panelStore.addPanel({
-  id: 'panel-1',
-  order: 0,
-  x: 100,
-  y: 100,
-  width: 200,
-  height: 150,
-  style: { fill: '#ffffff', stroke: '#cccccc', strokeWidth: 1 }
-});
-```
-
-### @forestry-pixi/drag
+### @wonderlandlabs-pixi-ux/drag
 
 Drag hook and Forestry state controller for drag functionality.
 
 **Hook:**
 ```tsx
-import { useDrag } from '@forestry-pixi/drag';
+import { useDrag } from '@wonderlandlabs-pixi-ux/drag';
 
 const { isDragging, position, dragHandlers } = useDrag({
   onDragStart: () => console.log('Started'),
@@ -123,7 +91,7 @@ const { isDragging, position, dragHandlers } = useDrag({
 
 **Controller:**
 ```tsx
-import { DragStore } from '@forestry-pixi/drag';
+import { DragStore } from '@wonderlandlabs-pixi-ux/drag';
 
 const dragStore = new DragStore({
   onDragStart: (id, x, y) => console.log('Drag started'),
@@ -134,18 +102,15 @@ const dragStore = new DragStore({
 
 ## Demo App
 
-The demo app (`apps/demo`) showcases the grid and panel packages:
+The demo app (`apps/demo`) showcases core package integrations:
 
 - Adjust grid size (rows/columns) with input controls
-- Add panels to the grid with the "Add Panel" button
-- Remove individual panels with the × button
 - Responsive grid layout
 
 ## Forestry Controllers
 
 All packages include Forestry4-based state controllers for reactive state management:
 
-- **PanelStore** - Manage collections of panels with position, size, and styling
 - **GridStore** - Manage grid configuration with rows, columns, and cell calculations
 - **DragStore** - Manage drag state with callbacks
 
@@ -174,4 +139,3 @@ This ensures traditional `node_modules` folders are created in each workspace.
 ## License
 
 MIT
-

@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {DIMENSION_TYPE, LOAD_STATUS, TITLEBAR_MODE, WINDOW_STATUS, STYLE_VARIANT} from './constants';
-import type {HandleMode} from '@forestry-pixi/resizer';
+import type {HandleMode} from '@wonderlandlabs-pixi-ux/resizer';
 import type {Application, Container} from 'pixi.js';
 
 // Color schema for RGB values (0..1)

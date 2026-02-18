@@ -1,190 +1,84 @@
-# @forestry-pixi/resizer
+# @wonderlandlabs-pixi-ux/resizer
 
-Interactive resize handles for PixiJS containers with Forestry state management.
-
-## Features
-
-- **Interactive resize handles** - Drag handles to resize containers
-- **Counter-scaling** - Handles maintain constant size despite parent container scaling
-- **Two modes**:
-  - **Persist mode** - Handles remain visible until `deselect()` is called
-  - **Release mode** - Handles disappear after one resize operation
-- **Configurable handles** - 4 handles (corners only) or 8 handles (corners + edges)
-- **Aspect ratio constraint** - Optional constraint to maintain original proportions
-- **Forestry state management** - Uses Forestry4 for reactive state
-- **TypeScript** - Full type safety with Zod validation
+Resize handles and drag helpers for PixiJS containers.
 
 ## Installation
 
 ```bash
-yarn add @forestry-pixi/resizer
+yarn add @wonderlandlabs-pixi-ux/resizer
 ```
 
-## Usage
+## Primary API
 
-### Basic Example
+- `enableHandles(container, rect, config): ResizerStore`
+- `ResizerStore`
+- `trackDrag(target, callbacks, stage?)`
 
-```typescript
+## Basic Usage
+
+```ts
 import { Application, Container, Graphics, Rectangle } from 'pixi.js';
-import { onResize } from '@forestry-pixi/resizer';
+import { enableHandles } from '@wonderlandlabs-pixi-ux/resizer';
 
 const app = new Application();
-await app.init();
+await app.init({ width: 900, height: 600 });
 
-// Create a container to resize
 const box = new Container();
-const graphic = new Graphics();
-graphic.rect(0, 0, 100, 100);
-graphic.fill({ color: 0xff6b6b });
-box.addChild(graphic);
+const shape = new Graphics();
+shape.rect(0, 0, 240, 140).fill(0x4da3ff);
+box.addChild(shape);
 app.stage.addChild(box);
 
-// Add resize handles
-const resizer = onResize(box, {
-  initialRect: new Rectangle(0, 0, 100, 100),
-  onUpdate: (newRect) => {
-    // Update the graphic when resizing
-    graphic.clear();
-    graphic.rect(0, 0, newRect.width, newRect.height);
-    graphic.fill({ color: 0xff6b6b });
+const handles = enableHandles(box, new Rectangle(80, 80, 240, 140), {
+  app,
+  mode: 'EDGE_AND_CORNER',
+  size: 12,
+  color: { r: 0.2, g: 0.6, b: 1 },
+  constrain: false,
+  drawRect: (rect) => {
+    box.position.set(rect.x, rect.y);
+    shape.clear().rect(0, 0, rect.width, rect.height).fill(0x4da3ff);
   },
-  persist: true, // Handles remain until deselect() is called
-  size: 8, // Handle size in pixels
-  color: { r: 0.2, g: 0.6, b: 1 }, // Handle color
-  count: 8, // 8 handles (corners + edges)
+  onRelease: (rect) => {
+    console.log('final', rect.width, rect.height);
+  },
 });
 
-// Later, deselect to remove handles
-resizer.deselect();
+// Optional helpers:
+handles.setVisible(true);
+handles.setRect(new Rectangle(100, 100, 300, 160));
 ```
 
-### Persist Mode
+## `EnableHandlesConfig`
 
-Handles remain visible and functional until `deselect()` is called:
-
-```typescript
-const resizer = onResize(container, {
-  initialRect: new Rectangle(0, 0, 150, 100),
-  onUpdate: (newRect) => {
-    // Update container
-  },
-  persist: true, // Handles persist
-});
-
-// Handles remain active, user can resize multiple times
-
-// Remove handles when done
-resizer.deselect();
-```
-
-### Release Mode
-
-Handles disappear after one resize operation:
-
-```typescript
-const resizer = onResize(container, {
-  initialRect: new Rectangle(0, 0, 150, 100),
-  onUpdate: (newRect) => {
-    // Update container
-  },
-  onRelease: (state) => {
-    console.log('Resize complete!');
-  },
-  persist: false, // Handles disappear after resize
-});
-
-// After user drags and releases, handles are automatically removed
-```
-
-### Constrained Resize (Maintain Aspect Ratio)
-
-```typescript
-const resizer = onResize(container, {
-  initialRect: new Rectangle(0, 0, 150, 100),
-  onUpdate: (newRect) => {
-    // Update container
-  },
-  constrain: true, // Maintain aspect ratio
-});
-```
-
-### 4 Handles (Corners Only)
-
-```typescript
-const resizer = onResize(container, {
-  initialRect: new Rectangle(0, 0, 150, 100),
-  onUpdate: (newRect) => {
-    // Update container
-  },
-  count: 4, // Only corner handles
-});
-```
-
-## API
-
-### `onResize(container, config)`
-
-Creates resize handles around a container.
-
-**Parameters:**
-
-- `container: Container` - The PixiJS container to add handles to (must have a parent)
-- `config: ResizerConfig` - Configuration object
-
-**Returns:** `ResizerState` - State object with control methods
-
-### ResizerConfig
-
-```typescript
-interface ResizerConfig {
-  /** Initial rectangle to resize */
-  initialRect: Rectangle;
-  
-  /** Callback when rectangle is updated during drag */
-  onUpdate: (newRect: Rectangle) => void;
-  
-  /** Callback when resize is complete (mouse up) */
-  onRelease?: (state: ResizerState) => void;
-  
-  /** If true, handles persist until deselect(). If false, handles removed after first resize. */
-  persist?: boolean; // default: true
-  
-  /** Size of handles in pixels (constant size despite scaling) */
-  size?: number; // default: 8
-  
-  /** Color of handles (RGB 0..1) */
-  color?: Color; // default: { r: 0.2, g: 0.6, b: 1 }
-  
-  /** If true, constrain resize to maintain original aspect ratio */
-  constrain?: boolean; // default: false
-  
-  /** Number of handles: 4 (corners only) or 8 (corners + edges) */
-  count?: 4 | 8; // default: 8
+```ts
+{
+  app: Application,
+  drawRect?: (rect: Rectangle, container: Container) => void,
+  onRelease?: (rect: Rectangle) => void,
+  size?: number,
+  color?: { r: number, g: number, b: number },
+  constrain?: boolean,
+  mode?: 'ONLY_EDGE' | 'ONLY_CORNER' | 'EDGE_AND_CORNER',
 }
 ```
 
-### ResizerState
+## `ResizerStore` Methods
 
-```typescript
-interface ResizerState {
-  /** Deselect and remove handles */
-  deselect: () => void;
-  
-  /** Complete the resize operation (for release mode) */
-  complete: () => void;
-  
-  /** Get current rectangle */
-  getRect: () => Rectangle;
-  
-  /** Update the rectangle programmatically */
-  setRect: (rect: Rectangle) => void;
-  
-  /** Check if state is active */
-  isActive: () => boolean;
-}
+- `setRect(rect)`
+- `setVisible(visible)`
+- `removeHandles()`
+- `asRect`
+- `getColor()`
+
+## `trackDrag` Utility
+
+`trackDrag` is exported independently if you need plain drag tracking without resize handles.
+
+```ts
+trackDrag(target, {
+  onDragStart: (e) => {},
+  onDragMove: (dx, dy, e) => {},
+  onDragEnd: (e) => {},
+}, stage);
 ```
-
-## License
-
-MIT
-

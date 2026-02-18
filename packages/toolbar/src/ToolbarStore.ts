@@ -1,6 +1,6 @@
-import { BoxListStore, type Padding } from '@forestry-pixi/box';
-import { ButtonStore } from '@forestry-pixi/button';
-import { StyleTree, fromJSON } from '@forestry-pixi/style-tree';
+import { BoxListStore, type Padding } from '@wonderlandlabs-pixi-ux/box';
+import { ButtonStore } from '@wonderlandlabs-pixi-ux/button';
+import { StyleTree, fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
 import { Application } from 'pixi.js';
 import type { ToolbarConfig, ToolbarButtonConfig } from './types';
 import { ToolbarConfigSchema } from './types';

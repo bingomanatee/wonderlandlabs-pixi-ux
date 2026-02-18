@@ -1,4 +1,4 @@
-# @forestry-pixi/ticker-forest
+# @wonderlandlabs-pixi-ux/ticker-forest
 
 Abstract base class for Forestry state management that synchronizes state changes with PixiJS rendering via the ticker pattern.
 
@@ -9,7 +9,7 @@ This class solves the problem of PixiJS artifacts that occur when PixiJS operati
 ## Installation
 
 ```bash
-yarn add @forestry-pixi/ticker-forest
+yarn add @wonderlandlabs-pixi-ux/ticker-forest
 ```
 
 ## Pattern
@@ -29,7 +29,7 @@ Subclasses must implement:
 ### Example
 
 ```typescript
-import { TickerForest } from '@forestry-pixi/ticker-forest';
+import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import { Application } from 'pixi.js';
 
 interface MyState {

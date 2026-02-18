@@ -161,48 +161,48 @@ export class BoxListStore extends BoxStore {
         const contentArea = this.getContentArea();
         const parentMainSize = isHorizontal ? contentArea.width : contentArea.height;
 
-        // Collect children by size mode
-        const pxChildren: BoxStore[] = [];
-        const percentChildren: BoxStore[] = [];
-        const percentFreeChildren: BoxStore[] = [];
-        const hugChildren: BoxStore[] = [];
-
-        for (const child of this.#children) {
+        const totals = this.#children.reduce((acc, child) => {
             const childMainDef = isHorizontal ? child.xDef : child.yDef;
             switch (childMainDef.sizeMode) {
-                case 'px': pxChildren.push(child); break;
-                case 'percent': percentChildren.push(child); break;
-                case 'percentFree': percentFreeChildren.push(child); break;
-                case 'hug': hugChildren.push(child); break;
+                case 'px': {
+                    acc.pxChildren.push(child);
+                    acc.pxTotal += childMainDef.size;
+                    break;
+                }
+                case 'percent': {
+                    acc.percentChildren.push(child);
+                    const size = this.#applyMinMax(childMainDef, parentMainSize * childMainDef.size);
+                    if (isHorizontal) {
+                        child.setSize(size, child.rect.height);
+                    } else {
+                        child.setSize(child.rect.width, size);
+                    }
+                    acc.percentTotal += size;
+                    break;
+                }
+                case 'percentFree': {
+                    acc.totalWeight += childMainDef.size;
+                    acc.percentFreeChildren.push(child);
+                    break;
+                }
+                case 'hug': {
+                    acc.hugChildren.push(child);
+                    const childRect = child.rect;
+                    acc.hugTotal += isHorizontal ? childRect.width : childRect.height;
+                    break;
+                }
             }
-        }
-
-        // 1. Calculate px children sizes (already set, just sum them)
-        let pxTotal = 0;
-        for (const child of pxChildren) {
-            const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            pxTotal += childMainDef.size;
-        }
-
-        // 2. Calculate percent children sizes (fraction of parent total)
-        let percentTotal = 0;
-        for (const child of percentChildren) {
-            const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            const size = this.#applyMinMax(childMainDef, parentMainSize * childMainDef.size);
-            if (isHorizontal) {
-                child.setSize(size, child.rect.height);
-            } else {
-                child.setSize(child.rect.width, size);
-            }
-            percentTotal += size;
-        }
-
-        // 3. Calculate hug children sizes (they determine their own size)
-        let hugTotal = 0;
-        for (const child of hugChildren) {
-            const childRect = child.rect;
-            hugTotal += isHorizontal ? childRect.width : childRect.height;
-        }
+            return acc;
+        }, {
+            pxTotal: 0,
+            percentTotal: 0,
+            hugTotal: 0,
+            totalWeight: 0,
+            pxChildren: [] as BoxStore[],
+            percentChildren: [] as BoxStore[],
+            percentFreeChildren: [] as BoxStore[],
+            hugChildren: [] as BoxStore[],
+        });
 
         // 4. Calculate percentFree children (weighted share of free space)
         // freeSpace = parentSize - px siblings - gaps
@@ -213,19 +213,12 @@ export class BoxListStore extends BoxStore {
         // - after: between + gap after last (n gaps)
         // - all: before + between + after (n+1 gaps)
         const totalGaps = this.#calculateTotalGaps();
-        const freeSpace = Math.max(0, parentMainSize - pxTotal - percentTotal - hugTotal - totalGaps);
-
-        // Sum all percentFree weights
-        let totalWeight = 0;
-        for (const child of percentFreeChildren) {
-            const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            totalWeight += childMainDef.size;
-        }
+        const freeSpace = Math.max(0, parentMainSize - totals.pxTotal - totals.percentTotal - totals.hugTotal - totalGaps);
 
         // Distribute free space by weight
-        for (const child of percentFreeChildren) {
+        for (const child of totals.percentFreeChildren) {
             const childMainDef = isHorizontal ? child.xDef : child.yDef;
-            const rawSize = totalWeight > 0 ? freeSpace * (childMainDef.size / totalWeight) : 0;
+            const rawSize = totals.totalWeight > 0 ? freeSpace * (childMainDef.size / totals.totalWeight) : 0;
             // For percentFree, min is subordinate to available space
             const minSize = Math.min(childMainDef.min ?? 0, rawSize);
             const size = Math.min(childMainDef.max ?? Infinity, Math.max(minSize, rawSize));

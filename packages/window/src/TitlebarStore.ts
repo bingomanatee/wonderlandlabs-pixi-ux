@@ -1,4 +1,4 @@
-import {TickerForest} from "@forestry-pixi/ticker-forest";
+import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
 import type {RenderTitlebarFn, TitlebarConfig} from "./types";
 import type {Application} from "pixi.js";
 import {Assets, Container, Graphics, Sprite, Text} from "pixi.js";

@@ -1,5 +1,5 @@
 {
-  "name": "@forestry-pixi/ticker-forest",
+  "name": "@wonderlandlabs-pixi-ux/ticker-forest",
   "version": "1.0.0",
   "description": "TickerForest base class for synchronizing Forestry state with PixiJS ticker",
   "main": "dist/index.js",
@@ -12,10 +12,10 @@
   },
   "devDependencies": {
     "typescript": "^5.5.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@wonderlandlabs/forestry4": "^4.1.10",
-    "pixi.js": "^8.0.0"
+    "@wonderlandlabs/forestry4": "^4.1.15",
+    "pixi.js": "^8.15.0"
   }
 }

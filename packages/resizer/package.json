@@ -1,7 +1,7 @@
 {
-  "name": "@forestry-pixi/resizer",
+  "name": "@wonderlandlabs-pixi-ux/resizer",
   "version": "1.0.0",
-  "description": "Resizer component for forestry-pixi with interactive handles",
+  "description": "Resizer component for wonderlandlabs-pixi-ux with interactive handles",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -12,11 +12,11 @@
   },
   "devDependencies": {
     "typescript": "^5.5.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@forestry-pixi/ticker-forest": "workspace:*",
-    "@wonderlandlabs/forestry4": "^4.1.10",
+    "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
+    "@wonderlandlabs/forestry4": "^4.1.15",
     "pixi.js": "^8.15.0",
     "zod": "^4.3.5"
   }

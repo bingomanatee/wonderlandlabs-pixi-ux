@@ -1,7 +1,7 @@
 {
-  "name": "@forestry-pixi/grid",
+  "name": "@wonderlandlabs-pixi-ux/grid",
   "version": "1.0.0",
-  "description": "PixiJS grid component for forestry-pixi",
+  "description": "PixiJS grid component for wonderlandlabs-pixi-ux",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,16 +11,16 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "pixi.js": "^8.0.0"
+    "pixi.js": "^8.15.0"
   },
   "devDependencies": {
-    "pixi.js": "^8.6.6",
+    "pixi.js": "^8.15.0",
     "typescript": "^5.5.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@forestry-pixi/ticker-forest": "workspace:*",
-    "@wonderlandlabs/forestry4": "^4.1.10",
+    "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
+    "@wonderlandlabs/forestry4": "^4.1.15",
     "pixi.js": "^8.15.0",
     "zod": "^4.3.5"
   }

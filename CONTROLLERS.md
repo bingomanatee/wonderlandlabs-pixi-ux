@@ -6,9 +6,9 @@ This document describes the Forestry-based state controllers available in each p
 
 Each package includes a Forestry4-based controller for managing state:
 
-- **`@forestry-pixi/panel`** - `PanelStore` for managing a collection of panels
-- **`@forestry-pixi/grid`** - `GridStore` for managing grid configuration
-- **`@forestry-pixi/drag`** - `DragStore` for managing drag state
+- **`panel (legacy)`** - `PanelStore` docs retained for historical context (package not in this repo)
+- **`@wonderlandlabs-pixi-ux/grid`** - `GridStore` for managing grid configuration
+- **`@wonderlandlabs-pixi-ux/drag`** - `DragStore` for managing drag state
 
 All controllers use [@wonderlandlabs/forestry4](https://www.npmjs.com/package/@wonderlandlabs/forestry4) for reactive state management with Zod schemas.
 
@@ -46,7 +46,8 @@ interface PanelData {
 ### Usage
 
 ```typescript
-import { PanelStore } from '@forestry-pixi/panel';
+// Legacy example (panel package is not part of this repository):
+// import { PanelStore } from 'legacy-panel-package';
 
 // Create store
 const panelStore = new PanelStore();
@@ -127,7 +128,7 @@ interface GridStoreValue {
 ### Usage
 
 ```typescript
-import { GridStore } from '@forestry-pixi/grid';
+import { GridStore } from '@wonderlandlabs-pixi-ux/grid';
 
 // Create store with initial values
 const gridStore = new GridStore({
@@ -177,7 +178,7 @@ Manages drag state with callbacks for drag events.
 ### Usage
 
 ```typescript
-import { DragStore } from '@forestry-pixi/drag';
+import { DragStore } from '@wonderlandlabs-pixi-ux/drag';
 
 // Create store with callbacks
 const dragStore = new DragStore({
@@ -218,4 +219,3 @@ const position = dragStore.getCurrentItemPosition();
 - `cancelDrag()` - Cancel dragging (no callback)
 - `getCurrentItemPosition()` - Get current item position
 - `isItemDragging(itemId)` - Check if specific item is dragging
-

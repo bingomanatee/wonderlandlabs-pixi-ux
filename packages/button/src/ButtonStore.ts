@@ -1,5 +1,5 @@
-import { BoxLeafStore, BoxListStore, BoxTextStore, type BoxStyle } from '@forestry-pixi/box';
-import type { StyleTree } from '@forestry-pixi/style-tree';
+import { BoxLeafStore, BoxListStore, BoxTextStore, type BoxStyle } from '@wonderlandlabs-pixi-ux/box';
+import type { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import { Application, Container, ContainerOptions, Sprite, type TextStyleOptions } from 'pixi.js';
 import type { ButtonConfig, ButtonMode, RgbColor } from './types';
 import { rgbToHex } from './types';

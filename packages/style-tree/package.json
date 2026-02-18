@@ -1,5 +1,5 @@
 {
-  "name": "@forestry-pixi/style-tree",
+  "name": "@wonderlandlabs-pixi-ux/style-tree",
   "version": "1.0.0",
   "type": "module",
   "description": "Hierarchical style matching system with noun paths and state-based selection",
@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "typescript": "^5.5.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "zod": "^4.3.5"

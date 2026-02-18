@@ -1,12 +1,12 @@
-import {TickerForest} from "@forestry-pixi/ticker-forest";
+import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
 import type {PartialWindowStyle, RgbColor, WindowDef, WindowStyle} from "./types";
 import {Application, Container, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 import rgbToColor from "./rgbToColor";
-import {DragStore} from "@forestry-pixi/drag";
+import {DragStore} from "@wonderlandlabs-pixi-ux/drag";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
-import {ResizerStore} from "@forestry-pixi/resizer";
+import {ResizerStore} from "@wonderlandlabs-pixi-ux/resizer";
 import {distinctUntilChanged, map} from 'rxjs';
 import {resolveWindowStyle} from './styles';
 import {STYLE_VARIANT} from './constants';

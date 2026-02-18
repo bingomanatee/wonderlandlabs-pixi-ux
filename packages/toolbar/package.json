@@ -1,7 +1,7 @@
 {
-  "name": "@forestry-pixi/toolbar",
+  "name": "@wonderlandlabs-pixi-ux/toolbar",
   "version": "1.0.0",
-  "description": "Toolbar component with configurable buttons for forestry-pixi",
+  "description": "Toolbar component with configurable buttons for wonderlandlabs-pixi-ux",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,13 +11,13 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "pixi.js": "^8.0.0"
+    "pixi.js": "^8.15.0"
   },
   "dependencies": {
-    "@forestry-pixi/box": "workspace:^",
-    "@forestry-pixi/button": "workspace:^",
-    "@forestry-pixi/style-tree": "workspace:^",
-    "@wonderlandlabs/forestry4": "^4.1.12",
+    "@wonderlandlabs-pixi-ux/box": "workspace:^",
+    "@wonderlandlabs-pixi-ux/button": "workspace:^",
+    "@wonderlandlabs-pixi-ux/style-tree": "workspace:^",
+    "@wonderlandlabs/forestry4": "^4.1.15",
     "rxjs": "^7.8.1",
     "zod": "^4.3.5"
   },

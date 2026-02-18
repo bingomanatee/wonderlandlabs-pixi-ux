@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/html';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { GridManager } from './GridManager';
-import { createRootContainer, createZoomPan, makeStageZoomable, makeStageDraggable } from '@forestry-pixi/root-container';
+import { createRootContainer, createZoomPan, makeStageZoomable, makeStageDraggable } from '@wonderlandlabs-pixi-ux/root-container';
 
 interface GridManagerStoryArgs {
   gridX: number;

@@ -1,6 +1,40 @@
-# @forestry-pixi/window
+# @wonderlandlabs-pixi-ux/window
 
 A window management system for PixiJS applications using Forestry state management.
+
+## Installation
+
+```bash
+yarn add @wonderlandlabs-pixi-ux/window
+```
+
+## Quick Start
+
+```ts
+import { Application, Container } from 'pixi.js';
+import { WindowsManager } from '@wonderlandlabs-pixi-ux/window';
+
+const app = new Application();
+await app.init({ width: 1200, height: 800 });
+
+const root = new Container();
+app.stage.addChild(root);
+
+const windows = new WindowsManager({
+  app,
+  container: root,
+});
+
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  isDraggable: true,
+  isResizeable: true,
+  titlebar: { title: 'Notes' },
+});
+```
 
 ## Overview
 
@@ -157,4 +191,3 @@ const selected = manager.getSelectedWindows(); // ReadonlySet<string>
 ```
 
 Selected windows show a selection border and their resize handles become visible.
-

@@ -1,7 +1,7 @@
 {
-  "name": "@forestry-pixi/box",
+  "name": "@wonderlandlabs-pixi-ux/box",
   "version": "1.0.0",
-  "description": "Box component with size, padding, anchor, and content alignment for forestry-pixi",
+  "description": "Box component with size, padding, anchor, and content alignment for wonderlandlabs-pixi-ux",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -11,11 +11,11 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "pixi.js": "^8.0.0"
+    "pixi.js": "^8.15.0"
   },
   "dependencies": {
-    "@forestry-pixi/ticker-forest": "workspace:*",
-    "@wonderlandlabs/forestry4": "^4.1.12",
+    "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
+    "@wonderlandlabs/forestry4": "^4.1.15",
     "rxjs": "^7.8.1",
     "zod": "^4.3.5"
   },

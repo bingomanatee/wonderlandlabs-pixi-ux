@@ -1,4 +1,4 @@
-# @forestry-pixi/style-tree
+# @wonderlandlabs-pixi-ux/style-tree
 
 A hierarchical style matching system with noun paths and state-based selection.
 
@@ -13,13 +13,13 @@ A hierarchical style matching system with noun paths and state-based selection.
 ## Installation
 
 ```bash
-yarn add @forestry-pixi/style-tree
+yarn add @wonderlandlabs-pixi-ux/style-tree
 ```
 
 ## Usage
 
 ```typescript
-import { StyleTree } from '@forestry-pixi/style-tree';
+import { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 
 // Create a style tree
 const tree = new StyleTree<{ color: string; fontSize: number }>();
@@ -144,7 +144,7 @@ StyleTree can digest arbitrary JSON trees where plain keys form the noun hierarc
 ### Example
 
 ```typescript
-import { fromJSON, digestJSON } from '@forestry-pixi/style-tree';
+import { fromJSON, digestJSON } from '@wonderlandlabs-pixi-ux/style-tree';
 
 const themeJSON = {
   navigation: {
@@ -197,7 +197,7 @@ digestJSON(tree, json, {
 ### Export to JSON
 
 ```typescript
-import { toJSON } from '@forestry-pixi/style-tree';
+import { toJSON } from '@wonderlandlabs-pixi-ux/style-tree';
 
 const json = toJSON(tree, { statePrefix: '$' });
 // Converts StyleTree back to JSON format

@@ -1,11 +1,11 @@
-# @forestry-pixi/drag
+# @wonderlandlabs-pixi-ux/drag
 
-Drag state controller for PixiJS in forestry-pixi.
+Drag state controller for PixiJS in wonderlandlabs-pixi-ux.
 
 ## Installation
 
 ```bash
-yarn add @forestry-pixi/drag
+yarn add @wonderlandlabs-pixi-ux/drag
 ```
 
 ## Usage
@@ -15,7 +15,7 @@ yarn add @forestry-pixi/drag
 Forestry4-based state controller for managing drag state with PixiJS.
 
 ```typescript
-import { DragStore } from '@forestry-pixi/drag';
+import { DragStore } from '@wonderlandlabs-pixi-ux/drag';
 import { Application } from 'pixi.js';
 
 const app = new Application();
