@@ -46,7 +46,7 @@ function rectDiff(r1: unknown, r2: unknown) {
  * Uses TickerForest to synchronize PixiJS operations with the ticker loop.
  */
 export class ResizerStore extends TickerForest<ResizerStoreValue> {
-    private container: Container;
+    #targetContainer: Container;
     private stage?: Container;
     private drawRect?: (rect: Rectangle, container: Container) => void;
     private onRelease?: (rect: Rectangle) => void;
@@ -74,10 +74,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
                     dirty: false
                 }
             },
-            config.app
+            { app: config.app, container: config.container }
         );
 
-        this.container = config.container;
+        this.#targetContainer = config.container;
         this.drawRect = config.drawRect;
         this.onRelease = config.onRelease;
         this.size = config.size ?? 12;
@@ -86,7 +86,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         this.mode = config.mode ?? 'ONLY_CORNER';
 
         // Get parent container for stage traversal and handle container management
-        const parent = this.container.parent;
+        const parent = this.#targetContainer.parent;
         if (!parent) {
             throw new Error('Container must have a parent to add resize handles');
         }
@@ -111,7 +111,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     }
 
     #initHitArea() {
-        this.stage = this.container.parent ?? undefined;
+        this.stage = this.#targetContainer.parent ?? undefined;
         while (this.stage?.parent) {
             this.stage = this.stage.parent;
         }
@@ -138,7 +138,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         // Update handle positions and scales
         this.updateHandles();
 
-        this.drawRect?.(this.asRect, this.container);
+        this.drawRect?.(this.asRect, this.#targetContainer);
     }
 
 
@@ -320,7 +320,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
             handle.position.set(localPos.x, localPos.y);
             // Counter-scale to maintain constant size
-            const parentScale = this.container.parent?.scale.x ?? 1;
+            const parentScale = this.#targetContainer.parent?.scale.x ?? 1;
             const scale = 1 / parentScale;
             handle.scale.set(scale, scale);
         });
@@ -337,7 +337,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     ): Rect {
         // Clone the rect using spread operator
         const newRect = {...startRect};
-        const parentScale = this.container.parent?.scale.x ?? 1;
+        const parentScale = this.#targetContainer.parent?.scale.x ?? 1;
         const scaledDeltaX = deltaX / parentScale;
         const scaledDeltaY = deltaY / parentScale;
 

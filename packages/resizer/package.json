@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs-pixi-ux/resizer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Resizer component for wonderlandlabs-pixi-ux with interactive handles",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
