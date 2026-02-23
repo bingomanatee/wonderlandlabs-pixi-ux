@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs-pixi-ux/button",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Button component using box system with StyleTree styling for wonderlandlabs-pixi-ux",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

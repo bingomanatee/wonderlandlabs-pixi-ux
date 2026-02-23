@@ -1,7 +1,7 @@
+import './setupNavigator';
 import {describe, expect, it, vi} from 'vitest';
-import {type Application, CanvasTextMetrics} from 'pixi.js';
-import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree/dist/digest';
-import type {StyleTree} from '@wonderlandlabs-pixi-ux/style-tree/dist/StyleTree';
+import {CanvasTextMetrics, Container} from 'pixi.js';
+import {fromJSON, type StyleTree} from '@wonderlandlabs-pixi-ux/style-tree';
 import {ButtonStore} from '../src/ButtonStore';
 import sizingStyles from './fixtures/button.sizing.styles.json';
 
@@ -10,7 +10,14 @@ type QueuedTick = {
     context?: unknown;
 };
 
-function createMockApplication(): { app: Application; flushTicker: () => void } {
+type TickerHost = {
+    ticker: {
+        addOnce: (fn: () => void, context?: unknown) => void;
+        remove: () => void;
+    };
+};
+
+function createMockTickerHost(): { host: TickerHost; flushTicker: (maxTicks?: number) => void } {
     const queuedTicks: QueuedTick[] = [];
 
     const ticker = {
@@ -22,21 +29,18 @@ function createMockApplication(): { app: Application; flushTicker: () => void } 
         },
     };
 
-    const app = {ticker} as unknown as Application;
+    const host: TickerHost = {ticker};
 
-    const flushTicker = () => {
-        let guard = 0;
-        while (queuedTicks.length > 0) {
-            guard += 1;
-            if (guard > 200) {
-                throw new Error('Ticker flush exceeded safety limit');
-            }
+    const flushTicker = (maxTicks = 500) => {
+        let ticks = 0;
+        while (queuedTicks.length > 0 && ticks < maxTicks) {
+            ticks += 1;
             const next = queuedTicks.shift()!;
             next.fn.call(next.context);
         }
     };
 
-    return {app, flushTicker};
+    return {host, flushTicker};
 }
 
 function createStyleTree() {
@@ -59,13 +63,61 @@ function getStyleNumber(
 }
 
 describe('ButtonStore sizing', () => {
+    it('maps BoxTree content: label as text and icons as url', () => {
+        const textMetricsSpy = vi
+            .spyOn(CanvasTextMetrics, 'measureText')
+            .mockImplementation((text: string, style: { fontSize?: number }) => {
+                const fontSize = style.fontSize ?? 13;
+                return {
+                    width: text.length * fontSize,
+                    height: fontSize * TEXT_HEIGHT_FACTOR,
+                } as any;
+            });
+
+        const {host, flushTicker} = createMockTickerHost();
+        const styleTree = createStyleTree();
+        const button = new ButtonStore(
+            {
+                id: 'content-mapping',
+                mode: 'inline',
+                label: 'Open',
+                icon: new Container(),
+                rightIcon: new Container(),
+                iconUrl: 'https://assets.example.com/left.png',
+                rightIconUrl: 'https://assets.example.com/right.png',
+            },
+            styleTree,
+            host as never
+        );
+
+        button.kickoff();
+        flushTicker();
+
+        const [leftIcon, labelNode, rightIcon] = button.children;
+        expect(leftIcon?.content).toEqual({
+            type: 'url',
+            value: 'https://assets.example.com/left.png',
+        });
+        expect(labelNode?.content).toEqual({
+            type: 'text',
+            value: 'Open',
+        });
+        expect(rightIcon?.content).toEqual({
+            type: 'url',
+            value: 'https://assets.example.com/right.png',
+        });
+
+        button.cleanup();
+        textMetricsSpy.mockRestore();
+    });
+
     it('computes icon mode size from icon.size + padding', () => {
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(
             {id: 'icon-size', mode: 'icon'},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -85,12 +137,12 @@ describe('ButtonStore sizing', () => {
     });
 
     it('recomputes icon mode size on hover state', () => {
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(
             {id: 'icon-hover-size', mode: 'icon'},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -117,12 +169,12 @@ describe('ButtonStore sizing', () => {
     });
 
     it('uses iconVertical style path for iconVertical mode sizing', () => {
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(
             {id: 'icon-vertical-size', mode: 'iconVertical'},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -142,12 +194,12 @@ describe('ButtonStore sizing', () => {
     });
 
     it('recomputes iconVertical size on hover with iconVertical hover styles', () => {
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(
             {id: 'icon-vertical-hover-size', mode: 'iconVertical'},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -184,13 +236,13 @@ describe('ButtonStore sizing', () => {
                 } as any;
             });
 
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const labelText = 'ABCD';
         const button = new ButtonStore(
             {id: 'icon-vertical-layout', mode: 'iconVertical', label: labelText},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -231,12 +283,12 @@ describe('ButtonStore sizing', () => {
                 } as any;
             });
 
-        const {app, flushTicker} = createMockApplication();
+        const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(
             {id: 'text-size', mode: 'text', label: TEXT_LABEL},
             styleTree,
-            app
+            host as never
         );
 
         button.kickoff();
@@ -252,6 +304,46 @@ describe('ButtonStore sizing', () => {
 
         expect(button.rect.width).toBe(expectedWidth);
         expect(button.rect.height).toBe(expectedHeight);
+
+        button.cleanup();
+        textMetricsSpy.mockRestore();
+    });
+
+    it('centers inline children on y axis based on measured extents', () => {
+        const textMetricsSpy = vi
+            .spyOn(CanvasTextMetrics, 'measureText')
+            .mockImplementation((text: string, style: { fontSize?: number }) => {
+                const fontSize = style.fontSize ?? 13;
+                return {
+                    width: text.length * fontSize,
+                    height: fontSize * TEXT_HEIGHT_FACTOR,
+                } as any;
+            });
+
+        const {host, flushTicker} = createMockTickerHost();
+        const styleTree = createStyleTree();
+        styleTree.set('button.inline.label.fontSize', [], 24);
+        styleTree.set('button.inline.icon.size.x', [], 16);
+        styleTree.set('button.inline.icon.size.y', [], 16);
+
+        const button = new ButtonStore(
+            {
+                id: 'inline-center-y',
+                mode: 'inline',
+                label: 'Go',
+                icon: new Container(),
+            },
+            styleTree,
+            host as never
+        );
+
+        button.kickoff();
+        flushTicker();
+
+        const [iconChild, labelChild] = button.children;
+        const expectedIconY = Math.max(0, (labelChild.rect.height - iconChild.rect.height) / 2);
+        expect(labelChild.rect.y).toBe(0);
+        expect(iconChild.rect.y).toBeCloseTo(expectedIconY, 6);
 
         button.cleanup();
         textMetricsSpy.mockRestore();
