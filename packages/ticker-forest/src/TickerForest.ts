@@ -1,5 +1,11 @@
 import {Forest, StoreParams} from '@wonderlandlabs/forestry4';
-import type {Application} from 'pixi.js';
+import type {Application, Container, Ticker} from 'pixi.js';
+
+export interface TickerForestConfig {
+    app?: Application;
+    ticker?: Ticker;
+    container?: Container;
+}
 
 /**
  * Abstract base class for Forestry state management that synchronizes
@@ -30,7 +36,10 @@ import type {Application} from 'pixi.js';
  *
  * class MyStore extends TickerForest<MyState> {
  *   constructor(app: Application) {
- *     super({ value: { position: { x: 0, y: 0 }, dirty: false } }, app);
+ *     super(
+ *       { value: { position: { x: 0, y: 0 }, dirty: false } },
+ *       { app },
+ *     );
  *   }
  *
  *   updatePosition(x: number, y: number) {
@@ -59,15 +68,78 @@ import type {Application} from 'pixi.js';
  * ```
  */
 export abstract class TickerForest<T> extends Forest<T> {
-    application: Application;
+    #app?: Application;
+    #ticker?: Ticker;
+    #container?: Container;
+    #queuedOnTicker?: Ticker;
 
     /**
      * @param args - The Forestry configuration object (includes {value: ..., res: ...} and other Forest options)
-     * @param application - The PixiJS Application instance (ticker accessed via app.ticker)
+     * @param config - Flexible ticker config ({ app?, ticker?, container? })
      */
-    constructor(args: StoreParams<T>, application: Application) {
+    constructor(args: StoreParams<T>, config: TickerForestConfig | Application = {}) {
         super(args);
-        this.application = application;
+        if (TickerForest.isApplicationConfig(config)) {
+            this.#app = config;
+            return;
+        }
+        this.#app = config.app;
+        this.#ticker = config.ticker;
+        this.#container = config.container;
+    }
+
+    static isApplicationConfig(value: TickerForestConfig | Application): value is Application {
+        return !!value && typeof value === 'object' && 'ticker' in value && 'renderer' in value;
+    }
+
+    get application(): Application | undefined {
+        return this.#app
+            ?? (this.$parent as unknown as { application?: Application } | undefined)?.application;
+    }
+
+    set application(app: Application | undefined) {
+        this.#app = app;
+    }
+
+    get app(): Application | undefined {
+        return this.application;
+    }
+
+    set app(app: Application | undefined) {
+        this.application = app;
+    }
+
+    get container(): Container | undefined {
+        return this.#container
+            ?? (this.$parent as unknown as { container?: Container } | undefined)?.container;
+    }
+
+    get tickerContainer(): Container | undefined {
+        return this.container;
+    }
+
+    set tickerContainer(container: Container | undefined) {
+        this.#container = container;
+    }
+
+    get ticker(): Ticker {
+        if (this.#ticker) {
+            return this.#ticker;
+        }
+        if (this.#app?.ticker) {
+            return this.#app.ticker;
+        }
+        const parentTicker = (this.$parent as unknown as { ticker?: Ticker } | undefined)?.ticker;
+        if (parentTicker) {
+            return parentTicker;
+        }
+        throw new Error(
+            `${this.constructor.name}: ticker is unavailable (expected config.ticker, config.app.ticker, or parent.ticker)`,
+        );
+    }
+
+    set ticker(ticker: Ticker | undefined) {
+        this.#ticker = ticker;
     }
 
     /**
@@ -98,19 +170,15 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call this after calling markDirty().
      */
     queueResolve(): void {
-        if (!this.application) {
-            console.warn('attempt to queueResolve without application');
-            return;
-        }
+        const ticker = this.ticker;
         if (this.#resolveQueued) {
             // A resolve is already queued or currently executing; request one more pass.
             this.#requeueAfterTick = true;
             return;
         }
-        if (this.application) {
-            this.application.ticker.addOnce(this.$.onTick, this);
-            this.#resolveQueued = true;
-        }
+        ticker.addOnce(this.$.onTick, this);
+        this.#queuedOnTicker = ticker;
+        this.#resolveQueued = true;
     }
 
     /**
@@ -132,6 +200,7 @@ export abstract class TickerForest<T> extends Forest<T> {
             this.clearDirty();
         }
         this.#resolveQueued = false;
+        this.#queuedOnTicker = undefined;
         if (this.#requeueAfterTick) {
             this.#requeueAfterTick = false;
             this.queueResolve();
@@ -152,6 +221,10 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call `super.cleanup()` in their cleanup/destroy methods.
      */
     public cleanup(): void {
-        this.application?.ticker?.remove(this.$.onTick, this);
+        this.#queuedOnTicker?.remove(this.$.onTick, this);
+        this.ticker?.remove(this.$.onTick, this);
+        this.#queuedOnTicker = undefined;
+        this.#resolveQueued = false;
+        this.#requeueAfterTick = false;
     }
 }
