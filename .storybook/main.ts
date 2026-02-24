@@ -2,10 +2,7 @@ import type { StorybookConfig } from '@storybook/html-vite';
 import { mergeConfig } from 'vite';
 
 const config: StorybookConfig = {
-  stories: [
-    '../packages/button/src/**/*.stories.@(js|jsx|mjs|ts|tsx)',
-    '../packages/toolbar/src/**/*.stories.@(js|jsx|mjs|ts|tsx)',
-  ],
+  stories: ['../packages/*/src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
   addons: [],
   framework: {
     name: '@storybook/html-vite',
