@@ -25,6 +25,14 @@ export const BoxContentSchema = z.object({
 });
 export type BoxContent = z.infer<typeof BoxContentSchema>;
 
+export const StyleNameSchema = z.string().min(1);
+export type StyleName = z.infer<typeof StyleNameSchema>;
+
+export const VerbSchema = z.string().min(1);
+export type Verb = z.infer<typeof VerbSchema>;
+export const VerbListSchema = z.array(VerbSchema).default([]);
+export type VerbList = z.infer<typeof VerbListSchema>;
+
 export const AlignmentsSchema = z.enum(dictToStringArray(ALIGN_ENUM_KEYWORDS));
 export type Alignments = z.infer<typeof AlignmentsSchema>;
 
@@ -133,7 +141,11 @@ export const BoxTreeStateBaseSchema = z.object({
   area: BoxAreaSchema,
   align: AxisAlignmentsSchema,
   content: BoxContentSchema.optional(),
+  styleName: StyleNameSchema,
+  modeVerb: VerbListSchema,
+  globalVerb: VerbListSchema,
   order: z.number().finite().default(0),
+  isVisible: z.boolean().default(true),
   absolute: z.boolean().default(false),
   constrain: BoxConstrainSchema.optional(),
   style: z.custom<BoxStyle>().optional(),
@@ -162,7 +174,11 @@ export const BoxTreeNodeConfigSchema = z.object({
   area: BoxAreaConfigSchema.optional(),
   align: BoxAlignConfigSchema.optional(),
   content: BoxContentSchema.optional(),
+  styleName: StyleNameSchema.optional(),
+  modeVerb: z.array(VerbSchema).optional(),
+  globalVerb: z.array(VerbSchema).optional(),
   order: z.number().finite().optional(),
+  isVisible: z.boolean().optional(),
   absolute: z.boolean().optional(),
   constrain: BoxConstraint,
   style: z.custom<BoxStyle>().optional(),

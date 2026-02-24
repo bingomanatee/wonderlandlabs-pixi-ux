@@ -4,15 +4,31 @@ import { ALIGN, MEASUREMENT_MODE, SIZE_MODE_INPUT } from '../src/constants';
 
 describe('BoxTree', () => {
   describe('state creation', () => {
-    it('defaults order to 0 and absolute to false', () => {
+    it('defaults order to 0, isVisible to true, and absolute to false', () => {
       const state = createBoxTreeState({
         id: 'root',
         area: { x: 0, y: 0 },
       });
 
       expect(state.order).toBe(0);
+      expect(state.isVisible).toBe(true);
       expect(state.absolute).toBe(false);
+      expect(state.modeVerb).toEqual([]);
+      expect(state.globalVerb).toEqual([]);
       expect(state.align.direction).toBe('column');
+    });
+
+    it('defaults styleName from id or child key', () => {
+      const rootState = createBoxTreeState({
+        id: 'root-style',
+        area: { x: 0, y: 0 },
+      });
+      const childState = createBoxTreeState({
+        area: { x: 0, y: 0 },
+      }, 'icon');
+
+      expect(rootState.styleName).toBe('root-style');
+      expect(childState.styleName).toBe('icon');
     });
 
     it('requires explicit x/y for the root area anchor', () => {
@@ -448,6 +464,202 @@ describe('BoxTree', () => {
 
       expect([...root.childrenMap.keys()]).toEqual(['z', 'a', 'b']);
     });
+
+    it('inherits assignUx map function to newly added children', () => {
+      const calls: string[] = [];
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+
+      root.assignUx((box) => ({
+        env: 'test',
+        isInitialized: false,
+        init() {
+          this.isInitialized = true;
+        },
+        render() {
+          calls.push(box.identityPath);
+        },
+        clear() {},
+        getContainer() {
+          return undefined;
+        },
+      }));
+
+      const child = root.addChild('child', {
+        area: { width: 10, height: 10 },
+      });
+
+      expect(root.ux).toBeDefined();
+      expect(child.ux).toBeDefined();
+
+      root.render();
+      child.render();
+
+      expect(calls).toContain('root');
+      expect(calls).toContain('root/child');
+    });
+
+    it('calls options.ux immediately when provided', () => {
+      const calls: string[] = [];
+      const ux = (box: BoxTree) => ({
+        env: 'test',
+        isInitialized: false,
+        init() {
+          this.isInitialized = true;
+        },
+        render() {
+          calls.push(box.identityPath);
+        },
+        clear() {},
+        getContainer() {
+          return undefined;
+        },
+      });
+
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+        ux,
+      });
+
+      expect(root.uxMapFn).toBe(ux);
+      expect(root.ux).toBeDefined();
+
+      root.render();
+      expect(calls).toEqual(['root']);
+    });
+
+    it('supports assignUx(fn, false) without applying to children', () => {
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+
+      const existing = root.addChild('existing', {
+        area: { width: 10, height: 10 },
+      });
+
+      const ux = () => ({
+        env: 'test',
+        isInitialized: false,
+        init() {
+          this.isInitialized = true;
+        },
+        render() {},
+        clear() {},
+        getContainer() {
+          return undefined;
+        },
+      });
+      root.assignUx(ux, false);
+
+      expect(root.uxMapFn).toBe(ux);
+      expect(root.uxAppliesToChildren).toBe(false);
+      expect(existing.uxMapFn).not.toBe(ux);
+
+      const late = root.addChild('late', {
+        area: { width: 10, height: 10 },
+      });
+
+      expect(late.uxMapFn).toBeUndefined();
+    });
+  });
+
+  describe('render queue', () => {
+    it('queues a single render on noun/verb changes and resolves on ticker', () => {
+      const queued: Array<{ fn: () => void; ctx: unknown }> = [];
+      const ticker = {
+        addOnce(fn: () => void, ctx: unknown) {
+          queued.push({ fn, ctx });
+        },
+        remove(fn: () => void, ctx: unknown) {
+          const index = queued.findIndex((item) => item.fn === fn && item.ctx === ctx);
+          if (index >= 0) {
+            queued.splice(index, 1);
+          }
+        },
+      } as unknown as import('pixi.js').Ticker;
+
+      const root = new BoxTree({
+        id: 'root',
+        styleName: 'button',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+        children: {
+          icon: {
+            styleName: 'icon',
+            area: { width: 10, height: 10 },
+          },
+        },
+      });
+
+      const calls: string[] = [];
+      root.assignUx((box) => ({
+        env: 'test',
+        isInitialized: true,
+        init() {},
+        render() {
+          calls.push(box.identityPath);
+        },
+        clear() {},
+        getContainer() {
+          return undefined;
+        },
+      }), false);
+
+      root.app = { ticker } as unknown as import('pixi.js').Application;
+      root.render();
+      calls.length = 0;
+
+      const icon = root.getChild('icon');
+      icon?.addModeVerb('hover');
+      icon?.setStyleName('glyph');
+      icon?.addGlobalVerb('disabled');
+
+      expect(root.isRenderQueued).toBe(true);
+      expect(queued.length).toBe(1);
+      expect(calls).toEqual([]);
+
+      const next = queued.shift();
+      next?.fn.call(next.ctx);
+
+      expect(calls).toEqual(['root']);
+      expect(root.isRenderQueued).toBe(false);
+    });
+
+    it('supports manual flush when no ticker is available', () => {
+      const root = new BoxTree({
+        id: 'root',
+        styleName: 'button',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+
+      const calls: string[] = [];
+      root.assignUx((box) => ({
+        env: 'test',
+        isInitialized: true,
+        init() {},
+        render() {
+          calls.push(box.identityPath);
+        },
+        clear() {},
+        getContainer() {
+          return undefined;
+        },
+      }), false);
+
+      root.render();
+      calls.length = 0;
+
+      root.setStyleName('button-next');
+      expect(root.isRenderQueued).toBe(true);
+      expect(calls).toEqual([]);
+
+      root.flushRenderQueue();
+      expect(calls).toEqual(['root']);
+      expect(root.isRenderQueued).toBe(false);
+    });
   });
 
   describe('measurement and setter helpers', () => {
@@ -480,6 +692,19 @@ describe('BoxTree', () => {
       child.setHeightPx(180);
       expect(child.value.area.width).toEqual({ mode: MEASUREMENT_MODE.PX, value: 320 });
       expect(child.value.area.height).toEqual({ mode: MEASUREMENT_MODE.PX, value: 180 });
+    });
+
+    it('supports visibility setter helper', () => {
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+
+      expect(root.isVisible).toBe(true);
+      root.setVisible(false);
+      expect(root.isVisible).toBe(false);
+      root.setVisible(true);
+      expect(root.isVisible).toBe(true);
     });
 
     it('accepts "/" measurements as a % alias', () => {
@@ -556,6 +781,134 @@ describe('BoxTree', () => {
 
       root.clearContent();
       expect(root.content).toBeUndefined();
+    });
+
+    it('supports styleName setter helper', () => {
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+
+      expect(root.styleName).toBe('root');
+      root.setStyleName('button');
+      expect(root.styleName).toBe('button');
+    });
+
+    it('supports modeVerb toggles on a node', () => {
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+      const icon = root.addChild('icon', {
+        area: { width: 10, height: 10 },
+      });
+
+      expect(icon.modeVerb).toEqual([]);
+
+      icon.addModeVerb('hover');
+      expect(icon.modeVerb).toEqual(['hover']);
+
+      icon.toggleModeVerb('selected');
+      expect(icon.modeVerb).toEqual(['hover', 'selected']);
+
+      icon.toggleModeVerb('hover');
+      expect(icon.modeVerb).toEqual(['selected']);
+
+      icon.removeModeVerb('selected');
+      expect(icon.modeVerb).toEqual([]);
+    });
+
+    it('supports globalVerb toggles on the root (from any node)', () => {
+      const root = new BoxTree({
+        id: 'root',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+      const icon = root.addChild('icon', {
+        area: { width: 10, height: 10 },
+      });
+
+      icon.addGlobalVerb('disabled');
+      expect(root.globalVerb).toEqual(['disabled']);
+      expect(icon.globalVerb).toEqual(['disabled']);
+
+      icon.toggleGlobalVerb('active');
+      expect(root.globalVerb).toEqual(['disabled', 'active']);
+
+      icon.toggleGlobalVerb('disabled');
+      expect(root.globalVerb).toEqual(['active']);
+    });
+  });
+
+  describe('style resolution', () => {
+    it('resolves hierarchical style nouns and falls back to atomic styleName', () => {
+      const root = new BoxTree({
+        id: 'root',
+        styleName: 'button',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+      const icon = root.addChild('icon', {
+        styleName: 'icon',
+        area: { width: 10, height: 10 },
+      });
+
+      const styleManager = {
+        match(query: { nouns: string[]; states: string[] }): string | undefined {
+          const key = `${query.nouns.join('.')}:${query.states.join('-')}`;
+          if (key === 'button.icon:') return 'hierarchical-icon';
+          if (key === 'icon:') return 'atomic-icon';
+          return undefined;
+        },
+      };
+
+      expect(icon.styleNouns).toEqual(['button', 'icon']);
+      expect(icon.resolveStyle(styleManager)).toBe('hierarchical-icon');
+    });
+
+    it('falls back to atomic styleName when hierarchical style is not defined', () => {
+      const root = new BoxTree({
+        id: 'root',
+        styleName: 'button',
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+      const icon = root.addChild('icon', {
+        styleName: 'icon',
+        area: { width: 10, height: 10 },
+      });
+
+      const styleManager = {
+        match(query: { nouns: string[]; states: string[] }): string | undefined {
+          const key = `${query.nouns.join('.')}:${query.states.join('-')}`;
+          if (key === 'icon:') return 'atomic-icon';
+          return undefined;
+        },
+      };
+
+      expect(icon.resolveStyle(styleManager)).toBe('atomic-icon');
+    });
+
+    it('includes globalVerb and modeVerb in style state matching', () => {
+      const root = new BoxTree({
+        id: 'root',
+        styleName: 'button',
+        globalVerb: ['disabled'],
+        area: { x: 0, y: 0, width: 100, height: 100 },
+      });
+      const icon = root.addChild('icon', {
+        styleName: 'icon',
+        modeVerb: ['hover'],
+        area: { width: 10, height: 10 },
+      });
+
+      const styleManager = {
+        match(query: { nouns: string[]; states: string[] }): string | undefined {
+          const key = `${query.nouns.join('.')}:${query.states.sort().join('-')}`;
+          if (key === 'button.icon:disabled-hover-selected') return 'stateful-style';
+          return undefined;
+        },
+      };
+
+      expect(icon.resolvedVerb).toEqual(['disabled', 'hover']);
+      expect(icon.resolveStyle(styleManager, ['selected'])).toBe('stateful-style');
     });
   });
 });

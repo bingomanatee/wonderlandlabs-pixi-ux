@@ -3,6 +3,9 @@ export {
     DirectionSchema as TreeDirectionSchema,
     BoxContentTypeSchema as TreeBoxContentTypeSchema,
     BoxContentSchema as TreeBoxContentSchema,
+    StyleNameSchema as TreeStyleNameSchema,
+    VerbSchema as TreeVerbSchema,
+    VerbListSchema as TreeVerbListSchema,
     AlignmentsSchema as TreeAlignmentsSchema,
     AlignKeywordSchema as TreeAlignKeywordSchema,
     AlignAliasSchema as TreeAlignAliasSchema,
@@ -29,6 +32,9 @@ export {
     type Direction as TreeDirection,
     type BoxContentType,
     type BoxContent,
+    type StyleName,
+    type Verb,
+    type VerbList,
     type Alignments,
     type AlignKeyword,
     type AlignAlias,
@@ -48,7 +54,41 @@ export {
     type BoxAlign,
     type BoxConstrain,
 } from './types.boxtree';
-export { BoxTree, createBoxTreeState } from './BoxTree';
+export {
+    BoxTree,
+    createBoxTreeState,
+    type BoxUx,
+    type BoxUxMapFn,
+    type BoxRenderer,
+    type BoxRenderMapFn,
+    type BoxTreeRuntimeConfig,
+} from './BoxTree';
+export {
+    BoxUxContextMap,
+    BoxUxPixiContentMap,
+    BoxRenderContentMap,
+    BOX_UX_CONTENT_ORDER,
+    BOX_RENDER_CONTENT_ORDER,
+} from './BoxUxContextMap';
+export {
+    BoxTreeUx,
+    BoxTreeRenderer,
+    type BoxTreeStyleManagerLike,
+} from './BoxUx';
+export {
+    ROOT_CONTAINER,
+    BACKGROUND_CONTAINER,
+    CHILD_CONTAINER,
+    OVERLAY_CONTAINER,
+    STROKE_CONTAINER,
+    BOX_UX_ENV,
+} from './constants.ux';
+export {
+    type BoxTreeFillStyle,
+    type BoxTreeStrokeStyle,
+    type BoxTreeStyleMap,
+    type BoxTreeUxStyleManagerLike,
+} from './types.ux';
 export {
     SizeModeSchema as TreeSizeModeSchema,
     FractionalMeasurementModeSchema as TreeFractionalMeasurementModeSchema,
