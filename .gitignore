@@ -24,6 +24,10 @@ yarn-error.log*
 
 # Logs
 *.log
+.DS_Store
+
+# Storybook static build output
+storybook-static/
 
 .vscode/*
 /.idea/

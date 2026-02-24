@@ -14,11 +14,9 @@
     "pixi.js": "^8.15.0"
   },
   "dependencies": {
-    "@wonderlandlabs-pixi-ux/box": "workspace:^",
     "@wonderlandlabs-pixi-ux/button": "workspace:^",
     "@wonderlandlabs-pixi-ux/style-tree": "workspace:^",
-    "@wonderlandlabs/forestry4": "^4.1.15",
-    "rxjs": "^7.8.1",
+    "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
     "zod": "^4.3.5"
   },
   "devDependencies": {

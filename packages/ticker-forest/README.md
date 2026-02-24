@@ -39,7 +39,10 @@ interface MyState {
 
 class MyStore extends TickerForest<MyState> {
   constructor(app: Application) {
-    super({ value: { position: { x: 0, y: 0 }, dirty: false } }, app);
+    super(
+      { value: { position: { x: 0, y: 0 }, dirty: false } },
+      { app }
+    );
   }
 
   updatePosition(x: number, y: number) {
@@ -72,11 +75,21 @@ class MyStore extends TickerForest<MyState> {
 ### Constructor
 
 ```typescript
-constructor(args: StoreParams<T>, application: Application)
+constructor(
+  args: StoreParams<T>,
+  config?: { app?: Application; ticker?: Ticker; container?: Container } | Application
+)
 ```
 
 - `args` - The Forestry configuration object (includes `{value: ..., res: ...}` and other Forest options)
-- `application` - The PixiJS Application instance (ticker accessed via `app.ticker`)
+- `config.app` - Optional PixiJS Application instance
+- `config.ticker` - Optional explicit ticker override
+- `config.container` - Optional container reference for consumers
+
+Ticker resolution precedence:
+1. Explicit `config.ticker` (or `store.ticker = ...`)
+2. `config.app?.ticker`
+3. `store.$parent?.ticker`
 
 ### Protected Methods
 
@@ -104,6 +117,10 @@ Perform PixiJS operations. This method is called inside a ticker handler, ensuri
 
 ### Public Methods
 
+#### `ticker: Ticker | undefined` (getter/setter)
+
+Direct ticker access for animation sync. This can be explicitly set or inherited from app/parent.
+
 #### `cleanup(): void`
 
 Cleanup method to remove ticker listeners. Subclasses should call `super.cleanup()` in their cleanup/destroy methods.
@@ -117,3 +134,35 @@ Cleanup method to remove ticker listeners. Subclasses should call `super.cleanup
 
 MIT
 
+# APPENDIX: Beyond PIXI 
+
+This library was originally wrote to solve a technical problem
+in PIXI. however it is also useful in any high performance animation
+to establish a common pattern: 
+
+1. Data changes flag parts of a tree as "dirty" / need re-rendering
+2. Inside an animation loop the visuals are updated immediately before showing a frame
+
+This is a useful economy; for instance say the positin of a sprite is changed
+three or four times. There is no reason to recompute the sprite four times, -- only
+once, _before the next frame is rendered_. That is, instead of data changes immediately
+triggering a regeneration of the visuals it just notes that visual regeneration is _needed_
+and is performed each frame, unless the visuals have not changed. 
+
+Box, one of the immediate use cases of ticker-forest, was designed to 
+create a "flex-like" api for Pixi, for convenience in design;
+however, once the pixi elements were stripped (for ease of 
+rapid development) it became clear that the math and utility of Box
+was not purely confined to Pixi but could be used in any system with a render
+tree. 
+
+To this end, we are redesigning the ticker-forest class to be 
+pixi-friendly, but to mainly depend on the concept fo a ticker to which
+render events can be added (or removed). 
+
+So, you can add render events to any system (svg, dom) and use the Box 
+system to contain generic descriptors for styling, size, and position of a 
+rectangular container in a 2d space. However while it is useable in Pixi,
+your render engine can be any 2d render system you wish, and the TickerForest
+class while it does depend on the Ticker interface can be used in any visualization
+system you may want to.

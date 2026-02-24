@@ -8,6 +8,7 @@ import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
 import {ResizerStore} from "@wonderlandlabs-pixi-ux/resizer";
 import {distinctUntilChanged, map} from 'rxjs';
+import type {Subscription} from 'rxjs';
 import {resolveWindowStyle} from './styles';
 import {STYLE_VARIANT} from './constants';
 
@@ -30,6 +31,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         sortableChildren: true  // Enable zIndex sorting
     });
     #background: Graphics = new Graphics();
+    #selectionBorder: Graphics = new Graphics();
     #contentContainer: Container = new Container({
         eventMode: "static",
         position: {x: 0, y: 0}
@@ -45,7 +47,7 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     constructor(config: StoreParams<WindowDef>, app: Application) {
-        super(config, app);
+        super(config, { app });
         this.#initTitlebar();
         if (app) {
             this.kickoff();
@@ -53,39 +55,27 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #initTitlebar() {
-        if (!this.value.titlebar) {
-            console.error('no titlebar def');
-        }
         // Create titlebar store as a branch using $branch
         // @ts-ignore
         this.#titlebarStore = this.$branch(['titlebar'], {
             subclass: TitlebarStore,
-        }, this.application) as unknown as TitlebarStore;
+        }, this.application!) as unknown as TitlebarStore;
         this.#titlebarStore.application = this.application;
         this.#titlebarStore.set('isDirty', true);
-        const self = this;
 
-        // Width subscription
-        const [_, id] = this.fullPath;
-        self.$subject.pipe(map(() => {
-            return `${self.value?.width}-${self.value?.height}`
-        }), distinctUntilChanged()).subscribe({
-            next(size) {
-                console.log('size changed to:', size);
-                self.#titlebarStore?.set('isDirty', true);
-                self.#titlebarStore?.queueResolve();
-                self.set('isDirty', true);
-                self.queueResolve();
-            }, error(e) {
-                console.log('width error', e)
-            }, complete() {
-                console.log('widnows store - completed')
-            }
+        this.#sizeSubscription?.unsubscribe();
+        this.#sizeSubscription = this.$subject.pipe(
+            map(() => `${this.value?.width}-${this.value?.height}`),
+            distinctUntilChanged(),
+        ).subscribe(() => {
+            this.#titlebarStore?.set('isDirty', true);
+            this.#titlebarStore?.queueResolve();
+            this.set('isDirty', true);
+            this.queueResolve();
         });
     }
 
     resolveComponents(parentContainer?: Container, handlesContainer?: Container) {
-        console.log('windowStore:resolveComponents');
         this.#refreshRoot();
         this.#refreshBackground();
         this.#refreshSelectionBorder();
@@ -106,6 +96,7 @@ export class WindowStore extends TickerForest<WindowDef> {
     #titlebarStore?: TitlebarStore;
     #resizerStore?: ResizerStore;
     #dragInitialized = false;
+    #sizeSubscription?: Subscription;
 
     /**
      * Get the titlebar store for custom configuration
@@ -131,14 +122,22 @@ export class WindowStore extends TickerForest<WindowDef> {
         const {dragFromTitlebar} = this.value;
 
         this.#dragStore = new DragStore({
-            app: this.application,
+            app: this.application!,
             callbacks: {
                 onDragStart() {
+                    const rootStore = self.$root as unknown as WindowsManager;
+                    rootStore?.setSelectedWindow?.(self.value.id);
                 },
                 onDrag(state) {
                     const pos = self.#dragStore?.getCurrentItemPosition();
                     if (pos) {
                         self.#rootContainer.position.set(pos.x, pos.y);
+                        if (self.value.x !== pos.x || self.value.y !== pos.y) {
+                            self.mutate((draft) => {
+                                draft.x = pos.x;
+                                draft.y = pos.y;
+                            });
+                        }
                         // Update resizer rect to match new position
                         if (self.#resizerStore) {
                             self.#resizerStore.setRect(new Rectangle(
@@ -151,6 +150,14 @@ export class WindowStore extends TickerForest<WindowDef> {
                     }
                 },
                 onDragEnd() {
+                    const finalX = self.#rootContainer.position.x;
+                    const finalY = self.#rootContainer.position.y;
+                    if (self.value.x !== finalX || self.value.y !== finalY) {
+                        self.mutate((draft) => {
+                            draft.x = finalX;
+                            draft.y = finalY;
+                        });
+                    }
                     // Reset cursor on the drag target
                     if (dragFromTitlebar && self.#titlebarStore) {
                         self.#titlebarStore.container.cursor = 'grab';
@@ -268,7 +275,7 @@ export class WindowStore extends TickerForest<WindowDef> {
     #backgroundClickInitialized = false;
 
     #refreshBackground() {
-        const {width, height, backgroundColor, id} = this.value;
+        const {width, height, backgroundColor} = this.value;
         const style = this.resolvedStyle;
 
         // Add to container if not already added
@@ -281,27 +288,10 @@ export class WindowStore extends TickerForest<WindowDef> {
         // Use style background color if variant is set, otherwise use explicit backgroundColor
         const bgColor = this.value.variant ? style.backgroundColor : backgroundColor;
 
-        // Check if window is selected
-        const rootStore = this.$root as unknown as WindowsManager;
-        const isSelected = rootStore?.isWindowSelected?.(id) ?? false;
-
-        // Update graphics - draw background with optional selection border
+        // Update graphics - fill only
         this.#background.clear();
         this.#background.rect(0, 0, width, height)
             .fill(rgbToColor(bgColor));
-
-        // Draw selection border as part of background (not overlaying content)
-        // Uses same color as resize handles for visual consistency
-        if (isSelected) {
-            const borderColor = style?.selectedBorderColor ?? HANDLE_COLOR;
-            const borderWidth = style?.selectedBorderWidth ?? 2;
-            const color = rgbToColor(borderColor);
-
-            // Draw border inside the background rect (alignment: 1 = inside)
-            this.#background
-                .rect(0, 0, width, height)
-                .stroke({width: borderWidth, color, alignment: 1});
-        }
 
         // Add click-to-select handler (only once)
         if (!this.#backgroundClickInitialized) {
@@ -325,9 +315,30 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#backgroundClickInitialized = true;
     }
 
-    // Selection border is now drawn as part of #refreshBackground, this method is kept for compatibility
     #refreshSelectionBorder() {
-        // No-op: selection border is now integrated into background rendering
+        const {width, height, id} = this.value;
+        const rootStore = this.$root as unknown as WindowsManager;
+        const isSelected = rootStore?.isWindowSelected?.(id) ?? false;
+        const style = this.resolvedStyle;
+
+        if (!this.#selectionBorder.parent) {
+            this.#rootContainer.addChild(this.#selectionBorder);
+            this.#selectionBorder.zIndex = 3; // Above titlebar/content/background
+            this.#selectionBorder.eventMode = 'none';
+        }
+
+        this.#selectionBorder.clear();
+        this.#selectionBorder.visible = isSelected;
+        if (!isSelected) {
+            return;
+        }
+
+        const borderColor = style?.selectedBorderColor ?? HANDLE_COLOR;
+        const borderWidth = style?.selectedBorderWidth ?? 2;
+        const color = rgbToColor(borderColor);
+        this.#selectionBorder
+            .rect(0, 0, width, height)
+            .stroke({width: borderWidth, color, alignment: 1});
     }
 
     #refreshContentContainer() {
@@ -358,6 +369,9 @@ export class WindowStore extends TickerForest<WindowDef> {
         // When selected, disable mask to show content overflow
         if (isSelected) {
             this.#contentContainer.mask = null;
+            // Keep mask geometry from drawing over the window background when not used.
+            this.#contentMask.visible = false;
+            this.#contentMask.clear();
             return;
         }
 
@@ -365,6 +379,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         if (!this.#contentMask.parent) {
             this.#rootContainer.addChild(this.#contentMask);
         }
+        this.#contentMask.visible = true;
 
         this.#contentMask.clear();
         this.#contentMask.rect(0, 0, width, height)
@@ -407,7 +422,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                 container: this.#rootContainer,
                 handleContainer: handlesContainer,
                 rect: new Rectangle(x, y, width, height),
-                app: this.application,
+                app: this.application!,
                 mode: resizeMode || 'ONLY_CORNER',
                 size: 8,
                 color: HANDLE_COLOR,
@@ -418,8 +433,8 @@ export class WindowStore extends TickerForest<WindowDef> {
                         draft.y = rect.y;
                         draft.width = Math.max(rect.width, minWidth || 50);
                         draft.height = Math.max(rect.height, minHeight || 50);
-                        draft.isDirty = true;
                     });
+                    self.markDirty();
                 },
                 onRelease: (rect: Rectangle) => {
                     // Final update when resize is complete
@@ -428,9 +443,8 @@ export class WindowStore extends TickerForest<WindowDef> {
                         draft.height = Math.max(rect.height, minHeight || 50);
                         draft.x = rect.x;
                         draft.y = rect.y;
-                        draft.isDirty = true;
                     });
-                    self.queueResolve();
+                    self.markDirty();
                 }
             });
         }
@@ -503,6 +517,9 @@ export class WindowStore extends TickerForest<WindowDef> {
 
     cleanup(): void {
         super.cleanup();
+
+        this.#sizeSubscription?.unsubscribe();
+        this.#sizeSubscription = undefined;
 
         // Cleanup drag store
         if (this.#dragStore) {

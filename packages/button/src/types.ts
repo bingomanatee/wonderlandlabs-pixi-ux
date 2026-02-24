@@ -24,10 +24,12 @@ export const ButtonConfigSchema = z.object({
     // Content - left icon (optional)
     sprite: z.custom<Sprite>().optional(),
     icon: z.custom<Container>().optional(),  // Alternative to sprite - any Container (Graphics, etc)
+    iconUrl: z.string().optional(),
 
     // Content - right icon (optional, inline mode only)
     rightSprite: z.custom<Sprite>().optional(),
     rightIcon: z.custom<Container>().optional(),
+    rightIconUrl: z.string().optional(),
 
     // Label
     label: z.string().optional(),
@@ -117,4 +119,3 @@ export function rgbToHex(rgb: RgbColor): number {
     const b = Math.round(rgb.b * 255);
     return (r << 16) | (g << 8) | b;
 }
-

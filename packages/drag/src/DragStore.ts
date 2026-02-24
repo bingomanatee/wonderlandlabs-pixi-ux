@@ -32,7 +32,7 @@ export interface DragStoreConfig {
 
 export class DragStore extends TickerForest<DragStoreValue> {
     private callbacks: DragCallbacks = {};
-    private app: Application;
+    #app: Application;
     #terminate: () => void = () => {};
 
     constructor(config: DragStoreConfig) {
@@ -53,10 +53,10 @@ export class DragStore extends TickerForest<DragStoreValue> {
                     dirty: false,
                 },
             },
-            config.app
+            { app: config.app }
         );
 
-        this.app = config.app;
+        this.#app = config.app;
 
         if (config.callbacks) {
             this.callbacks = config.callbacks;
@@ -162,16 +162,16 @@ export class DragStore extends TickerForest<DragStoreValue> {
         };
 
         // Attach listeners to stage
-        this.app.stage.eventMode = 'static';
-        this.app.stage.on('pointermove', onDragMove);
-        this.app.stage.on('pointerup', onDragEnd);
-        this.app.stage.on('pointerupoutside', onDragEnd);
+        this.#app.stage.eventMode = 'static';
+        this.#app.stage.on('pointermove', onDragMove);
+        this.#app.stage.on('pointerup', onDragEnd);
+        this.#app.stage.on('pointerupoutside', onDragEnd);
 
         // Store terminator that cleans up and resets itself
         this.#terminate = () => {
-            this.app.stage.off('pointermove', onDragMove);
-            this.app.stage.off('pointerup', onDragEnd);
-            this.app.stage.off('pointerupoutside', onDragEnd);
+            this.#app.stage.off('pointermove', onDragMove);
+            this.#app.stage.off('pointerup', onDragEnd);
+            this.#app.stage.off('pointerupoutside', onDragEnd);
             this.#terminate = () => {};
         };
     }
@@ -268,4 +268,3 @@ export class DragStore extends TickerForest<DragStoreValue> {
         return this.value.isDragging && this.value.draggedItemId === itemId;
     }
 }
-

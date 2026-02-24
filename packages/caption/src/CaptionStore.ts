@@ -74,7 +74,7 @@ export class CaptionStore extends TickerForest<CaptionState> {
             isDirty: true,
         };
 
-        super({ value: initialState }, app);
+        super({ value: initialState }, { app });
 
         this.id = resolved.id;
         this.#backgroundStyle = mergeBackgroundStyle(

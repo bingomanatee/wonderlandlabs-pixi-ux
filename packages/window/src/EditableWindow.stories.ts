@@ -283,7 +283,13 @@ const meta: Meta<EditableWindowArgs> = {
             const windowStore = wm.windowBranch(currentSelectedId);
             if (!windowStore) return;
 
-            const {x, y, width, height} = windowStore.value;
+            const bounds = windowStore.rootContainer.getBounds();
+            const x = bounds.x;
+            const y = bounds.y;
+            const width = bounds.width;
+            const height = bounds.height;
+            const viewportWidth = app.renderer.width;
+            const viewportHeight = app.renderer.height;
             const toolbarWidth = toolbar.rect.width > 0 ? toolbar.rect.width : 150;
             const toolbarHeight = toolbar.rect.height > 0 ? toolbar.rect.height : 40;
 
@@ -292,14 +298,14 @@ const meta: Meta<EditableWindowArgs> = {
             let toolbarY = y + height + toolbarGap;
 
             // Clamp X to stage bounds
-            toolbarX = Math.max(0, Math.min(toolbarX, stageWidth - toolbarWidth));
+            toolbarX = Math.max(0, Math.min(toolbarX, viewportWidth - toolbarWidth));
 
             // If toolbar would go below stage, position it above the window
-            if (toolbarY + toolbarHeight > stageHeight) {
+            if (toolbarY + toolbarHeight > viewportHeight) {
                 toolbarY = y - toolbarHeight - toolbarGap;
                 // If still out of bounds (window at top), clamp to bottom of stage
                 if (toolbarY < 0) {
-                    toolbarY = stageHeight - toolbarHeight;
+                    toolbarY = viewportHeight - toolbarHeight;
                 }
             }
 
@@ -502,10 +508,15 @@ const meta: Meta<EditableWindowArgs> = {
                     currentSelectedId = selectedArray[0];
                     toolbar.container.visible = true;
                     positionToolbar();
-                    app.ticker.addOnce(positionToolbar);
                 } else {
                     currentSelectedId = null;
                     toolbar.container.visible = false;
+                }
+            });
+
+            app.ticker.add(() => {
+                if (toolbar.container.visible) {
+                    positionToolbar();
                 }
             });
         });

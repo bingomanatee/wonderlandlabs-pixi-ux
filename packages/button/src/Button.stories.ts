@@ -483,4 +483,3 @@ export const AllModes: Story = {
         return wrapper;
     },
 };
-

@@ -32,7 +32,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
           dirty: false,
         },
       },
-      config.application
+      { app: config.application, container: config.zoomPanContainer }
     );
 
     // Store PixiJS references as private properties (not in Forestry state)
@@ -240,13 +240,13 @@ export class GridManager extends TickerForest<GridManagerValue> {
     this.#artboard;
 
     // Listen to stage zoom events - mark dirty
-    this.application.stage.on('stage-zoom', () => {
+    this.application?.stage.on('stage-zoom', () => {
       this.markDirty();
       this.queueResolve();
     });
 
     // Listen to stage drag events - mark dirty
-    this.application.stage.on('stage-drag', () => {
+    this.application?.stage.on('stage-drag', () => {
       this.markDirty();
       this.queueResolve();
     });
@@ -422,8 +422,8 @@ export class GridManager extends TickerForest<GridManagerValue> {
     super.cleanup();
 
     // Remove event listeners
-    this.application.stage.off('stage-zoom');
-    this.application.stage.off('stage-drag');
+    this.application?.stage.off('stage-zoom');
+    this.application?.stage.off('stage-drag');
 
     // Destroy textures
     if (this.#_gridTexture) {
@@ -443,4 +443,3 @@ export class GridManager extends TickerForest<GridManagerValue> {
     }
   }
 }
-

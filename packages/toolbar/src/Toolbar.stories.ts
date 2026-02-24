@@ -198,6 +198,7 @@ export const TextOnlyVertical: Story = {
         ],
         spacing: args.spacing,
         orientation: args.orientation,
+        fillButtons: true,
         padding: 8,
         background: {
           fill: { color: { r: 0.95, g: 0.95, b: 0.95 }, alpha: 1 },

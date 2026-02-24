@@ -1,5 +1,5 @@
+import './setupNavigator';
 import { describe, expect, it } from 'vitest';
-import type { Application } from 'pixi.js';
 import { fromJSON, type StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import { ToolbarStore } from '../src/ToolbarStore';
 import toolbarDefaultStyles from '../src/styles/toolbar.default.json';
@@ -26,7 +26,14 @@ function getStyleNumber(
   return value;
 }
 
-function createMockApplication(): { app: Application; flushTicker: () => void } {
+type TickerHost = {
+  ticker: {
+    addOnce: (fn: () => void, context?: unknown) => void;
+    remove: () => void;
+  };
+};
+
+function createMockTickerHost(): { host: TickerHost; flushTicker: (maxTicks?: number) => void } {
   const queuedTicks: QueuedTick[] = [];
 
   const ticker = {
@@ -38,28 +45,25 @@ function createMockApplication(): { app: Application; flushTicker: () => void } 
     },
   };
 
-  const app = { ticker } as unknown as Application;
+  const host: TickerHost = { ticker };
 
-  const flushTicker = () => {
-    let guard = 0;
-    while (queuedTicks.length > 0) {
-      guard += 1;
-      if (guard > 200) {
-        throw new Error('Ticker flush exceeded safety limit');
-      }
+  const flushTicker = (maxTicks = 500) => {
+    let ticks = 0;
+    while (queuedTicks.length > 0 && ticks < maxTicks) {
+      ticks += 1;
       const next = queuedTicks.shift()!;
       next.fn.call(next.context);
     }
   };
 
-  return { app, flushTicker };
+  return { host, flushTicker };
 }
 
 function createToolbar(orientation: 'horizontal' | 'vertical'): {
   toolbar: ToolbarStore;
   flushTicker: () => void;
 } {
-  const { app, flushTicker } = createMockApplication();
+  const { host, flushTicker } = createMockTickerHost();
 
   const toolbar = new ToolbarStore({
     id: `toolbar-${orientation}`,
@@ -71,7 +75,7 @@ function createToolbar(orientation: 'horizontal' | 'vertical'): {
       { id: 'two', mode: 'iconVertical' },
       { id: 'three', mode: 'iconVertical' },
     ],
-  }, app);
+  }, host as never);
 
   toolbar.kickoff();
   flushTicker();
@@ -139,7 +143,7 @@ describe('ToolbarStore layout dimensions', () => {
   });
 
   it('applies uniform spacing between vertically stacked buttons with different heights', () => {
-    const { app, flushTicker } = createMockApplication();
+    const { host, flushTicker } = createMockTickerHost();
     const spacing = 12;
     const padding = 8;
     const styleTree = fromJSON({
@@ -169,7 +173,7 @@ describe('ToolbarStore layout dimensions', () => {
         { id: 'two', mode: 'icon', variant: 'big' },
         { id: 'three', mode: 'icon' },
       ],
-    }, app);
+    }, host as never);
 
     toolbar.kickoff();
     flushTicker();
@@ -195,7 +199,7 @@ describe('ToolbarStore layout dimensions', () => {
   });
 
   it('reflows vertical positions when a child button height changes after initial layout', () => {
-    const { app, flushTicker } = createMockApplication();
+    const { host, flushTicker } = createMockTickerHost();
     const spacing = 10;
     const padding = 8;
     const styleTree = fromJSON({
@@ -221,7 +225,7 @@ describe('ToolbarStore layout dimensions', () => {
         { id: 'two', mode: 'icon' },
         { id: 'three', mode: 'icon' },
       ],
-    }, app);
+    }, host as never);
 
     toolbar.kickoff();
     flushTicker();
@@ -251,5 +255,54 @@ describe('ToolbarStore layout dimensions', () => {
     expect(hoveredTwoHeight).toBe(88);
     expect(three.rect.y).toBe(expectedThreeY);
     expect(toolbar.rect.height).toBe(expectedToolbarHeight);
+  });
+
+  it('fills vertical button widths to the widest child when fillButtons is enabled', () => {
+    const { host, flushTicker } = createMockTickerHost();
+    const spacing = 8;
+    const padding = 8;
+    const styleTree = fromJSON({
+      button: {
+        padding: {
+          '$*': { x: 4, y: 4 },
+        },
+        icon: {
+          '$*': { size: { x: 40, y: 40 }, alpha: 1 },
+        },
+        wide: {
+          icon: {
+            '$*': { size: { x: 64, y: 40 }, alpha: 1 },
+          },
+        },
+      },
+    });
+
+    const toolbar = new ToolbarStore({
+      id: 'toolbar-vertical-fill-width',
+      orientation: 'vertical',
+      spacing,
+      padding,
+      fillButtons: true,
+      style: styleTree,
+      buttons: [
+        { id: 'one', mode: 'icon' },
+        { id: 'two', mode: 'icon', variant: 'wide' },
+        { id: 'three', mode: 'icon' },
+      ],
+    }, host as never);
+
+    toolbar.kickoff();
+    flushTicker();
+
+    const [one, two, three] = toolbar.getButtons();
+    expect(one.rect.width).toBe(72);
+    expect(two.rect.width).toBe(72);
+    expect(three.rect.width).toBe(72);
+    expect(one.rect.y).toBe(0);
+    expect(two.rect.y).toBe(one.rect.height + spacing);
+    expect(three.rect.y).toBe(one.rect.height + spacing + two.rect.height + spacing);
+
+    const expectedToolbarWidth = 72 + padding * 2;
+    expect(toolbar.rect.width).toBe(expectedToolbarWidth);
   });
 });

@@ -60,7 +60,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
                     }
                     // @ts-ignore
                     if (next[key] !== (this as TitlebarStore).value[key]) {
-                        console.log('changed field:', key);
                         nonDirtyChanged = `${key}`;
                     }
                 });
@@ -72,7 +71,7 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
                 }
                 return next
             }
-        }, app);
+        }, { app });
         if (!this.application) {
             const parent = this.$parent as WindowStore | undefined;
             if (parent?.application) {
@@ -81,8 +80,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         }
         if (this.application) {
             this.kickoff();
-        } else {
-            console.error('no app - cannot kick off')
         }
     }
 
@@ -96,7 +93,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         const titlebar = this.value;
         // Set up hover listeners for ON_HOVER mode
         if (titlebar.mode === TITLEBAR_MODE.ON_HOVER && windowStore.rootContainer) {
-            console.info('hover hooks');
             windowStore.rootContainer?.on('pointerenter', () => {
                 this.mutate((draft) => {
                     draft.isVisible = true;
@@ -160,7 +156,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
 
         // Update visibility
         this.#container.visible = this.value.isVisible;
-        console.log('tb refreshed')
     }
 
     #refreshBackground() {
@@ -264,8 +259,6 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     protected resolve(): void {
         if (this.isDirty()) {
             this.resolveComponents();
-        } else {
-            console.warn('resolve - not dirty');
         }
     }
 
@@ -292,4 +285,3 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         }
     }
 }
-
