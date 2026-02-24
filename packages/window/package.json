@@ -8,6 +8,9 @@
     "build": "tsc",
     "clean": "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "pixi.js": "^8.15.0"
   },

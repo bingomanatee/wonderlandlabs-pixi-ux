@@ -65,4 +65,4 @@ root.$set('children.card', {
 
 ## Data Model
 
-See `/Users/davidedelhart/Documents/repos/forestry-pixi/packages/box/README.BOX_VALUES.md` for the current schema, constraints, aliases, and examples.
+Use the exported BoxTree schemas/types in `src/types.boxtree.ts` and measurement schemas in `src/types.ts` as the source of truth.

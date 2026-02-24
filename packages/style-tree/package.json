@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "typescript": "^5.5.3",
     "vitest": "^4.0.18"
