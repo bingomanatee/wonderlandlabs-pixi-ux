@@ -1,6 +1,6 @@
 ---
-title: Package Docs
-description: README pages for each monorepo package
+title: NPM Packages
+description: individual packages
 ---
 
 This section is the package reference index for `@wonderlandlabs-pixi-ux`.
@@ -21,3 +21,13 @@ Each package has a dedicated page, and each page mirrors the package README so d
 | [ticker-forest](./ticker-forest) | Forestry base class that schedules dirty-state resolve work on a Pixi ticker. |
 | [toolbar](./toolbar) | Toolbar composition store for arranging and styling groups of buttons. |
 | [window](./window) | Window manager and window store primitives with titlebar, drag, and resize support. |
+
+## Cross Dependencies
+
+- **style-tree** is used _directly_  in  box, button, caption, window. 
+- **box** is used by caption, window, and button. 
+- **drag** and **resizer** is used by window. 
+- **ticker-forest** is used _directly_ by box
+- **button** is used _directly_ by toolbar
+
+the other modules are free-standing and not used directly by the other modules; they may however be used by stories.
