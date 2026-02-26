@@ -51,6 +51,7 @@ const meta: Meta<ZoomPanDecoratorsArgs> = {
 
       // Create rootContainer container (centered origin)
       const { root } = createRootContainer(app);
+      app.stage.addChild(root);
 
       // Create two separate containers to demonstrate different combinations
       // Note: All dragging is stage-level, so we show zoom-only vs zoom+drag
@@ -159,4 +160,3 @@ export default meta;
 type Story = StoryObj<ZoomPanDecoratorsArgs>;
 
 export const Default: Story = {};
-

@@ -73,9 +73,11 @@ const meta: Meta<ZoomPanArgs> = {
 
       // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
+      app.stage.addChild(root);
 
       // Create zoom/pan container
       const { zoomPan } = createZoomPan(app, root);
+      root.addChild(zoomPan);
 
       // Add zoom decorator only (no dragging)
       const { getZoom } = makeStageZoomable(app, zoomPan, {
@@ -255,9 +257,11 @@ export const ZoomAndPan: Story = {
 
       // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
+      app.stage.addChild(root);
 
       // Create zoom/pan container
       const { zoomPan } = createZoomPan(app, root);
+      root.addChild(zoomPan);
 
       // Add both decorators
       const { getZoom } = makeStageZoomable(app, zoomPan, {
@@ -499,9 +503,11 @@ export const PanOnly: Story = {
 
       // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
+      app.stage.addChild(root);
 
       // Create zoom/pan container
       const { zoomPan } = createZoomPan(app, root);
+      root.addChild(zoomPan);
 
       // Make it draggable via stage (no zoom for this example)
       makeStageDraggable(app, zoomPan);
@@ -580,4 +586,3 @@ export const PanOnly: Story = {
     return wrapper;
   },
 };
-

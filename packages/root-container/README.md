@@ -23,7 +23,9 @@ const app = new Application();
 await app.init({ width: 1200, height: 800 });
 
 const { root, destroy: destroyRoot } = createRootContainer(app);
+app.stage.addChild(root); // manual mount
 const { zoomPan, destroy: destroyZoomPan } = createZoomPan(app, root);
+root.addChild(zoomPan); // manual mount
 
 const drag = makeStageDraggable(app, zoomPan);
 const zoom = makeStageZoomable(app, zoomPan, {
@@ -51,11 +53,15 @@ Returns:
 - `root`: centered root container (origin at screen center)
 - `destroy()`: removes listeners and destroys root
 
+Note: `createRootContainer` does not auto-mount. Add `root` to stage manually.
+
 ### `createZoomPan(app, root?)`
 
 Returns:
 - `zoomPan`: container for world/content
 - `destroy()`: removes and destroys zoomPan
+
+Note: `createZoomPan` does not auto-mount. Add `zoomPan` to a parent manually.
 
 ### `makeStageDraggable(app, container)`
 

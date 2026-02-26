@@ -60,6 +60,7 @@ export class CaptionStore extends TickerForest<CaptionState> {
         const resolved: CaptionConfig = resolveCaptionConfig(config);
         const initialState: CaptionState = {
             id: resolved.id,
+            order: resolved.order,
             text: resolved.text,
             x: resolved.x,
             y: resolved.y,
@@ -88,6 +89,7 @@ export class CaptionStore extends TickerForest<CaptionState> {
             ...rootProps,
         });
         this.#container.position.set(initialState.x, initialState.y);
+        this.#container.zIndex = initialState.order;
 
         this.#textDisplay = new Text({
             text: initialState.text,
@@ -132,6 +134,16 @@ export class CaptionStore extends TickerForest<CaptionState> {
         this.mutate((draft) => {
             draft.x = x;
             draft.y = y;
+            draft.isDirty = true;
+        });
+        this.queueResolve();
+    }
+
+    setOrder(order: number): void {
+        if (!Number.isFinite(order)) return;
+        if (this.value.order === order) return;
+        this.mutate((draft) => {
+            draft.order = order;
             draft.isDirty = true;
         });
         this.queueResolve();
@@ -383,6 +395,7 @@ export class CaptionStore extends TickerForest<CaptionState> {
         this.#textDisplay.text = this.value.text;
         this.#maybeAutoSize();
         this.#container.position.set(this.value.x, this.value.y);
+        this.#container.zIndex = this.value.order;
         this.#layoutText();
         this.#drawBubble();
     }

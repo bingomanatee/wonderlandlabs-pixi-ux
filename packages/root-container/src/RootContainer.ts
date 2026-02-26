@@ -13,6 +13,9 @@ export interface RootContainerResult {
  *
  * @param app - The PixiJS Application instance
  * @returns Object containing stage, rootContainer container, and destroy function
+ *
+ * Note: The container is not added to stage automatically.
+ * Call `app.stage.addChild(root)` explicitly where you want it mounted.
  */
 export function createRootContainer(app: Application): RootContainerResult {
   const root = new Container();
@@ -34,9 +37,6 @@ export function createRootContainer(app: Application): RootContainerResult {
 
   app.renderer.on('resize', handleResize);
 
-  // Add rootContainer to stage
-  app.stage.addChild(root);
-
   // Cleanup function
   const destroy = () => {
     app.renderer.off('resize', handleResize);
@@ -49,4 +49,3 @@ export function createRootContainer(app: Application): RootContainerResult {
     destroy,
   };
 }
-

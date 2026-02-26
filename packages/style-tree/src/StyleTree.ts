@@ -167,6 +167,27 @@ export class StyleTree {
   }
 
   /**
+   * Match a noun hierarchy, then fallback to the leaf noun if no hierarchical
+   * style exists. Example: ["button", "icon"] -> fallback ["icon"].
+   */
+  matchHierarchy(query: StyleQuery): any {
+    const hierarchical = this.match(query);
+    if (hierarchical !== undefined) {
+      return hierarchical;
+    }
+
+    const leaf = query.nouns[query.nouns.length - 1];
+    if (!leaf || query.nouns.length <= 1) {
+      return undefined;
+    }
+
+    return this.match({
+      nouns: [leaf],
+      states: query.states,
+    });
+  }
+
+  /**
    * Find the best matching style with details
    * @param query - Query with nouns and states as arrays
    * @returns Best match with score details or undefined
@@ -222,4 +243,3 @@ export class StyleTree {
     return matches;
   }
 }
-

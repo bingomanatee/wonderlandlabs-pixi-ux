@@ -18,6 +18,7 @@ import defaultStyles from './styles/toolbar.default.json';
 
 type ToolbarState = {
   dirty: boolean;
+  order: number;
 };
 
 type TickerSource = Application | { ticker: Ticker };
@@ -99,9 +100,9 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   #padding: Required<ToolbarPadding>;
 
   constructor(config: ToolbarConfig, tickerSource: TickerSource) {
-    super({ value: { dirty: true } }, toTickerConfig(tickerSource));
-
     const parsedConfig = ToolbarConfigSchema.parse(config);
+    super({ value: { dirty: true, order: parsedConfig.order ?? 0 } }, toTickerConfig(tickerSource));
+
 
     this.id = parsedConfig.id ?? 'toolbar';
     this.#styleTree = parsedConfig.style ?? fromJSON(defaultStyles);
@@ -109,6 +110,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
     this.#padding = normalizePadding(parsedConfig.padding);
 
     this.#container = new Container({ label: `toolbar-${this.id}` });
+    this.#container.zIndex = this.value.order;
     this.#background = new Graphics();
     this.#contentContainer = new Container({ label: `toolbar-content-${this.id}` });
 
@@ -137,6 +139,10 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
     return this.#styleTree;
   }
 
+  get order(): number {
+    return this.value.order;
+  }
+
   get toolbarConfig(): ToolbarConfig {
     return this.#toolbarConfig;
   }
@@ -162,10 +168,11 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   }
 
   #createButton(buttonConfig: ToolbarButtonConfig, bitmapFontName?: string): ButtonStore {
+    const tickerSource = this.application ?? { ticker: this.ticker };
     const button = new ButtonStore({
       ...buttonConfig,
       bitmapFont: buttonConfig.bitmapFont ?? bitmapFontName,
-    }, this.#styleTree, { ticker: this.ticker });
+    }, this.#styleTree, tickerSource);
 
     const unwind = this.#wireButton(button);
 
@@ -207,6 +214,20 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
 
   setPosition(x: number, y: number): void {
     this.#container.position.set(x, y);
+  }
+
+  setOrder(order: number): void {
+    if (!Number.isFinite(order)) {
+      throw new Error(`${this.id}: order must be finite`);
+    }
+    if (this.value.order === order) {
+      return;
+    }
+    this.mutate((draft) => {
+      draft.order = order;
+      draft.dirty = true;
+    });
+    this.queueResolve();
   }
 
   #layoutButtons(): { width: number; height: number } {
@@ -352,6 +373,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   protected override resolve(): void {
     const content = this.#layoutButtons();
     const size = this.#resolveToolbarSize(content.width, content.height);
+    this.#container.zIndex = this.value.order;
 
     this.#rect = {
       x: this.#container.position.x,

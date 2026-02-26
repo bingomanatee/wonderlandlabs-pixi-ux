@@ -106,10 +106,11 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #refreshRoot() {
-        const {x, y, isDraggable} = this.value;
+        const {x, y, isDraggable, zIndex} = this.value;
 
         // Update position
         this.#rootContainer.position.set(x, y);
+        this.#guardContainer.zIndex = zIndex;
 
         // Only add drag behavior if isDraggable is true and not already initialized
         if (isDraggable && !this.#dragStore) {

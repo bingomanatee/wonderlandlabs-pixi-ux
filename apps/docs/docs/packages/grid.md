@@ -32,7 +32,9 @@ const app = new Application();
 await app.init({ width: 1200, height: 800 });
 
 const { root } = createRootContainer(app);
+app.stage.addChild(root); // manual mount
 const { zoomPan } = createZoomPan(app, root);
+root.addChild(zoomPan); // manual mount
 makeStageDraggable(app, zoomPan);
 makeStageZoomable(app, zoomPan);
 

@@ -48,6 +48,7 @@ export const ToolbarPaddingSchema = z.object({
 
 export const ToolbarConfigSchema = z.object({
   id: z.string().optional(),
+  order: z.number().finite().optional(),
   buttons: z.array(ToolbarButtonConfigSchema).default([]),
   spacing: z.number().min(0).default(8),
   orientation: z.enum(['horizontal', 'vertical']).default('horizontal'),

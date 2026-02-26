@@ -303,6 +303,25 @@ describe('StyleTree', () => {
       });
       expect(result).toBeUndefined();
     });
+
+    it('falls back from hierarchical nouns to atomic leaf nouns', () => {
+      tree.set('icon', [], 'icon-atomic');
+      const result = tree.matchHierarchy({
+        nouns: ['button', 'icon'],
+        states: [],
+      });
+      expect(result).toBe('icon-atomic');
+    });
+
+    it('prefers hierarchical match over atomic fallback', () => {
+      tree.set('icon', [], 'icon-atomic');
+      tree.set('button.icon', [], 'icon-hierarchical');
+      const result = tree.matchHierarchy({
+        nouns: ['button', 'icon'],
+        states: [],
+      });
+      expect(result).toBe('icon-hierarchical');
+    });
   });
 
   describe('findBestMatch', () => {
@@ -427,4 +446,3 @@ describe('StyleTree', () => {
     });
   });
 });
-

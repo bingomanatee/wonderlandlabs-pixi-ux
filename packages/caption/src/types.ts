@@ -53,6 +53,7 @@ export type CaptionThoughtConfig = z.infer<typeof CaptionThoughtConfigSchema>;
 
 export const CaptionConfigSchema = z.object({
     id: z.string(),
+    order: z.number().finite().default(0),
     text: z.string().default(''),
     x: z.number().default(0),
     y: z.number().default(0),
@@ -78,6 +79,7 @@ export interface CaptionConfig extends Omit<z.infer<typeof CaptionConfigSchema>,
 
 export interface CaptionState {
     id: string;
+    order: number;
     text: string;
     x: number;
     y: number;

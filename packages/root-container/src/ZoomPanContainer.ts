@@ -13,17 +13,16 @@ export interface ZoomPanResult {
  * @param app - The PixiJS Application instance
  * @param root - Optional parent container (if using RootContainer)
  * @returns Object containing zoomPan container and destroy function
+ *
+ * Note: The container is not added to any parent automatically.
+ * Mount it explicitly (`root.addChild(zoomPan)` or `app.stage.addChild(zoomPan)`).
  */
 export function createZoomPan(
-  app: Application,
-  root?: PixiContainer
+  _app: Application,
+  _root?: PixiContainer
 ): ZoomPanResult {
   const zoomPan = new Container();
   zoomPan.label = 'ZoomPanContainer';
-
-  // Add to parent (rootContainer or stage)
-  const parent = root ?? app.stage;
-  parent.addChild(zoomPan);
 
   // Cleanup function
   const destroy = () => {
@@ -41,4 +40,3 @@ export function createZoomPan(
     destroy,
   };
 }
-

@@ -121,9 +121,11 @@ export const WithZoomPan: Story = {
 
       // Create rootContainer container (centers origin)
       const { root } = createRootContainer(app);
+      app.stage.addChild(root);
 
       // Create zoom/pan container
       const { zoomPan } = createZoomPan(app, root);
+      root.addChild(zoomPan);
 
       // Add zoom and pan decorators
       makeStageZoomable(app, zoomPan, {

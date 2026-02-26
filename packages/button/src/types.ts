@@ -20,6 +20,7 @@ export type ButtonMode = z.infer<typeof ButtonModeSchema>;
  */
 export const ButtonConfigSchema = z.object({
     id: z.string(),
+    order: z.number().finite().optional(),
 
     // Content - left icon (optional)
     sprite: z.custom<Sprite>().optional(),

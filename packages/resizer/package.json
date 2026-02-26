@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs-pixi-ux/resizer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Resizer component for wonderlandlabs-pixi-ux with interactive handles",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,13 +14,13 @@
     "access": "public"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
+    "typescript": "^5.5.4",
     "vitest": "^4.0.18"
   },
   "dependencies": {
     "@wonderlandlabs-pixi-ux/ticker-forest": "workspace:^",
     "@wonderlandlabs/forestry4": "^4.1.15",
-    "pixi.js": "^8.15.0",
-    "zod": "^4.3.5"
+    "pixi.js": "^8.15.1",
+    "zod": "^4.3.6"
   }
 }

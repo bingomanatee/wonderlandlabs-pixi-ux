@@ -1,35 +1,35 @@
 {
- "name": "@wonderlandlabs-pixi-ux/monorepo",
- "version": "1.0.0",
- "description": "monorepo with grid, panel, drag packages, and other utilities for wonderlandlabs-pixi-ux",
- "private": true,
- "workspaces": [
-  "packages/*",
-  "apps/*"
- ],
- "scripts": {
-  "storybook": "storybook dev -p 6006",
-  "build-storybook": "storybook build",
-  "docs:dev": "yarn workspace @wonderlandlabs-pixi-ux/docs dev",
-  "docs:start": "yarn workspace @wonderlandlabs-pixi-ux/docs start",
-  "docs:build": "yarn workspace @wonderlandlabs-pixi-ux/docs build",
-  "build": "yarn workspaces foreach -A run build",
-  "clean": "yarn workspaces foreach -A run clean",
-  "test": "vitest",
-  "test:ui": "vitest --ui",
-  "test:coverage": "vitest --coverage"
- },
- "devDependencies": {
-  "@storybook/html-vite": "^10.1.11",
-  "@types/node": "^25.0.10",
-  "@vitest/coverage-v8": "^4.0.18",
-  "@vitest/ui": "^4.0.18",
-  "happy-dom": "^20.3.9",
-  "jsdom": "^27.4.0",
-  "pixi.js": "^8.15.0",
-  "storybook": "^10.1.11",
-  "typescript": "^5.5.3",
-  "vitest": "^4.0.18"
- },
- "packageManager": "yarn@4.0.2"
+  "name": "@wonderlandlabs-pixi-ux/monorepo",
+  "version": "1.0.1",
+  "description": "monorepo with grid, panel, drag packages, and other utilities for wonderlandlabs-pixi-ux",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "docs:dev": "yarn workspace @wonderlandlabs-pixi-ux/docs dev",
+    "docs:start": "yarn workspace @wonderlandlabs-pixi-ux/docs start",
+    "docs:build": "yarn workspace @wonderlandlabs-pixi-ux/docs build",
+    "build": "yarn workspaces foreach -A run build",
+    "clean": "yarn workspaces foreach -A run clean",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "@storybook/html-vite": "^10.1.12",
+    "@types/node": "^25.0.11",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
+    "happy-dom": "^20.3.10",
+    "jsdom": "^27.4.0",
+    "pixi.js": "^8.15.1",
+    "storybook": "^10.1.12",
+    "typescript": "^5.5.4",
+    "vitest": "^4.0.18"
+  },
+  "packageManager": "yarn@4.0.2"
 }

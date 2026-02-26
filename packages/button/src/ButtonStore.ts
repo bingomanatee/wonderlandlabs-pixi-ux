@@ -1,11 +1,15 @@
-import { BoxTree } from '@wonderlandlabs-pixi-ux/box';
+import {
+    BOX_RENDER_CONTENT_ORDER,
+    BOX_UX_LAYER,
+    BoxTree,
+    BoxUxPixi,
+} from '@wonderlandlabs-pixi-ux/box';
 import { TickerForest, type TickerForestConfig } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import type { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import {
     Application,
     CanvasTextMetrics,
     Container,
-    Graphics,
     Text,
     TextStyle,
     type ContainerOptions,
@@ -34,23 +38,6 @@ type LabelRef = {
     tree: BoxTree;
     host: Container;
     textDisplay: Text;
-};
-
-type ButtonFillStyle = {
-    color?: RgbColor;
-    alpha?: number;
-};
-
-type ButtonStrokeStyle = {
-    color?: RgbColor;
-    alpha?: number;
-    width?: number;
-};
-
-type ButtonVisualStyle = {
-    borderRadius?: number;
-    fill?: ButtonFillStyle;
-    stroke?: ButtonStrokeStyle;
 };
 
 function isApplication(value: TickerSource): value is Application {
@@ -83,8 +70,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
     #tree: BoxTree;
     #container: Container;
-    #background: Graphics;
-    #contentContainer: Container;
 
     #leftIcon?: IconRef;
     #rightIcon?: IconRef;
@@ -106,6 +91,8 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
         this.#tree = new BoxTree({
             id: config.id,
+            styleName: 'button',
+            order: config.order ?? 0,
             area: {
                 x: 0,
                 y: 0,
@@ -121,18 +108,21 @@ export class ButtonStore extends TickerForest<ButtonState> {
             },
         });
 
+        this.#tree.assignUx((box) => new BoxUxPixi(box));
+        this.#tree.styles = {
+            match: ({ nouns, states }) => this.#matchBoxStyle(nouns, states),
+        };
+
         this.#container = new Container({
             label: `button-${this.id}`,
             ...rootProps,
         });
-
-        this.#background = new Graphics();
-        this.#contentContainer = new Container({
-            label: `button-content-${this.id}`,
-        });
-
-        this.#container.addChild(this.#background);
-        this.#container.addChild(this.#contentContainer);
+        this.#container.zIndex = this.#tree.order;
+        const rootUx = this.#tree.ux as BoxUxPixi | undefined;
+        if (!rootUx) {
+            throw new Error(`${this.id}: root BoxTree UX was not initialized`);
+        }
+        this.#container.addChild(rootUx.container);
 
         this.#buildChildren();
         this.#setupInteractivity();
@@ -183,6 +173,10 @@ export class ButtonStore extends TickerForest<ButtonState> {
         return this.#mode;
     }
 
+    get order(): number {
+        return this.#tree.order;
+    }
+
     static #asNonEmptyString(value: unknown): string | undefined {
         if (typeof value !== 'string') {
             return undefined;
@@ -215,6 +209,15 @@ export class ButtonStore extends TickerForest<ButtonState> {
         return ButtonStore.#asNonEmptyString(explicit)
             ?? this.#extractSpriteUrl(sprite)
             ?? this.#extractContainerUrl(container);
+    }
+
+    #attachNodeContent(tree: BoxTree, host: Container): void {
+        const ux = tree.ux;
+        if (!(ux instanceof BoxUxPixi)) {
+            throw new Error(`${tree.identityPath}: expected BoxUxPixi to attach content`);
+        }
+        host.zIndex = BOX_RENDER_CONTENT_ORDER.CONTENT;
+        ux.contentMap.set(BOX_UX_LAYER.CONTENT, host);
     }
 
     #addTreeChild(key: string, order: number): BoxTree {
@@ -257,7 +260,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
             host.addChild(container);
         }
 
-        this.#contentContainer.addChild(host);
+        this.#attachNodeContent(tree, host);
         return { tree, host, sprite, container, role };
     }
 
@@ -279,7 +282,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
         });
 
         host.addChild(textDisplay);
-        this.#contentContainer.addChild(host);
+        this.#attachNodeContent(tree, host);
 
         return { tree, host, textDisplay };
     }
@@ -306,8 +309,11 @@ export class ButtonStore extends TickerForest<ButtonState> {
         this.#container.eventMode = this.#isDisabled ? 'none' : 'static';
         this.#container.cursor = this.#isDisabled ? 'default' : 'pointer';
 
+        this.#syncModeVerbs();
         this.#container.on('pointerenter', this.#onPointerEnter);
         this.#container.on('pointerleave', this.#onPointerLeave);
+        this.#container.on('pointerover', this.#onPointerEnter);
+        this.#container.on('pointerout', this.#onPointerLeave);
         this.#container.on('pointertap', this.#onPointerTap);
     }
 
@@ -330,11 +336,22 @@ export class ButtonStore extends TickerForest<ButtonState> {
     };
 
     #getCurrentStates(): string[] {
-        return this.#isDisabled ? ['disabled'] : (this.#isHovered ? ['hover'] : []);
+        return [...this.#tree.resolvedVerb];
+    }
+
+    #syncModeVerbs(): void {
+        if (this.#isDisabled) {
+            this.#tree.setModeVerb(['disabled']);
+            return;
+        }
+        this.#tree.setModeVerb(this.#isHovered ? ['hover'] : []);
     }
 
     #getStyle(...propertyPath: string[]): unknown {
-        const states = this.#getCurrentStates();
+        return this.#getStyleForStates(this.#getCurrentStates(), ...propertyPath);
+    }
+
+    #getStyleForStates(states: readonly string[], ...propertyPath: string[]): unknown {
         const variant = this.#config.variant;
 
         let modePrefix: string[] = [];
@@ -349,7 +366,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
         if (variant) {
             const variantMatch = this.#styleTree.match({
                 nouns: ['button', variant, ...modePrefix, ...propertyPath],
-                states,
+                states: [...states],
             });
             if (variantMatch !== undefined) {
                 return variantMatch;
@@ -358,8 +375,46 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
         return this.#styleTree.match({
             nouns: ['button', ...modePrefix, ...propertyPath],
-            states,
+            states: [...states],
         });
+    }
+
+    #matchBoxStyle(nouns: string[], states: string[]): unknown {
+        if (nouns.length !== 2 || nouns[0] !== 'button') {
+            return undefined;
+        }
+        const prop = nouns[nouns.length - 1];
+        if (!prop) {
+            return undefined;
+        }
+
+        const isDisabled = states.includes('disabled');
+        const fillColor = this.#getStyleForStates(states, 'fill', 'color') as RgbColor | undefined;
+        const fillAlpha = this.#getStyleForStates(states, 'fill', 'alpha') as number | undefined;
+        const strokeColor = this.#getStyleForStates(states, 'stroke', 'color') as RgbColor | undefined;
+        const strokeAlpha = this.#getStyleForStates(states, 'stroke', 'alpha') as number | undefined;
+        const strokeWidth = this.#getStyleForStates(states, 'stroke', 'width') as number | undefined;
+
+        const resolvedFillColor = fillColor
+            ?? (this.#mode === 'text' || this.#mode === 'inline'
+                ? { r: 0.33, g: 0.67, b: 0.6 }
+                : undefined);
+        const resolvedFillAlphaBase = fillAlpha ?? (resolvedFillColor ? 1 : undefined);
+        const resolvedFillAlpha = resolvedFillAlphaBase === undefined
+            ? undefined
+            : (isDisabled ? resolvedFillAlphaBase * 0.5 : resolvedFillAlphaBase);
+
+        const resolvedStrokeColor = strokeColor ?? { r: 0.5, g: 0.5, b: 0.5 };
+        const resolvedStrokeAlphaBase = strokeAlpha ?? 1;
+        const resolvedStrokeAlpha = isDisabled ? resolvedStrokeAlphaBase * 0.5 : resolvedStrokeAlphaBase;
+        const resolvedStrokeWidth = strokeWidth ?? this.#defaultStrokeWidth();
+
+        if (prop === 'bgColor') return resolvedFillColor;
+        if (prop === 'bgAlpha') return resolvedFillAlpha;
+        if (prop === 'bgStrokeColor') return resolvedStrokeColor;
+        if (prop === 'bgStrokeAlpha') return resolvedStrokeAlpha;
+        if (prop === 'bgStrokeSize') return resolvedStrokeWidth;
+        return undefined;
     }
 
     #defaultPaddingX(): number {
@@ -368,10 +423,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
     #defaultPaddingY(): number {
         return this.#mode === 'text' || this.#mode === 'inline' ? 6 : 4;
-    }
-
-    #defaultBorderRadius(): number {
-        return this.#mode === 'text' || this.#mode === 'inline' ? 4 : 0;
     }
 
     #defaultIconSize(): { x: number; y: number } {
@@ -390,40 +441,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
     #defaultStrokeWidth(): number {
         return this.#mode === 'text' || this.#mode === 'inline' ? 0 : 1;
-    }
-
-    #buildRootStyle(): ButtonVisualStyle {
-        const borderRadius = (this.#getStyle('borderRadius') as number | undefined) ?? this.#defaultBorderRadius();
-        const strokeColor = (this.#getStyle('stroke', 'color') as RgbColor | undefined) ?? { r: 0.5, g: 0.5, b: 0.5 };
-        const strokeAlpha = (this.#getStyle('stroke', 'alpha') as number | undefined) ?? 1;
-        const strokeWidth = (this.#getStyle('stroke', 'width') as number | undefined) ?? this.#defaultStrokeWidth();
-
-        const fillColor = this.#getStyle('fill', 'color') as RgbColor | undefined;
-        const fillAlpha = this.#getStyle('fill', 'alpha') as number | undefined;
-
-        const style: ButtonVisualStyle = { borderRadius };
-
-        if (fillColor && (fillAlpha ?? 1) > 0) {
-            style.fill = {
-                color: fillColor,
-                alpha: this.#isDisabled ? (fillAlpha ?? 1) * 0.5 : (fillAlpha ?? 1),
-            };
-        } else if (this.#mode === 'text' || this.#mode === 'inline') {
-            style.fill = {
-                color: { r: 0.33, g: 0.67, b: 0.6 },
-                alpha: this.#isDisabled ? 0.5 : 1,
-            };
-        }
-
-        if (strokeColor && strokeWidth > 0) {
-            style.stroke = {
-                color: strokeColor,
-                width: strokeWidth,
-                alpha: strokeAlpha,
-            };
-        }
-
-        return style;
     }
 
     #iconStyle(iconRef: IconRef): { width: number; height: number; alpha: number; tint?: RgbColor } {
@@ -592,38 +609,15 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
         const contentOffsetX = paddingX + Math.max(0, (resolvedWidth - naturalWidth) / 2);
         const contentOffsetY = paddingY + Math.max(0, (resolvedHeight - naturalHeight) / 2);
-        this.#contentContainer.position.set(contentOffsetX, contentOffsetY);
-    }
-
-    #syncBackground(): void {
-        const style = this.#buildRootStyle();
-        const { width, height } = this.#tree.rect;
-
-        this.#background.clear();
-
-        const radius = style.borderRadius ?? 0;
-
-        if (style.fill?.color) {
-            this.#background.roundRect(0, 0, width, height, radius);
-            this.#background.fill({
-                color: rgbToHex(style.fill.color),
-                alpha: style.fill.alpha ?? 1,
-            });
+        const rootUx = this.#tree.ux;
+        if (!(rootUx instanceof BoxUxPixi)) {
+            throw new Error(`${this.id}: expected BoxUxPixi during layout sync`);
         }
-
-        if (style.stroke?.color && style.stroke.width && style.stroke.width > 0) {
-            this.#background.roundRect(0, 0, width, height, radius);
-            this.#background.stroke({
-                color: rgbToHex(style.stroke.color),
-                alpha: style.stroke.alpha ?? 1,
-                width: style.stroke.width,
-            });
-        }
+        rootUx.childContainer.position.set(contentOffsetX, contentOffsetY);
     }
 
     #syncIconNode(iconRef: IconRef): void {
         const style = this.#iconStyle(iconRef);
-        iconRef.host.position.set(iconRef.tree.x, iconRef.tree.y);
 
         if (iconRef.sprite) {
             iconRef.sprite.width = style.width;
@@ -646,7 +640,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
         if (!this.#label) return;
 
         const { textStyle, alpha } = this.#labelStyle();
-        this.#label.host.position.set(this.#label.tree.x, this.#label.tree.y);
         this.#label.textDisplay.text = this.#config.label ?? '';
         this.#label.tree.setContent({
             type: 'text',
@@ -673,9 +666,8 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
     protected override resolve(): void {
         this.#syncLayout();
-
-        this.#container.position.set(this.#tree.x, this.#tree.y);
-        this.#syncBackground();
+        this.#container.zIndex = this.#tree.order;
+        this.#tree.render();
 
         if (this.#leftIcon) {
             this.#syncIconNode(this.#leftIcon);
@@ -687,16 +679,22 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     setHovered(isHovered: boolean): void {
-        if (this.#isHovered === isHovered) return;
-        this.#isHovered = isHovered;
+        const nextHovered = this.#isDisabled ? false : isHovered;
+        if (this.#isHovered === nextHovered) return;
+        this.#isHovered = nextHovered;
+        this.#syncModeVerbs();
         this.markDirty();
     }
 
     setDisabled(isDisabled: boolean): void {
         if (this.#isDisabled === isDisabled) return;
         this.#isDisabled = isDisabled;
+        if (isDisabled && this.#isHovered) {
+            this.#isHovered = false;
+        }
         this.#container.eventMode = isDisabled ? 'none' : 'static';
         this.#container.cursor = isDisabled ? 'default' : 'pointer';
+        this.#syncModeVerbs();
         this.markDirty();
     }
 
@@ -705,6 +703,14 @@ export class ButtonStore extends TickerForest<ButtonState> {
             return;
         }
         this.#tree.setPosition(x, y);
+        this.markDirty();
+    }
+
+    setOrder(order: number): void {
+        if (this.#tree.order === order) {
+            return;
+        }
+        this.#tree.setOrder(order);
         this.markDirty();
     }
 
@@ -766,6 +772,8 @@ export class ButtonStore extends TickerForest<ButtonState> {
     override cleanup(): void {
         this.#container.off('pointerenter', this.#onPointerEnter);
         this.#container.off('pointerleave', this.#onPointerLeave);
+        this.#container.off('pointerover', this.#onPointerEnter);
+        this.#container.off('pointerout', this.#onPointerLeave);
         this.#container.off('pointertap', this.#onPointerTap);
         super.cleanup();
     }
