@@ -1,0 +1,35 @@
+image: node:20
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Build and publish docs
+          caches:
+            - node
+          script:
+            - corepack enable
+            - yarn install --immutable
+            - test -n "${BB_DEPLOY_USERNAME}"
+            - test -n "${BB_DEPLOY_APP_PASSWORD}"
+            - export DEPLOY_SUBDIR="${DOCS_DEPLOY_SUBDIR:-${BITBUCKET_REPO_SLUG}}"
+            - export DOCS_URL="https://wonderlandlabs.bitbucket.io"
+            - export DOCS_BASE_URL="/${DEPLOY_SUBDIR}/"
+            - yarn docs:build
+            - printf "machine bitbucket.org\nlogin %s\npassword %s\n" "${BB_DEPLOY_USERNAME}" "${BB_DEPLOY_APP_PASSWORD}" > ~/.netrc
+            - chmod 600 ~/.netrc
+            - git clone "https://bitbucket.org/wonderlandlabs/wonderlandlabs.bitbucket.io.git" site-repo
+            - git config --global user.email "${DEPLOY_GIT_EMAIL:-bitbucket-pipelines@wonderlandlabs.bitbucket.io}"
+            - git config --global user.name "${DEPLOY_GIT_NAME:-Bitbucket Pipelines}"
+            - mkdir -p "site-repo/${DEPLOY_SUBDIR}"
+            - find "site-repo/${DEPLOY_SUBDIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+            - cp -R apps/docs/build/. "site-repo/${DEPLOY_SUBDIR}/"
+            - cd site-repo
+            - |
+              if [ -n "$(git status --porcelain)" ]; then
+                git add .
+                git commit -m "Deploy docs from ${BITBUCKET_REPO_SLUG}@${BITBUCKET_COMMIT}"
+                git push origin "${DEPLOY_TARGET_BRANCH:-main}"
+              else
+                echo "No docs changes to deploy."
+              fi

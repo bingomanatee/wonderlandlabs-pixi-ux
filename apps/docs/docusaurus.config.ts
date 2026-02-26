@@ -2,14 +2,23 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+const docsUrl = process.env.DOCS_URL ?? 'https://example.com';
+const docsBaseUrlRaw = process.env.DOCS_BASE_URL ?? '/';
+const docsBaseUrlWithLeadingSlash = docsBaseUrlRaw.startsWith('/')
+  ? docsBaseUrlRaw
+  : `/${docsBaseUrlRaw}`;
+const docsBaseUrl = docsBaseUrlWithLeadingSlash.endsWith('/')
+  ? docsBaseUrlWithLeadingSlash
+  : `${docsBaseUrlWithLeadingSlash}/`;
+
 const config: Config = {
   title: 'wonderlandlabs-pixi-ux',
   tagline: 'Monorepo docs for Pixi UX packages',
   favicon: 'img/logo.svg',
 
-  // Temporary valid URL for local/dev builds. Replace before deployment.
-  url: 'https://example.com',
-  baseUrl: '/',
+  // Set DOCS_URL and DOCS_BASE_URL in CI for deploy builds.
+  url: docsUrl,
+  baseUrl: docsBaseUrl,
 
   organizationName: 'wonderlandlabs',
   projectName: 'forestry-pixi',
