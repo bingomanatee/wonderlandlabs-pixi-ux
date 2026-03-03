@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/resizer
 ---
 # @wonderlandlabs-pixi-ux/resizer
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/resizer](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/resizer)
+
 `resizer` adds editor-style handles so users can adjust bounds directly on screen.
 It standardizes rectangle updates and release callbacks for windowing and design-tool workflows.
 
@@ -80,6 +82,46 @@ handles.setRect(new Rectangle(100, 100, 300, 160));
   onTransformedRect?: (rawRect: Rectangle, transformedRect: Rectangle, phase: 'drag' | 'release') => void,
 }
 ```
+
+## `mode` Behavior
+
+- `ONLY_CORNER`: Shows 4 handles at the corners (`top-left`, `top-right`, `bottom-left`, `bottom-right`).
+- `ONLY_EDGE`: Shows 4 handles at edge midpoints (`top-center`, `middle-right`, `bottom-center`, `middle-left`).
+- `EDGE_AND_CORNER`: Shows all 8 handles.
+
+Choose `mode` based on the interaction model you want:
+
+- Corner-only is usually best for freeform diagonal resizing.
+- Edge-only is useful when users should primarily resize width/height independently.
+- Full mode is best for editor-like UX where all resize affordances are visible.
+
+## Hook Notes
+
+All hooks are optional. If you omit them, resizing still works with the default rectangle updates.
+
+- `drawRect(rect, container)`
+  - Called during resolve after internal rectangle state changes.
+  - Use this to redraw your target visuals from current rectangle state.
+
+- `onRelease(rect)`
+  - Called once when drag ends.
+  - If `rectTransform` is provided, this receives the transformed/committed rectangle.
+  - If `rectTransform` is omitted, this receives the raw dragged rectangle.
+
+- `rectTransform({ rect, phase, handle })`
+  - Called with a single object argument:
+    - `rect`: raw rectangle for this phase.
+    - `phase`: `'drag' | 'release'`.
+    - `handle`: active `HandlePosition` while dragging, otherwise `null`.
+  - Return a `Rectangle` or `Rect`.
+  - `'drag'` phase is for preview logic.
+  - `'release'` phase is committed to store state before `onRelease`.
+
+- `onTransformedRect(rawRect, transformedRect, phase)`
+  - Called when `rectTransform` is present.
+  - Useful for overlay/preview visuals (for example snapping guides or marching-ants previews).
+  - During `'drag'`, transformed output is preview-only unless you choose to render it.
+  - During `'release'`, transformed output is the value being committed.
 
 `rectTransform` is applied when drag ends (`phase: 'release'`), and the transformed rectangle is committed to store state.
 When provided with `onTransformedRect`, the same transform can be previewed during drag (`phase: 'drag'`) for augmented overlays/snapping guides.

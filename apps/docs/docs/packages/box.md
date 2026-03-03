@@ -4,6 +4,8 @@ description: The `@wonderlandlabs-pixi-ux/box` package
 ---
 # @wonderlandlabs-pixi-ux/box
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/box](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/box)
+
 `box` is a render-agnostic layout tree. It gives you deterministic 2D layout (area, alignment, constraints, ordering)
 without tying your state to Pixi objects.
 

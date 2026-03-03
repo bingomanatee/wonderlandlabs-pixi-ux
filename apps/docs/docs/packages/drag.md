@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/drag
 ---
 # @wonderlandlabs-pixi-ux/drag
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/drag](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/drag)
+
 `drag` centralizes pointer-drag state so you do not rewrite event plumbing for every component.
 Use it when you want clear start/move/end callbacks and predictable delta math.
 

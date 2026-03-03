@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/ticker-forest
 ---
 # @wonderlandlabs-pixi-ux/ticker-forest
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/ticker-forest](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/ticker-forest)
+
 `ticker-forest` bridges state changes and frame rendering so visual updates happen at the right time.
 It is the synchronization layer that makes reactive Pixi components reliable under interaction-heavy loads.
 

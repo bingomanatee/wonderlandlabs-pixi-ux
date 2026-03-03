@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/button
 ---
 # @wonderlandlabs-pixi-ux/button
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/button](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/button)
+
 `button` turns low-level Pixi interaction into a reusable UI primitive.
 It combines layout from `box` and visual state rules from `style-tree` so hover/active/disabled behavior stays consistent.
 

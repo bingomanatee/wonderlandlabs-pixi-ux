@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/root-container
 ---
 # @wonderlandlabs-pixi-ux/root-container
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/root-container](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/root-container)
+
 `root-container` gives you a stable scene foundation with centered coordinates and camera-like movement.
 It is the baseline for Pixi experiences that need zooming, panning, and predictable world-space math.
 

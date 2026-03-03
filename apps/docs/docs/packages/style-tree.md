@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/style-tree
 ---
 # @wonderlandlabs-pixi-ux/style-tree
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/style-tree](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/style-tree)
+
 A hierarchical style matching system with noun paths and state arrays.
 
 ## Features

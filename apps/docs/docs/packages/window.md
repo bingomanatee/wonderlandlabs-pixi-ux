@@ -4,6 +4,8 @@ description: Package README for @wonderlandlabs-pixi-ux/window
 ---
 # @wonderlandlabs-pixi-ux/window
 
+Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/window](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/window)
+
 `window` packages desktop-style behaviors like selection, drag, resize, and titlebars into reusable stores.
 It is designed for multi-panel Pixi tools where users manipulate independent UI surfaces.
 
