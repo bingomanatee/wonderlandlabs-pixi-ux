@@ -158,7 +158,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         const StoreClass = this.#storeClasses.get(key) || WindowStore;
 
         // @ts-ignore
-        const branch = this.$branch<WindowDef, WindowStore>(['windows', key], {
+        const branch = this.$branches.$add<WindowDef, WindowStore>(['windows', key], {
             subclass: StoreClass,
         }, this.app) as unknown as WindowStore;
 

@@ -56,9 +56,9 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #initTitlebar() {
-        // Create titlebar store as a branch using $branch
+        // Create titlebar store as a branch using $branches.$add
         // @ts-ignore
-        this.#titlebarStore = this.$branch(['titlebar'], {
+        this.#titlebarStore = this.$branches.$add(['titlebar'], {
             subclass: TitlebarStore,
         }, this.application!) as unknown as TitlebarStore;
         this.#titlebarStore.application = this.application;
@@ -163,6 +163,57 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#titlebarStore.queueResolve();
     }
 
+    #getFrameContainer(): Container | undefined {
+        const rootStore = this.$root as unknown as WindowsManager | undefined;
+        return rootStore?.container;
+    }
+
+    #framePointToRootLocal(x: number, y: number): {x: number; y: number} {
+        const frameContainer = this.#getFrameContainer();
+        const parent = this.#rootContainer.parent;
+        if (!frameContainer || !parent || frameContainer === parent) {
+            return {x, y};
+        }
+        const globalPoint = frameContainer.toGlobal({x, y});
+        const localPoint = parent.toLocal(globalPoint);
+        return {x: localPoint.x, y: localPoint.y};
+    }
+
+    #rootLocalPointToFrame(x: number, y: number): {x: number; y: number} {
+        const frameContainer = this.#getFrameContainer();
+        const parent = this.#rootContainer.parent;
+        if (!frameContainer || !parent || frameContainer === parent) {
+            return {x, y};
+        }
+        const globalPoint = parent.toGlobal({x, y});
+        const localPoint = frameContainer.toLocal(globalPoint);
+        return {x: localPoint.x, y: localPoint.y};
+    }
+
+    #frameRectToRootLocal(rect: Rectangle): Rectangle {
+        const topLeft = this.#framePointToRootLocal(rect.x, rect.y);
+        const topRight = this.#framePointToRootLocal(rect.x + rect.width, rect.y);
+        const bottomLeft = this.#framePointToRootLocal(rect.x, rect.y + rect.height);
+        return new Rectangle(
+            topLeft.x,
+            topLeft.y,
+            topRight.x - topLeft.x,
+            bottomLeft.y - topLeft.y
+        );
+    }
+
+    #rootLocalRectToFrame(rect: Rectangle): Rectangle {
+        const topLeft = this.#rootLocalPointToFrame(rect.x, rect.y);
+        const topRight = this.#rootLocalPointToFrame(rect.x + rect.width, rect.y);
+        const bottomLeft = this.#rootLocalPointToFrame(rect.x, rect.y + rect.height);
+        return new Rectangle(
+            topLeft.x,
+            topLeft.y,
+            topRight.x - topLeft.x,
+            bottomLeft.y - topLeft.y
+        );
+    }
+
     #refreshRoot() {
         const {x, y, isDraggable, zIndex} = this.value;
 
@@ -190,21 +241,23 @@ export class WindowStore extends TickerForest<WindowDef> {
                 onDrag(state) {
                     const pos = self.#dragStore?.getCurrentItemPosition();
                     if (pos) {
-                        self.#rootContainer.position.set(pos.x, pos.y);
-                        if (self.value.x !== pos.x || self.value.y !== pos.y) {
+                        const localPos = self.#framePointToRootLocal(pos.x, pos.y);
+                        self.#rootContainer.position.set(localPos.x, localPos.y);
+                        if (self.value.x !== localPos.x || self.value.y !== localPos.y) {
                             self.mutate((draft) => {
-                                draft.x = pos.x;
-                                draft.y = pos.y;
+                                draft.x = localPos.x;
+                                draft.y = localPos.y;
                             });
                         }
                         // Update resizer rect to match new position
                         if (self.#resizerStore) {
-                            self.#resizerStore.setRect(new Rectangle(
-                                pos.x,
-                                pos.y,
+                            const resizerRect = self.#rootLocalRectToFrame(new Rectangle(
+                                localPos.x,
+                                localPos.y,
                                 self.value.width,
                                 self.value.height
                             ));
+                            self.#resizerStore.setRect(resizerRect);
                         }
                     }
                 },
@@ -239,9 +292,11 @@ export class WindowStore extends TickerForest<WindowDef> {
                 self.#rootContainer.cursor = 'grabbing';
 
                 // Start drag with current container position
-                self.#dragStore!.startDragContainer(
+                (self.#dragStore as any).startDragContainer(
                     self.value.id,
-                    event, self.#rootContainer
+                    event,
+                    self.#rootContainer,
+                    self.#getFrameContainer()
                 );
             });
             this.#dragInitialized = true;
@@ -275,9 +330,11 @@ export class WindowStore extends TickerForest<WindowDef> {
             self.#clickStartY = event.global.y;
 
             // Start drag with current container position (root container moves)
-            self.#dragStore!.startDragContainer(
+            (self.#dragStore as any).startDragContainer(
                 self.value.id,
-                event, self.#rootContainer
+                event,
+                self.#rootContainer,
+                self.#getFrameContainer()
             );
 
             // Set up click detection timeout
@@ -477,49 +534,54 @@ export class WindowStore extends TickerForest<WindowDef> {
         // Create resizer if isResizeable is true and it doesn't exist
         if (isResizeable && !this.#resizerStore && this.#rootContainer) {
             const self = this;
+            const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
 
             this.#resizerStore = new ResizerStore({
                 container: this.#rootContainer,
                 handleContainer: handlesContainer,
-                rect: new Rectangle(x, y, width, height),
+                deltaSpace: this.#getFrameContainer(),
+                rect: frameRect,
                 app: this.application!,
                 mode: resizeMode || 'ONLY_CORNER',
                 size: 8,
                 color: HANDLE_COLOR,
                 rectTransform: this.rectTransform,
                 drawRect: (rect: Rectangle) => {
+                    const localRect = self.#frameRectToRootLocal(rect);
                     // Update window dimensions when resizing
                     self.mutate((draft) => {
-                        draft.x = rect.x;
-                        draft.y = rect.y;
-                        draft.width = Math.max(rect.width, minWidth || 50);
-                        draft.height = Math.max(rect.height, minHeight || 50);
+                        draft.x = localRect.x;
+                        draft.y = localRect.y;
+                        draft.width = Math.max(localRect.width, minWidth || 50);
+                        draft.height = Math.max(localRect.height, minHeight || 50);
                     });
                     self.markDirty();
                 },
                 onRelease: (rect: Rectangle) => {
+                    const localRect = self.#frameRectToRootLocal(rect);
                     // Final update when resize is complete
                     self.mutate((draft) => {
-                        draft.width = Math.max(rect.width, minWidth || 50);
-                        draft.height = Math.max(rect.height, minHeight || 50);
-                        draft.x = rect.x;
-                        draft.y = rect.y;
+                        draft.width = Math.max(localRect.width, minWidth || 50);
+                        draft.height = Math.max(localRect.height, minHeight || 50);
+                        draft.x = localRect.x;
+                        draft.y = localRect.y;
                     });
                     self.markDirty();
                 }
-            });
+            } as any);
         }
 
         // Update resizer rect if dimensions changed externally
         if (this.#resizerStore) {
             const currentRect = this.#resizerStore.value.rect;
-            const rectChanged = currentRect.x !== x
-                || currentRect.y !== y
-                || currentRect.width !== width
-                || currentRect.height !== height;
+            const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
+            const rectChanged = currentRect.x !== frameRect.x
+                || currentRect.y !== frameRect.y
+                || currentRect.width !== frameRect.width
+                || currentRect.height !== frameRect.height;
             if (rectChanged) {
                 // Sync to current window rect directly (no rectTransform pass here).
-                this.#resizerStore.setRect(new Rectangle(x, y, width, height));
+                this.#resizerStore.setRect(frameRect);
             }
 
             // Only show handles when window is selected

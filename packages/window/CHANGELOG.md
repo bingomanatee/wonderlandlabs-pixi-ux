@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.8 - 2026-03-04
+
+- Anchored window drag and resize coordinate reconciliation to the manager frame container by converting between frame space and window local space via `toGlobal(...)`/`toLocal(...)`.
+- Wired window drag start to pass explicit frame coordinate space into `@wonderlandlabs-pixi-ux/drag`, and window resize to pass frame `deltaSpace` into `@wonderlandlabs-pixi-ux/resizer`.
+
 ## 1.1.6 - 2026-03-03
 
 - Synced window resizer handles from full window rect changes (`x`, `y`, `width`, `height`) so handle positions follow window moves immediately.

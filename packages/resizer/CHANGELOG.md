@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.8 - 2026-03-04
+
+- Added optional `deltaSpace` support so resize drag deltas can be measured in an explicit frame/container space instead of implicit handle-parent space.
+- Mapped handle positions from delta space into the handles container using `toGlobal(...)` + `toLocal(...)`, keeping drag math and visual handle placement aligned under nested transforms.
+
 ## 1.1.6 - 2026-03-03
 
 - Fixed resize drag deltas under zoom/transformed parents by tracking drag in handle-container local space.

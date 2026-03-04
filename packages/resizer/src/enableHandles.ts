@@ -28,8 +28,8 @@ export function enableHandles(
     mode: config.mode,
     rectTransform: config.rectTransform,
     onTransformedRect: config.onTransformedRect,
+    deltaSpace: config.deltaSpace,
   });
 
   return store;
 }
-

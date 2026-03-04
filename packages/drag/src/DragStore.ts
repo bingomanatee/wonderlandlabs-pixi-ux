@@ -115,9 +115,16 @@ export class DragStore extends TickerForest<DragStoreValue> {
         this.callbacks = {...this.callbacks, ...callbacks};
     }
 
-    startDragContainer(itemId: string, event: FederatedPointerEvent, target: {position: Point}) {
-        const parent = target instanceof Container ? target.parent : undefined;
-        if (!parent) {
+    startDragContainer(
+        itemId: string,
+        event: FederatedPointerEvent,
+        target: {position: Point},
+        coordinateSpace?: Container
+    ) {
+        const targetContainer = target instanceof Container ? target : undefined;
+        const parent = targetContainer?.parent;
+        const deltaSpace = coordinateSpace ?? parent;
+        if (!targetContainer || !parent || !deltaSpace) {
             this.startDrag(
                 itemId,
                 event.global.x,
@@ -128,9 +135,11 @@ export class DragStore extends TickerForest<DragStoreValue> {
             return;
         }
 
-        const startPoint = parent.toLocal(event.global);
+        const startPoint = deltaSpace.toLocal(event.global);
+        const targetGlobalPoint = parent.toGlobal(targetContainer.position);
+        const startItemPoint = deltaSpace.toLocal(targetGlobalPoint);
         const pointerCoordsFromEvent = (pointerEvent: FederatedPointerEvent) => {
-            const localPoint = parent.toLocal(pointerEvent.global);
+            const localPoint = deltaSpace.toLocal(pointerEvent.global);
             return {x: localPoint.x, y: localPoint.y};
         };
 
@@ -138,8 +147,8 @@ export class DragStore extends TickerForest<DragStoreValue> {
             itemId,
             startPoint.x,
             startPoint.y,
-            target.position.x,
-            target.position.y,
+            startItemPoint.x,
+            startItemPoint.y,
             pointerCoordsFromEvent
         );
     }

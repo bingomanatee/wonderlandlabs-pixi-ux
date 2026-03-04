@@ -23,4 +23,6 @@ export interface EnableHandlesConfig {
     rectTransform?: RectTransform;
     /** Optional callback for transformed-rectangle preview */
     onTransformedRect?: TransformedRectCallback;
+    /** Coordinate space used for pointer deltas and rect math (defaults to handles container space) */
+    deltaSpace?: Container;
 }

@@ -20,6 +20,7 @@ export interface ResizerStoreConfig {
     handleContainer?: Container;
     rectTransform?: RectTransform;
     onTransformedRect?: TransformedRectCallback;
+    deltaSpace?: Container;
 }
 
 /**
@@ -67,6 +68,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     private handles = new Map<HandlePosition, Graphics>();
     private dragTrackers = new Map<Graphics, TrackDragResult>();
     private handlesContainer: Container;
+    private deltaSpace: Container;
     private ownsHandlesContainer: boolean;
     private lastHandleWorldScaleX = Number.NaN;
     private lastHandleWorldScaleY = Number.NaN;
@@ -109,6 +111,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             this.ownsHandlesContainer = true;
             parent.addChild(this.handlesContainer);
         }
+        this.deltaSpace = config.deltaSpace ?? this.handlesContainer;
 
         // Find the stage (rootContainer container) for global event listeners
         this.#initHitArea();
@@ -376,11 +379,21 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         this.lastHandleWorldScaleY = scale.y;
         this.handles.forEach((handle, position) => {
             const localPos = this.getHandleLocalPosition(position);
+            const pointInHandlesSpace = this.toHandlesSpace(localPos.x, localPos.y);
 
-            handle.position.set(localPos.x, localPos.y);
+            handle.position.set(pointInHandlesSpace.x, pointInHandlesSpace.y);
             // Counter-scale to maintain constant size
             handle.scale.set(1 / scale.x, 1 / scale.y);
         });
+    }
+
+    private toHandlesSpace(x: number, y: number): {x: number; y: number} {
+        if (this.deltaSpace === this.handlesContainer) {
+            return {x, y};
+        }
+        const globalPoint = this.deltaSpace.toGlobal({x, y});
+        const localPoint = this.handlesContainer.toLocal(globalPoint);
+        return {x: localPoint.x, y: localPoint.y};
     }
 
     /**
@@ -461,7 +474,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
                     onDragEnd: this.$.onDragEnd
                 },
                 this.stage,
-                this.handlesContainer
+                this.deltaSpace
             );
 
             this.dragTrackers.set(handle, tracker);
