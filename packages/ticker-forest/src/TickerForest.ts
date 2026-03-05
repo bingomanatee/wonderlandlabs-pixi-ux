@@ -1,10 +1,20 @@
 import {Forest, StoreParams} from '@wonderlandlabs/forestry4';
 import type {Application, Container, Ticker} from 'pixi.js';
+import {Observable, Subscription, distinctUntilChanged, filter} from 'rxjs';
+
+export interface DirtyOnScaleConfig {
+    enabled?: boolean;
+    watchX?: boolean;
+    watchY?: boolean;
+    epsilon?: number;
+    relativeToRootParent?: boolean;
+}
 
 export interface TickerForestConfig {
     app?: Application;
     ticker?: Ticker;
     container?: Container;
+    dirtyOnScale?: boolean | DirtyOnScaleConfig;
 }
 
 /**
@@ -24,6 +34,7 @@ export interface TickerForestConfig {
  *
  * Subclasses must implement:
  * - `isDirty()` - Return true if PixiJS operations are needed
+ * - `makeDirty(data?)` - Mark the store as dirty without assuming field names/shape
  * - `clearDirty()` - Clear the dirty flag after resolve
  * - `resolve()` - Perform PixiJS operations
  *
@@ -55,6 +66,10 @@ export interface TickerForestConfig {
  *     return this.value.dirty;
  *   }
  *
+ *   protected makeDirty(): void {
+ *     this.mutate(draft => { draft.dirty = true; });
+ *   }
+ *
  *   protected clearDirty(): void {
  *     this.mutate(draft => { draft.dirty = false; });
  *   }
@@ -72,6 +87,8 @@ export abstract class TickerForest<T> extends Forest<T> {
     #ticker?: Ticker;
     #container?: Container;
     #queuedOnTicker?: Ticker;
+    #scaleDirtyConfig?: Required<DirtyOnScaleConfig>;
+    #scaleDirtySubscription?: Subscription;
 
     /**
      * @param args - The Forestry configuration object (includes {value: ..., res: ...} and other Forest options)
@@ -86,10 +103,36 @@ export abstract class TickerForest<T> extends Forest<T> {
         this.#app = config.app;
         this.#ticker = config.ticker;
         this.#container = config.container;
+        this.#scaleDirtyConfig = TickerForest.resolveDirtyOnScaleConfig(config.dirtyOnScale);
     }
 
     static isApplicationConfig(value: TickerForestConfig | Application): value is Application {
         return !!value && typeof value === 'object' && 'ticker' in value && 'renderer' in value;
+    }
+
+    static resolveDirtyOnScaleConfig(config?: boolean | DirtyOnScaleConfig): Required<DirtyOnScaleConfig> | undefined {
+        if (!config) {
+            return undefined;
+        }
+        if (config === true) {
+            return {
+                enabled: true,
+                watchX: true,
+                watchY: true,
+                epsilon: 0.0001,
+                relativeToRootParent: true,
+            };
+        }
+        if (!config.enabled) {
+            return undefined;
+        }
+        return {
+            enabled: true,
+            watchX: config.watchX ?? true,
+            watchY: config.watchY ?? true,
+            epsilon: config.epsilon ?? 0.0001,
+            relativeToRootParent: config.relativeToRootParent ?? true,
+        };
     }
 
     get application(): Application | undefined {
@@ -156,6 +199,12 @@ export abstract class TickerForest<T> extends Forest<T> {
     protected abstract isDirty(): boolean;
 
     /**
+     * Mark this store dirty. Subclasses decide which internal flags/state represent "dirty".
+     * Optional payload can provide trigger context (for example scale changes).
+     */
+    protected abstract makeDirty(data?: unknown): void;
+
+    /**
      * Clear the dirty flag after resolve. Subclasses implement this.
      * @abstract
      */
@@ -167,9 +216,10 @@ export abstract class TickerForest<T> extends Forest<T> {
     /**
      * Queue a resolve operation for the next ticker frame.
      * Uses `ticker.addOnce()` to ensure the resolve happens once on the next frame.
-     * Subclasses should call this after calling markDirty().
+     * Subclasses should call this after calling their dirtifier (`makeDirty` or wrapper methods).
      */
     queueResolve(): void {
+        this.#ensureScaleDirtyObserver();
         const ticker = this.ticker;
         if (this.#resolveQueued) {
             // A resolve is already queued or currently executing; request one more pass.
@@ -187,7 +237,94 @@ export abstract class TickerForest<T> extends Forest<T> {
      * to ensure initial PixiJS operations are performed.
      */
     kickoff(): void {
+        this.#ensureScaleDirtyObserver();
         this.queueResolve();
+    }
+
+    #ensureScaleDirtyObserver(): void {
+        const config = this.#scaleDirtyConfig;
+        if (!config || this.#scaleDirtySubscription || (!config.watchX && !config.watchY)) {
+            return;
+        }
+        const self = this;
+
+        const scale$ = new Observable<readonly [number, number]>((subscriber) => {
+            const onScaleTick = () => {
+                const scale = self.#readContainerScale(config.relativeToRootParent);
+                if (!scale) {
+                    return;
+                }
+                subscriber.next(scale);
+            };
+            self.ticker.add(onScaleTick, self);
+            return () => {
+                self.ticker.remove(onScaleTick, self);
+            };
+        });
+
+        self.#scaleDirtySubscription = scale$
+            .pipe(
+                filter(() => !self.isDirty()),
+                distinctUntilChanged((prev, next) => {
+                    const xStable = !config.watchX || Math.abs(prev[0] - next[0]) <= config.epsilon;
+                    const yStable = !config.watchY || Math.abs(prev[1] - next[1]) <= config.epsilon;
+                    return xStable && yStable;
+                })
+            )
+            .subscribe(() => {
+                self.#markDirtyFromScaleObserver();
+            });
+    }
+
+    #markDirtyFromScaleObserver(): void {
+        this.makeDirty({reason: 'scale'});
+        this.queueResolve();
+    }
+
+    protected getScale(): {x: number; y: number} {
+        const scale = this.#readContainerScale(true);
+        if (!scale) {
+            return {x: 1, y: 1};
+        }
+        return {x: scale[0], y: scale[1]};
+    }
+
+    protected getInverseScale(): {x: number; y: number} {
+        const scale = this.getScale();
+        return {
+            x: Number.isFinite(scale.x) && scale.x > 0 ? 1 / scale.x : 1,
+            y: Number.isFinite(scale.y) && scale.y > 0 ? 1 / scale.y : 1,
+        };
+    }
+
+    #readContainerScale(relativeToRootParent: boolean): readonly [number, number] | undefined {
+        const container = this.container;
+        if (!container) {
+            return undefined;
+        }
+        if (!relativeToRootParent) {
+            return [Math.abs(container.scale.x) || 1, Math.abs(container.scale.y) || 1];
+        }
+        const rootParent = this.#resolveRootParent(container);
+        if (!rootParent) {
+            return undefined;
+        }
+
+        const origin = rootParent.toLocal(container.toGlobal({x: 0, y: 0}));
+        const xAxis = rootParent.toLocal(container.toGlobal({x: 1, y: 0}));
+        const yAxis = rootParent.toLocal(container.toGlobal({x: 0, y: 1}));
+
+        const scaleX = Math.hypot(xAxis.x - origin.x, xAxis.y - origin.y);
+        const scaleY = Math.hypot(yAxis.x - origin.x, yAxis.y - origin.y);
+        return [scaleX || 1, scaleY || 1];
+    }
+
+    #resolveRootParent(container: Container): Container | undefined {
+        let root = container.parent ?? undefined;
+        while (root?.parent) {
+            root = root.parent;
+        }
+        return root;
     }
 
     /**
@@ -221,6 +358,8 @@ export abstract class TickerForest<T> extends Forest<T> {
      * Subclasses should call `super.cleanup()` in their cleanup/destroy methods.
      */
     public cleanup(): void {
+        this.#scaleDirtySubscription?.unsubscribe();
+        this.#scaleDirtySubscription = undefined;
         this.#queuedOnTicker?.remove(this.$.onTick, this);
         this.ticker?.remove(this.$.onTick, this);
         this.#queuedOnTicker = undefined;

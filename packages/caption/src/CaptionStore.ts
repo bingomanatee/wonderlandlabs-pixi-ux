@@ -45,7 +45,6 @@ function clampRadius(value: number, width: number, height: number): number {
 export class CaptionStore extends TickerForest<CaptionState> {
     readonly id: string;
 
-    #container: Container;
     #bubbleFill: Graphics = new Graphics();
     #bubbleOutline: Graphics = new Graphics();
     #textDisplay: Text;
@@ -75,7 +74,11 @@ export class CaptionStore extends TickerForest<CaptionState> {
             isDirty: true,
         };
 
-        super({ value: initialState }, { app });
+        const captionContainer = new Container({
+            label: `caption-${resolved.id}`,
+            ...rootProps,
+        });
+        super({ value: initialState }, {app, container: captionContainer});
 
         this.id = resolved.id;
         this.#backgroundStyle = mergeBackgroundStyle(
@@ -84,12 +87,8 @@ export class CaptionStore extends TickerForest<CaptionState> {
         );
         this.#textStyle = mergeTextStyle(DEFAULT_CAPTION_TEXT_STYLE, resolved.textStyle);
 
-        this.#container = new Container({
-            label: `caption-${resolved.id}`,
-            ...rootProps,
-        });
-        this.#container.position.set(initialState.x, initialState.y);
-        this.#container.zIndex = initialState.order;
+        this.container.position.set(initialState.x, initialState.y);
+        this.container.zIndex = initialState.order;
 
         this.#textDisplay = new Text({
             text: initialState.text,
@@ -97,15 +96,19 @@ export class CaptionStore extends TickerForest<CaptionState> {
         });
 
         // Layer order: stroke behind fill, text on top.
-        this.#container.addChild(this.#bubbleOutline);
-        this.#container.addChild(this.#bubbleFill);
-        this.#container.addChild(this.#textDisplay);
+        this.container.addChild(this.#bubbleOutline);
+        this.container.addChild(this.#bubbleFill);
+        this.container.addChild(this.#textDisplay);
 
         this.kickoff();
     }
 
     get container(): Container {
-        return this.#container;
+        const container = super.container;
+        if (!container) {
+            throw new Error('CaptionStore: container unavailable');
+        }
+        return container;
     }
 
     get textDisplay(): Text {
@@ -240,12 +243,16 @@ export class CaptionStore extends TickerForest<CaptionState> {
     }
 
     markDirty(): void {
-        this.set('isDirty', true);
+        this.makeDirty();
         this.queueResolve();
     }
 
     protected isDirty(): boolean {
         return this.value.isDirty;
+    }
+
+    protected makeDirty(_data?: unknown): void {
+        this.set('isDirty', true);
     }
 
     protected clearDirty(): void {
@@ -394,14 +401,18 @@ export class CaptionStore extends TickerForest<CaptionState> {
     protected resolve(): void {
         this.#textDisplay.text = this.value.text;
         this.#maybeAutoSize();
-        this.#container.position.set(this.value.x, this.value.y);
-        this.#container.zIndex = this.value.order;
+        this.container.position.set(this.value.x, this.value.y);
+        this.container.zIndex = this.value.order;
         this.#layoutText();
         this.#drawBubble();
     }
 
     cleanup(): void {
         super.cleanup();
-        this.#container.destroy({ children: true });
+        const container = super.container;
+        if (container) {
+            container.destroy({children: true});
+            this.tickerContainer = undefined;
+        }
     }
 }

@@ -621,11 +621,15 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.set('isDirty', false);
     }
 
+    protected makeDirty(_data?: unknown): void {
+        this.set('isDirty', true);
+    }
+
     /**
      * Mark this window and its titlebar as dirty to trigger re-render
      */
     markDirty(): void {
-        this.set('isDirty', true);
+        this.makeDirty();
         this.queueResolve();
 
         this.#titlebarStore?.markDirty();

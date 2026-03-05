@@ -80,6 +80,12 @@ export class DragStore extends TickerForest<DragStoreValue> {
         });
     }
 
+    protected makeDirty(_data?: unknown): void {
+        this.mutate((draft) => {
+            draft.dirty = true;
+        });
+    }
+
     protected resolve(): void {
         if (!this.isDirty()) {
             return;

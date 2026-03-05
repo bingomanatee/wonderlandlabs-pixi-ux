@@ -142,6 +142,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         this.set('dirty', false)
     }
 
+    protected makeDirty(_data?: unknown): void {
+        this.set('dirty', true);
+    }
+
     protected resolve(): void {
         if (!this.isDirty()) {
             return;

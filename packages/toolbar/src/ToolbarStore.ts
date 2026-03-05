@@ -86,7 +86,6 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   #buttons: Map<string, ButtonStore> = new Map();
   #buttonUnwires: Map<string, Unwire> = new Map();
 
-  #container: Container;
   #background: Graphics;
   #contentContainer: Container;
 
@@ -101,7 +100,11 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
 
   constructor(config: ToolbarConfig, tickerSource: TickerSource) {
     const parsedConfig = ToolbarConfigSchema.parse(config);
-    super({ value: { dirty: true, order: parsedConfig.order ?? 0 } }, toTickerConfig(tickerSource));
+    const toolbarContainer = new Container({ label: `toolbar-${parsedConfig.id ?? 'toolbar'}` });
+    super(
+      { value: { dirty: true, order: parsedConfig.order ?? 0 } },
+      {...toTickerConfig(tickerSource), container: toolbarContainer}
+    );
 
 
     this.id = parsedConfig.id ?? 'toolbar';
@@ -109,13 +112,12 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
     this.#toolbarConfig = parsedConfig;
     this.#padding = normalizePadding(parsedConfig.padding);
 
-    this.#container = new Container({ label: `toolbar-${this.id}` });
-    this.#container.zIndex = this.value.order;
+    this.container.zIndex = this.value.order;
     this.#background = new Graphics();
     this.#contentContainer = new Container({ label: `toolbar-content-${this.id}` });
 
-    this.#container.addChild(this.#background);
-    this.#container.addChild(this.#contentContainer);
+    this.container.addChild(this.#background);
+    this.container.addChild(this.#contentContainer);
 
     for (const buttonConfig of parsedConfig.buttons) {
       this.#createButton(buttonConfig, parsedConfig.bitmapFont);
@@ -123,13 +125,17 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   }
 
   get container(): Container {
-    return this.#container;
+    const container = super.container;
+    if (!container) {
+      throw new Error('ToolbarStore: container unavailable');
+    }
+    return container;
   }
 
   get rect(): ToolbarRect {
     return {
-      x: this.#container.position.x,
-      y: this.#container.position.y,
+      x: this.container.position.x,
+      y: this.container.position.y,
       width: this.#rect.width,
       height: this.#rect.height,
     };
@@ -213,7 +219,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   }
 
   setPosition(x: number, y: number): void {
-    this.#container.position.set(x, y);
+    this.container.position.set(x, y);
   }
 
   setOrder(order: number): void {
@@ -356,10 +362,14 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
     this.set('dirty', false);
   }
 
-  markDirty(): void {
+  protected makeDirty(_data?: unknown): void {
     if (!this.value.dirty) {
       this.set('dirty', true);
     }
+  }
+
+  markDirty(): void {
+    this.makeDirty();
     this.queueResolve();
   }
 
@@ -373,11 +383,11 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   protected override resolve(): void {
     const content = this.#layoutButtons();
     const size = this.#resolveToolbarSize(content.width, content.height);
-    this.#container.zIndex = this.value.order;
+    this.container.zIndex = this.value.order;
 
     this.#rect = {
-      x: this.#container.position.x,
-      y: this.#container.position.y,
+      x: this.container.position.x,
+      y: this.container.position.y,
       width: size.width,
       height: size.height,
     };

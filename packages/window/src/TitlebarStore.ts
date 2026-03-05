@@ -1,7 +1,7 @@
 import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
 import type {RenderTitlebarFn, TitlebarConfig} from "./types";
 import type {Application} from "pixi.js";
-import {Assets, Container, Graphics, Sprite, Text} from "pixi.js";
+import {Assets, Container, Graphics, Rectangle, Sprite, Text} from "pixi.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import rgbToColor from "./rgbToColor";
 import type {Subscription} from "rxjs";
@@ -19,17 +19,17 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     renderTitlebar?: RenderTitlebarFn;
 
     // Pixi components - created in property definitions
-    #container: Container = new Container({
-        label: 'titlebar',
-        position: {x: 0, y: 0},
-        sortableChildren: true,  // Enable zIndex sorting
-        eventMode: 'static'
-    });
     #contentContainer: Container = new Container({
         x: 0,
         y: 0,
         sortableChildren: true,
     });
+    #counterScaledContentContainer: Container = new Container({
+        x: 0,
+        y: 0,
+        sortableChildren: true,
+    });
+    #contentMask: Graphics = new Graphics({label: 'titlebar-content-mask'});
     #background: Graphics = new Graphics({label: 'backgroundGraphics'});
     #titleText: Text = new Text({
         text: '',
@@ -42,8 +42,15 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     #closeButton?: Graphics;
     widthSubscription?: Subscription;
     configSubscription?: Subscription;
+    #inverseScaleY = 1;
 
     constructor(config: StoreParams<TitlebarStoreValue>, app: Application) {
+        const titlebarContainer = new Container({
+            label: 'titlebar',
+            position: {x: 0, y: 0},
+            sortableChildren: true,  // Enable zIndex sorting
+            eventMode: 'static'
+        });
         super({
             // @ts-ignore
             ...config, prep(next: TitlebarStoreValue) {
@@ -72,9 +79,19 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
                     });
                     return {...next, isDirty: true};
                 }
-                return next
+                return next;
             }
-        }, { app });
+        }, {
+            app,
+            container: titlebarContainer,
+            dirtyOnScale: {
+                enabled: true,
+                watchX: false,
+                watchY: true,
+                epsilon: 0.0001,
+                relativeToRootParent: true,
+            }
+        });
         if (!this.application) {
             const parent = this.$parent as WindowStore | undefined;
             if (parent?.application) {
@@ -122,7 +139,11 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
      * Get the titlebar container (for drag handling)
      */
     get container(): Container {
-        return this.#container;
+        const container = super.container;
+        if (!container) {
+            throw new Error('TitlebarStore: container unavailable');
+        }
+        return container;
     }
 
     resolveComponents() {
@@ -141,35 +162,54 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
 
     #refreshContainer() {
         const {padding, height} = this.value;
+        const windowStore = this.$parent as WindowStore;
+        const width = windowStore?.value?.width || 0;
+        const container = this.container;
 
         // Add to parent if not already added
-        if (!this.#container.parent) {
-            this.parentContainer?.addChild(this.#container);
+        if (!container.parent) {
+            this.parentContainer?.addChild(container);
             // Use zIndex to ensure titlebar is above content (background=0, content=1, titlebar=2)
-            this.#container.zIndex = 2;
+            container.zIndex = 2;
+        }
+
+        // Add counter-scaled content container if not already added
+        if (!this.#counterScaledContentContainer.parent) {
+            container.addChild(this.#counterScaledContentContainer);
+            this.#counterScaledContentContainer.zIndex = 1;
         }
 
         // Add content container if not already added
         if (!this.#contentContainer.parent) {
-            this.#container.addChild(this.#contentContainer);
+            this.#counterScaledContentContainer.addChild(this.#contentContainer);
         }
 
         // Update content container position
         this.#contentContainer.x = padding ?? 0;
         this.#contentContainer.y = height / 2 + (padding ?? 0);
 
+        // Counter-scale Y only so titlebar keeps visual height while width follows window scale.
+        this.#inverseScaleY = this.getInverseScale().y;
+        this.#counterScaledContentContainer.scale.set(1, this.#inverseScaleY);
+
+        const counterWidth = width;
+        const counterHeight = height * this.#inverseScaleY;
+        this.#refreshContentMask(counterWidth, counterHeight);
+        container.hitArea = new Rectangle(0, 0, counterWidth, counterHeight);
+
         // Update visibility
-        this.#container.visible = this.value.isVisible;
+        container.visible = this.value.isVisible;
     }
 
     #refreshBackground() {
         const {height, backgroundColor} = this.value;
         const windowStore = this.$parent as WindowStore;
         const width = windowStore?.value?.width || 0;
+        const container = this.container;
 
         // Add to container if not already added
         if (!this.#background.parent) {
-            this.#container.addChild(this.#background);
+            container.addChild(this.#background);
             this.#background.zIndex = 0;  // Background layer
         }
 
@@ -180,8 +220,20 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         // Update graphics
         this.#background.clear();
         const color = rgbToColor(bgColor ?? backgroundColor);
-        this.#background.rect(0, 0, width, height)
+        this.#background.rect(0, 0, width, height * this.#inverseScaleY)
             .fill(color);
+    }
+
+    #refreshContentMask(counterWidth: number, counterHeight: number) {
+        const container = this.container;
+        if (!this.#contentMask.parent) {
+            container.addChild(this.#contentMask);
+            this.#contentMask.zIndex = 3;
+        }
+
+        this.#contentMask.clear();
+        this.#contentMask.rect(0, 0, counterWidth, counterHeight).fill(0xffffff);
+        this.#counterScaledContentContainer.mask = this.#contentMask;
     }
 
     #refreshIcon() {
@@ -330,11 +382,15 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         this.set('isDirty', false);
     }
 
+    protected makeDirty(_data?: unknown): void {
+        this.set('isDirty', true);
+    }
+
     /**
      * Mark this titlebar as dirty to trigger re-render
      */
     markDirty(): void {
-        this.set('isDirty', true);
+        this.makeDirty();
         this.queueResolve();
     }
 
@@ -359,11 +415,11 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
             this.configSubscription = undefined;
         }
 
-        if (this.#container) {
-            this.parentContainer?.removeChild(this.#container);
-            this.#container.destroy({children: true});
-            // Note: #container is not set to undefined since it's typed as non-optional
-            // The destroy() call handles cleanup
+        const container = super.container;
+        if (container) {
+            this.parentContainer?.removeChild(container);
+            container.destroy({children: true});
+            this.tickerContainer = undefined;
         }
     }
 }

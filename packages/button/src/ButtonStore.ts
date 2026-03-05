@@ -67,7 +67,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
     #isDisabled: boolean;
 
     #tree: BoxTree;
-    #container: Container;
 
     #leftIcon?: IconRef;
     #rightIcon?: IconRef;
@@ -79,7 +78,11 @@ export class ButtonStore extends TickerForest<ButtonState> {
         tickerSource: TickerSource,
         rootProps?: ContainerOptions
     ) {
-        super({ value: { dirty: true } }, toTickerConfig(tickerSource));
+        const buttonContainer = new Container({
+            label: `button-${config.id}`,
+            ...rootProps,
+        });
+        super({ value: { dirty: true } }, {...toTickerConfig(tickerSource), container: buttonContainer});
 
         this.id = config.id;
         this.#styleTree = styleTree;
@@ -111,16 +114,12 @@ export class ButtonStore extends TickerForest<ButtonState> {
             match: ({ nouns, states }) => this.#matchBoxStyle(nouns, states),
         };
 
-        this.#container = new Container({
-            label: `button-${this.id}`,
-            ...rootProps,
-        });
-        this.#container.zIndex = this.#tree.order;
+        this.container.zIndex = this.#tree.order;
         const rootUx = this.#tree.ux as BoxUxPixi | undefined;
         if (!rootUx) {
             throw new Error(`${this.id}: root BoxTree UX was not initialized`);
         }
-        this.#container.addChild(rootUx.container);
+        this.container.addChild(rootUx.container);
 
         this.#buildChildren();
         this.#setupInteractivity();
@@ -148,7 +147,11 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     get container(): Container {
-        return this.#container;
+        const container = super.container;
+        if (!container) {
+            throw new Error('ButtonStore: container unavailable');
+        }
+        return container;
     }
 
     get rect(): { x: number; y: number; width: number; height: number } {
@@ -303,15 +306,15 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     #setupInteractivity(): void {
-        this.#container.eventMode = this.#isDisabled ? 'none' : 'static';
-        this.#container.cursor = this.#isDisabled ? 'default' : 'pointer';
+        this.container.eventMode = this.#isDisabled ? 'none' : 'static';
+        this.container.cursor = this.#isDisabled ? 'default' : 'pointer';
 
         this.#syncModeVerbs();
-        this.#container.on('pointerenter', this.#onPointerEnter);
-        this.#container.on('pointerleave', this.#onPointerLeave);
-        this.#container.on('pointerover', this.#onPointerEnter);
-        this.#container.on('pointerout', this.#onPointerLeave);
-        this.#container.on('pointertap', this.#onPointerTap);
+        this.container.on('pointerenter', this.#onPointerEnter);
+        this.container.on('pointerleave', this.#onPointerLeave);
+        this.container.on('pointerover', this.#onPointerEnter);
+        this.container.on('pointerout', this.#onPointerLeave);
+        this.container.on('pointertap', this.#onPointerTap);
     }
 
     #onPointerEnter = (): void => {
@@ -665,16 +668,20 @@ export class ButtonStore extends TickerForest<ButtonState> {
         this.set('dirty', false);
     }
 
-    markDirty(): void {
+    protected makeDirty(_data?: unknown): void {
         if (!this.value.dirty) {
             this.set('dirty', true);
         }
+    }
+
+    markDirty(): void {
+        this.makeDirty();
         this.queueResolve();
     }
 
     protected override resolve(): void {
         this.#syncLayout();
-        this.#container.zIndex = this.#tree.order;
+        this.container.zIndex = this.#tree.order;
         this.#tree.render();
 
         if (this.#leftIcon) {
@@ -700,8 +707,8 @@ export class ButtonStore extends TickerForest<ButtonState> {
         if (isDisabled && this.#isHovered) {
             this.#isHovered = false;
         }
-        this.#container.eventMode = isDisabled ? 'none' : 'static';
-        this.#container.cursor = isDisabled ? 'default' : 'pointer';
+        this.container.eventMode = isDisabled ? 'none' : 'static';
+        this.container.cursor = isDisabled ? 'default' : 'pointer';
         this.#syncModeVerbs();
         this.markDirty();
     }
@@ -778,11 +785,11 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     override cleanup(): void {
-        this.#container.off('pointerenter', this.#onPointerEnter);
-        this.#container.off('pointerleave', this.#onPointerLeave);
-        this.#container.off('pointerover', this.#onPointerEnter);
-        this.#container.off('pointerout', this.#onPointerLeave);
-        this.#container.off('pointertap', this.#onPointerTap);
+        this.container.off('pointerenter', this.#onPointerEnter);
+        this.container.off('pointerleave', this.#onPointerLeave);
+        this.container.off('pointerover', this.#onPointerEnter);
+        this.container.off('pointerout', this.#onPointerLeave);
+        this.container.off('pointertap', this.#onPointerTap);
         super.cleanup();
     }
 }

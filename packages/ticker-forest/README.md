@@ -23,6 +23,7 @@ yarn add @wonderlandlabs-pixi-ux/ticker-forest
 
 Subclasses must implement:
 - `isDirty()` - Return true if PixiJS operations are needed
+- `makeDirty(data?)` - Mark the store dirty without assuming field names/shape
 - `clearDirty()` - Clear the dirty flag after resolve
 - `resolve()` - Perform PixiJS operations
 
@@ -49,13 +50,17 @@ class MyStore extends TickerForest<MyState> {
     this.mutate(draft => {
       draft.position.x = x;
       draft.position.y = y;
-      draft.dirty = true;
     });
+    this.makeDirty({ reason: 'position' });
     this.queueResolve();
   }
 
   protected isDirty(): boolean {
     return this.value.dirty;
+  }
+
+  protected makeDirty(): void {
+    this.mutate(draft => { draft.dirty = true; });
   }
 
   protected clearDirty(): void {
@@ -77,7 +82,18 @@ class MyStore extends TickerForest<MyState> {
 ```typescript
 constructor(
   args: StoreParams<T>,
-  config?: { app?: Application; ticker?: Ticker; container?: Container } | Application
+  config?: {
+    app?: Application;
+    ticker?: Ticker;
+    container?: Container;
+    dirtyOnScale?: boolean | {
+      enabled?: boolean;
+      watchX?: boolean;
+      watchY?: boolean;
+      epsilon?: number;
+      relativeToRootParent?: boolean;
+    };
+  } | Application
 )
 ```
 
@@ -85,27 +101,47 @@ constructor(
 - `config.app` - Optional PixiJS Application instance
 - `config.ticker` - Optional explicit ticker override
 - `config.container` - Optional container reference for consumers
+- `config.dirtyOnScale` - Optional automatic dirty tracking for scale changes
 
 Ticker resolution precedence:
 1. Explicit `config.ticker` (or `store.ticker = ...`)
 2. `config.app?.ticker`
 3. `store.$parent?.ticker`
 
+`dirtyOnScale` options:
+- `true` enables scale tracking with defaults: `watchX: true`, `watchY: true`, `epsilon: 0.0001`, `relativeToRootParent: true`
+- `enabled` turns scale tracking on/off
+- `watchX` / `watchY` select which axis contributes to dirty checks
+- `epsilon` sets per-axis comparison tolerance for `distinctUntilChanged`
+- `relativeToRootParent` compares container scale against the top-most parent instead of raw local scale
+
 ### Protected Methods
 
 #### `queueResolve(): void`
 
-Queue a resolve operation for the next ticker frame. Uses `ticker.addOnce()` to ensure the resolve happens once on the next frame. Subclasses should call this after calling `markDirty()`.
+Queue a resolve operation for the next ticker frame. Uses `ticker.addOnce()` to ensure the resolve happens once on the next frame. Subclasses should call this after calling `makeDirty()` (or a wrapper method that routes through it).
 
 #### `kickoff(): void`
 
 Trigger an initial resolve on the next ticker frame. Subclasses should call this in their constructor after initialization to ensure initial PixiJS operations are performed.
+
+#### `getScale(): { x: number; y: number }`
+
+Returns the current container scale as `{x, y}`. By default this is measured relative to the root parent, so nested transform chains are reflected in the result.
+
+#### `getInverseScale(): { x: number; y: number }`
+
+Returns the inverse scale of `getScale()` as `{x, y}`. This is the counter-scale value commonly used to keep UI affordances (titlebars, handles, labels) visually constant under zoom.
 
 ### Abstract Methods (Must Implement)
 
 #### `isDirty(): boolean`
 
 Check if the state is dirty and needs PixiJS updates. Subclasses implement this to return their dirty flag.
+
+#### `makeDirty(data?: unknown): void`
+
+Mark the store dirty. Subclasses decide what "dirty" means internally and can optionally use the payload (for example `{ reason: 'scale' }`) to route custom behavior.
 
 #### `clearDirty(): void`
 

@@ -115,10 +115,14 @@ export class GridManager extends TickerForest<GridManagerValue> {
     });
   }
 
-  protected markDirty(): void {
+  protected makeDirty(_data?: unknown): void {
     this.mutate(draft => {
       draft.dirty = true;
     });
+  }
+
+  protected markDirty(): void {
+    this.makeDirty();
   }
 
   protected resolve(): void {
