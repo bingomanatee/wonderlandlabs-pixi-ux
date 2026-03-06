@@ -1,6 +1,21 @@
 import {Application, Assets, Container, Texture} from 'pixi.js';
 import {Forest} from "@wonderlandlabs/forestry4";
-import {WindowDef, WindowDefInput, WindowDefSchema, WindowStoreClass, WindowStoreValue, ZIndexData, PartialWindowStyle, TextureDef, WindowCloseHandler} from './types';
+import {
+    ConfigureTitlebarFn,
+    ModifyInitialTitlebarParamsFn,
+    TitlebarContentRendererFn,
+    WindowDef,
+    WindowDefInput,
+    WindowDefSchema,
+    WindowStoreClass,
+    WindowStoreValue,
+    ZIndexData,
+    PartialWindowStyle,
+    TextureDef,
+    WindowContentRendererFn,
+    WindowCloseHandler,
+    WindowResolveHookFn
+} from './types';
 import type {WindowRectTransform} from './types';
 import {WindowStore} from "./WindowStore";
 
@@ -114,7 +129,19 @@ export class WindowsManager extends Forest<WindowStoreValue> {
 
     addWindow(key: string, value: Omit<WindowDefInput, 'id'>) {
         // Extract customStyle and storeClass before parsing (they're not part of the schema)
-        const {customStyle, storeClass, closable, onClose, rectTransform, ...windowDef} = value;
+        const {
+            customStyle,
+            storeClass,
+            closable,
+            onClose,
+            rectTransform,
+            titlebarContentRenderer,
+            windowContentRenderer,
+            onResolve,
+            configureTitlebar,
+            modifyInitialTitlebarParams,
+            ...windowDef
+        } = value;
         if (customStyle) {
             this.#customStyles.set(key, customStyle);
         }
@@ -136,10 +163,40 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         } else {
             this.#rectTransformMap.delete(key);
         }
+        if (titlebarContentRenderer) {
+            this.#titlebarContentRendererMap.set(key, titlebarContentRenderer);
+        } else {
+            this.#titlebarContentRendererMap.delete(key);
+        }
+        if (windowContentRenderer) {
+            this.#windowContentRendererMap.set(key, windowContentRenderer);
+        } else {
+            this.#windowContentRendererMap.delete(key);
+        }
+        if (onResolve) {
+            this.#onResolveMap.set(key, onResolve);
+        } else {
+            this.#onResolveMap.delete(key);
+        }
+        if (configureTitlebar) {
+            this.#configureTitlebarMap.set(key, configureTitlebar);
+        } else {
+            this.#configureTitlebarMap.delete(key);
+        }
+        if (modifyInitialTitlebarParams) {
+            this.#modifyInitialTitlebarParamsMap.set(key, modifyInitialTitlebarParams);
+        } else {
+            this.#modifyInitialTitlebarParamsMap.delete(key);
+        }
 
         const existingBranch = this.#windowsBranches.get(key);
         if (existingBranch) {
             existingBranch.setRectTransform(rectTransform);
+            existingBranch.setTitlebarContentRenderer(titlebarContentRenderer);
+            existingBranch.setWindowContentRenderer(windowContentRenderer);
+            existingBranch.setOnResolve(onResolve);
+            existingBranch.configureTitlebar(configureTitlebar);
+            existingBranch.setModifyInitialTitlebarParams(modifyInitialTitlebarParams);
         }
         this.set(['windows', key], WindowDefSchema.parse({...windowDef, id: key}));
     }
@@ -176,6 +233,11 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         branch.setClosable(closable);
         branch.setOnClose(this.#onCloseMap.get(key));
         branch.setRectTransform(this.#rectTransformMap.get(key));
+        branch.setTitlebarContentRenderer(this.#titlebarContentRendererMap.get(key));
+        branch.setWindowContentRenderer(this.#windowContentRendererMap.get(key));
+        branch.setOnResolve(this.#onResolveMap.get(key));
+        branch.configureTitlebar(this.#configureTitlebarMap.get(key));
+        branch.setModifyInitialTitlebarParams(this.#modifyInitialTitlebarParamsMap.get(key));
 
         branch.kickoff();
 
@@ -192,6 +254,11 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     #closableMap = new Map<string, boolean>();
     #onCloseMap = new Map<string, WindowCloseHandler>();
     #rectTransformMap = new Map<string, WindowRectTransform>();
+    #titlebarContentRendererMap = new Map<string, TitlebarContentRendererFn>();
+    #windowContentRendererMap = new Map<string, WindowContentRendererFn>();
+    #onResolveMap = new Map<string, WindowResolveHookFn>();
+    #configureTitlebarMap = new Map<string, ConfigureTitlebarFn>();
+    #modifyInitialTitlebarParamsMap = new Map<string, ModifyInitialTitlebarParamsFn>();
 
     windowBranch(id: string) {
         return this.#windowsBranches.get(id);
@@ -259,6 +326,11 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         this.#closableMap.delete(id);
         this.#onCloseMap.delete(id);
         this.#rectTransformMap.delete(id);
+        this.#titlebarContentRendererMap.delete(id);
+        this.#windowContentRendererMap.delete(id);
+        this.#onResolveMap.delete(id);
+        this.#configureTitlebarMap.delete(id);
+        this.#modifyInitialTitlebarParamsMap.delete(id);
     }
 
     /**

@@ -110,11 +110,55 @@ export const TitlebarConfigSchema = z.object({
 export type TitlebarConfig = z.infer<typeof TitlebarConfigSchema>;
 
 // Type for custom titlebar render function (not in schema since functions can't be serialized)
-export type RenderTitlebarFn = (
-    titlebarStore: unknown,
-    windowData: WindowDef,
-    contentContainer: Container
+export type TitlebarContentRendererParams = {
+    titlebarStore: unknown;
+    titlebarValue: TitlebarConfig;
+    windowStore: unknown;
+    windowValue: WindowDef;
+    contentContainer: Container;
+    localRect: Rectangle;
+    localScale: {
+        x: number;
+        y: number;
+    };
+};
+
+export type TitlebarContentRendererFn = (
+    params: TitlebarContentRendererParams
 ) => void;
+
+export type WindowContentRendererParams = {
+    windowStore: unknown;
+    windowValue: WindowDef;
+    contentContainer: Container;
+    localRect: Rectangle;
+    localScale: {
+        x: number;
+        y: number;
+    };
+};
+
+export type WindowContentRendererFn = (
+    params: WindowContentRendererParams
+) => void;
+
+export type WindowResolveHookFn = (
+    state: WindowDef
+) => void;
+
+export type ConfigureTitlebarFn = (
+    titlebarStore: unknown,
+    windowStore: unknown
+) => void;
+
+export type ModifyInitialTitlebarParamsResult = {
+    state?: Partial<TitlebarConfig>;
+    config?: Partial<WindowDef>;
+};
+
+export type ModifyInitialTitlebarParamsFn = (
+    params: { state: TitlebarConfig; config: WindowDef }
+) => ModifyInitialTitlebarParamsResult | void;
 
 // Window status schema
 export const WindowStatusSchema = z.enum([
@@ -217,6 +261,11 @@ export type WindowStoreClass<T extends WindowDef = WindowDef> = new (
     app: Application
 ) => any;
 
+export type TitlebarStoreClass = new (
+    config: any,
+    app: Application
+) => any;
+
 // Input type for addWindow - allows partial titlebar config and custom style
 export type WindowDefInput = Omit<Partial<WindowDef>, 'titlebar'> & {
     id: string;
@@ -226,6 +275,11 @@ export type WindowDefInput = Omit<Partial<WindowDef>, 'titlebar'> & {
     onClose?: WindowCloseHandler;
     customStyle?: PartialWindowStyle; // User style overrides
     storeClass?: WindowStoreClass; // Custom WindowStore subclass
+    titlebarContentRenderer?: TitlebarContentRendererFn; // Per-window titlebar content renderer
+    windowContentRenderer?: WindowContentRendererFn; // Per-window window content renderer
+    onResolve?: WindowResolveHookFn; // Runs before window refresh/renderers each resolve cycle
+    configureTitlebar?: ConfigureTitlebarFn; // Per-window titlebar setup callback
+    modifyInitialTitlebarParams?: ModifyInitialTitlebarParamsFn; // Startup-only titlebar/window param modifier
 };
 
 // Texture status values

@@ -5,7 +5,7 @@ import {
   SOURCE_MODES,
   resolveSourceLoader,
 } from "../../src/packageHeartbeats.js";
-import { Application, Container, Graphics, Rectangle } from "pixi.js";
+import { Application, Container, Graphics, Rectangle, Text } from "pixi.js";
 import { FiArrowDown, FiArrowLeft, FiArrowRight, FiArrowUp, FiRotateCcw } from "react-icons/fi";
 
 const SOURCE_LIST = [SOURCE_MODES.published, SOURCE_MODES.workspace];
@@ -651,6 +651,11 @@ export default function PackageValidatorRoute() {
             app,
             container: referenceSpace,
           });
+          const resolveSnapshot = {
+            count: 0,
+            width: 0,
+            height: 0,
+          };
 
           windows.addWindow("snap-window", {
             x: -96,
@@ -662,6 +667,64 @@ export default function PackageValidatorRoute() {
             resizeMode: "EDGE_AND_CORNER",
             titlebar: { title: "Snap Window" },
             rectTransform: ({ rect, handle }) => applyHandleSnap(rect, handle),
+            onResolve: (state) => {
+              resolveSnapshot.count += 1;
+              resolveSnapshot.width = Math.round(state.width);
+              resolveSnapshot.height = Math.round(state.height);
+            },
+            titlebarContentRenderer: ({ windowValue, contentContainer, localRect, localScale }) => {
+              const label = "validator-window-titlebar-size";
+              let text = contentContainer.getChildByLabel(label);
+              if (!text) {
+                text = new Text({
+                  text: "",
+                  style: {
+                    fontSize: 10,
+                    fill: 0xffffff,
+                  },
+                });
+                text.label = label;
+                contentContainer.addChild(text);
+              }
+              const width = resolveSnapshot.width || Math.round(windowValue.width);
+              const height = resolveSnapshot.height || Math.round(windowValue.height);
+              text.text = `${width}x${height}`;
+              text.position.set(localRect.x + localRect.width - 78, localRect.y + 9);
+
+              const dotLabel = "validator-window-titlebar-dot";
+              let dot = contentContainer.getChildByLabel(dotLabel);
+              if (!dot) {
+                dot = new Graphics({ label: dotLabel });
+                dot.circle(0, 0, 4).fill(0x22c55e);
+                contentContainer.addChild(dot);
+              }
+              dot.position.set(localRect.x + localRect.width - 92, localRect.y + 14);
+            },
+            windowContentRenderer: ({ windowValue, contentContainer, localRect, localScale }) => {
+              const label = "validator-window-body-info";
+              let text = contentContainer.getChildByLabel(label);
+              if (!text) {
+                text = new Text({
+                  text: "",
+                  style: {
+                    fontSize: 11,
+                    fill: 0xe2e8f0,
+                  },
+                });
+                text.label = label;
+                contentContainer.addChild(text);
+              }
+
+              const titlebarHeight = windowValue.titlebar?.height ?? 30;
+              text.position.set(localRect.x + 10, localRect.y + titlebarHeight + 10);
+              text.text = [
+                "onResolve + titlebarContentRenderer + windowContentRenderer demo",
+                `resolve calls:${resolveSnapshot.count}`,
+                `x:${Math.round(windowValue.x)} y:${Math.round(windowValue.y)}`,
+                `w:${Math.round(windowValue.width)} h:${Math.round(windowValue.height)}`,
+                `localScale:${localScale.x.toFixed(2)}x${localScale.y.toFixed(2)}`,
+              ].join("\n");
+            },
           });
 
           const branch = windows.initWindow("snap-window");

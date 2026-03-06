@@ -1,163 +1,183 @@
 {
-  "../../node_modules/@published/drag/dist/index.js": {
-    "file": "assets/index-Bodv3V58.js",
-    "name": "index",
-    "src": "../../node_modules/@published/drag/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_TickerForest-DXXcuddh.js",
-      "_schemas-D7wXWR26.js"
-    ]
-  },
-  "../../node_modules/@published/grid/dist/index.js": {
-    "file": "assets/index-GgzcbGQS.js",
-    "name": "index",
-    "src": "../../node_modules/@published/grid/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_TickerForest-DXXcuddh.js",
-      "_package-validator-C0C4W20x.js",
-      "_chunk-LFPYN7LY-DwGaznN7.js"
-    ]
-  },
-  "../../node_modules/@published/root-container/dist/index.js": {
-    "file": "assets/index-CQKuBE_b.js",
-    "name": "index",
-    "src": "../../node_modules/@published/root-container/dist/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_chunk-LFPYN7LY-DwGaznN7.js"
-    ]
-  },
   "../../node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
-    "file": "assets/browserAll-DuhlJN92.js",
+    "file": "assets/browserAll-DchTMn3r.js",
     "name": "browserAll",
     "src": "../../node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
+      "_package-validator-Bj9R1NOk.js",
       "../../node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
       "_chunk-LFPYN7LY-DwGaznN7.js",
-      "_Filter-BhkwJ8CF.js"
+      "_Filter-CoxrN85d.js"
     ]
   },
   "../../node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
-    "file": "assets/webworkerAll-BM0UkJVa.js",
+    "file": "assets/webworkerAll-CzZQIHhF.js",
     "name": "webworkerAll",
     "src": "../../node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_Filter-BhkwJ8CF.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_Filter-CoxrN85d.js",
       "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   },
   "../../node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
-    "file": "assets/CanvasRenderer-BJEdliC5.js",
+    "file": "assets/CanvasRenderer-jfdvpxXj.js",
     "name": "CanvasRenderer",
     "src": "../../node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_RenderTargetSystem-5ckgtlnO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_RenderTargetSystem-CeS3qoM5.js",
       "_chunk-LFPYN7LY-DwGaznN7.js",
-      "_Filter-BhkwJ8CF.js"
+      "_Filter-CoxrN85d.js"
     ]
   },
   "../../node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
-    "file": "assets/WebGLRenderer-C9YGEMXv.js",
+    "file": "assets/WebGLRenderer-itod4RD4.js",
     "name": "WebGLRenderer",
     "src": "../../node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_BufferResource-jkR_vhrf.js",
-      "_RenderTargetSystem-5ckgtlnO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_BufferResource-Cejn0Uk7.js",
+      "_RenderTargetSystem-CeS3qoM5.js",
       "_chunk-LFPYN7LY-DwGaznN7.js",
-      "_Filter-BhkwJ8CF.js"
+      "_Filter-CoxrN85d.js"
     ]
   },
   "../../node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
-    "file": "assets/WebGPURenderer-CG5ju8lr.js",
+    "file": "assets/WebGPURenderer-DRXNMErj.js",
     "name": "WebGPURenderer",
     "src": "../../node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_BufferResource-jkR_vhrf.js",
-      "_RenderTargetSystem-5ckgtlnO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_BufferResource-Cejn0Uk7.js",
+      "_RenderTargetSystem-CeS3qoM5.js",
       "_chunk-LFPYN7LY-DwGaznN7.js",
-      "_Filter-BhkwJ8CF.js"
+      "_Filter-CoxrN85d.js"
+    ]
+  },
+  "../../node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
+    "file": "assets/BitmapFont-jqmWCNO8.js",
+    "name": "BitmapFont",
+    "src": "../../node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_package-validator-Bj9R1NOk.js",
+      "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   },
   "../../packages/drag/dist/index.js": {
-    "file": "assets/index-D_-Rhh8G.js",
+    "file": "assets/index-Dm5Pb1v-.js",
     "name": "index",
     "src": "../../packages/drag/dist/index.js",
     "isDynamicEntry": true,
     "imports": [
-      "_TickerForest-DXXcuddh.js",
-      "_schemas-D7wXWR26.js"
+      "_TickerForest-DiC7VjTO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_schemas-CBBdJJMR.js",
+      "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   },
   "../../packages/grid/dist/index.js": {
-    "file": "assets/index-De6BoBZi.js",
+    "file": "assets/index-D75qMBsx.js",
     "name": "index",
     "src": "../../packages/grid/dist/index.js",
     "isDynamicEntry": true,
     "imports": [
-      "_TickerForest-DXXcuddh.js",
-      "_package-validator-C0C4W20x.js",
+      "_TickerForest-DiC7VjTO.js",
+      "_package-validator-Bj9R1NOk.js",
       "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   },
+  "../../packages/resizer/dist/index.js": {
+    "file": "assets/index-D_NpBpXa.js",
+    "name": "index",
+    "src": "../../packages/resizer/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_ResizerStore-DcgZc_yW.js",
+      "_TickerForest-DiC7VjTO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_chunk-LFPYN7LY-DwGaznN7.js",
+      "_schemas-CBBdJJMR.js"
+    ]
+  },
   "../../packages/root-container/dist/index.js": {
-    "file": "assets/index-CaOVZc8_.js",
+    "file": "assets/index-DVLs750M.js",
     "name": "index",
     "src": "../../packages/root-container/dist/index.js",
     "isDynamicEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
+      "_package-validator-Bj9R1NOk.js",
       "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   },
+  "../../packages/window/dist/index.js": {
+    "file": "assets/index-BmSE2zGF.js",
+    "name": "index",
+    "src": "../../packages/window/dist/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_package-validator-Bj9R1NOk.js",
+      "_TickerForest-DiC7VjTO.js",
+      "_schemas-CBBdJJMR.js",
+      "../../packages/drag/dist/index.js",
+      "_ResizerStore-DcgZc_yW.js",
+      "_chunk-LFPYN7LY-DwGaznN7.js"
+    ],
+    "dynamicImports": [
+      "../../node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ]
+  },
   "/Users/davidedelhart/Documents/repos/forestry-pixi/apps/package-validator/app/styles.css": {
-    "file": "assets/styles-C73rAk6S.css",
+    "file": "assets/styles-BqZCR8IA.css",
     "src": "/Users/davidedelhart/Documents/repos/forestry-pixi/apps/package-validator/app/styles.css"
   },
-  "_BufferResource-jkR_vhrf.js": {
-    "file": "assets/BufferResource-jkR_vhrf.js",
+  "_BufferResource-Cejn0Uk7.js": {
+    "file": "assets/BufferResource-Cejn0Uk7.js",
     "name": "BufferResource",
     "imports": [
-      "_package-validator-C0C4W20x.js"
+      "_package-validator-Bj9R1NOk.js"
     ]
   },
-  "_Filter-BhkwJ8CF.js": {
-    "file": "assets/Filter-BhkwJ8CF.js",
+  "_Filter-CoxrN85d.js": {
+    "file": "assets/Filter-CoxrN85d.js",
     "name": "Filter",
     "imports": [
-      "_package-validator-C0C4W20x.js"
+      "_package-validator-Bj9R1NOk.js"
     ]
   },
-  "_RenderTargetSystem-5ckgtlnO.js": {
-    "file": "assets/RenderTargetSystem-5ckgtlnO.js",
+  "_RenderTargetSystem-CeS3qoM5.js": {
+    "file": "assets/RenderTargetSystem-CeS3qoM5.js",
     "name": "RenderTargetSystem",
     "imports": [
-      "_package-validator-C0C4W20x.js",
-      "_Filter-BhkwJ8CF.js"
+      "_package-validator-Bj9R1NOk.js",
+      "_Filter-CoxrN85d.js"
     ]
   },
-  "_TickerForest-DXXcuddh.js": {
-    "file": "assets/TickerForest-DXXcuddh.js",
+  "_ResizerStore-DcgZc_yW.js": {
+    "file": "assets/ResizerStore-DcgZc_yW.js",
+    "name": "ResizerStore",
+    "imports": [
+      "_TickerForest-DiC7VjTO.js",
+      "_package-validator-Bj9R1NOk.js",
+      "_schemas-CBBdJJMR.js"
+    ]
+  },
+  "_TickerForest-DiC7VjTO.js": {
+    "file": "assets/TickerForest-DiC7VjTO.js",
     "name": "TickerForest"
   },
   "_chunk-LFPYN7LY-DwGaznN7.js": {
     "file": "assets/chunk-LFPYN7LY-DwGaznN7.js",
     "name": "chunk-LFPYN7LY"
   },
-  "_package-validator-C0C4W20x.js": {
-    "file": "assets/package-validator-C0C4W20x.js",
+  "_package-validator-Bj9R1NOk.js": {
+    "file": "assets/package-validator-Bj9R1NOk.js",
     "name": "package-validator",
     "imports": [
       "_chunk-LFPYN7LY-DwGaznN7.js"
@@ -168,16 +188,22 @@
       "../../node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
       "../../node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
       "../../node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "../../node_modules/@published/root-container/dist/index.js",
       "../../packages/root-container/dist/index.js",
-      "../../node_modules/@published/grid/dist/index.js",
+      "../../packages/root-container/dist/index.js",
       "../../packages/grid/dist/index.js",
-      "../../node_modules/@published/drag/dist/index.js",
-      "../../packages/drag/dist/index.js"
+      "../../packages/grid/dist/index.js",
+      "../../packages/resizer/dist/index.js",
+      "../../packages/resizer/dist/index.js",
+      "../../packages/resizer/dist/index.js",
+      "../../packages/resizer/dist/index.js",
+      "../../packages/drag/dist/index.js",
+      "../../packages/drag/dist/index.js",
+      "../../packages/window/dist/index.js",
+      "../../packages/window/dist/index.js"
     ]
   },
-  "_schemas-D7wXWR26.js": {
-    "file": "assets/schemas-D7wXWR26.js",
+  "_schemas-CBBdJJMR.js": {
+    "file": "assets/schemas-CBBdJJMR.js",
     "name": "schemas"
   },
   "app/entry.client.jsx": {
@@ -190,7 +216,7 @@
     ]
   },
   "app/root.jsx?__react-router-build-client-route": {
-    "file": "assets/root-Be33JHlD.js",
+    "file": "assets/root-_XVmjMGV.js",
     "name": "root",
     "src": "app/root.jsx?__react-router-build-client-route",
     "isEntry": true,
@@ -198,7 +224,7 @@
       "_chunk-LFPYN7LY-DwGaznN7.js"
     ],
     "assets": [
-      "assets/styles-C73rAk6S.css"
+      "assets/styles-BqZCR8IA.css"
     ]
   },
   "app/routes/index.jsx?__react-router-build-client-route": {
@@ -211,12 +237,12 @@
     ]
   },
   "app/routes/package-validator.jsx?__react-router-build-client-route": {
-    "file": "assets/package-validator-Bd4I4saw.js",
+    "file": "assets/package-validator-D7mdYGZl.js",
     "name": "package-validator",
     "src": "app/routes/package-validator.jsx?__react-router-build-client-route",
     "isEntry": true,
     "imports": [
-      "_package-validator-C0C4W20x.js",
+      "_package-validator-Bj9R1NOk.js",
       "_chunk-LFPYN7LY-DwGaznN7.js"
     ]
   }

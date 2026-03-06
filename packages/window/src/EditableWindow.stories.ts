@@ -3,10 +3,9 @@ import {Application, Assets, Container, Graphics, Sprite, Text} from 'pixi.js';
 import {ToolbarStore} from '@wonderlandlabs-pixi-ux/toolbar';
 import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
 import {WindowsManager, TEXTURE_STATUS} from "./WindowsManager";
-import type {RenderTitlebarFn, WindowDef} from "./types";
+import type {TitlebarContentRendererFn, WindowContentRendererFn, WindowDef} from "./types";
 import type {TitlebarStore} from "./TitlebarStore";
 import {STYLE_VARIANT} from "./constants";
-import {EditableWindowStore} from "./EditableWindowStore";
 
 const toolbarStyleTree = fromJSON({
     button: {
@@ -100,16 +99,26 @@ function createStoryToolbar(
 interface EditableWindowArgs {
 }
 
+interface StoryWindowContentItem {
+    id: string;
+    type: 'image' | 'caption';
+    text?: string;
+}
+
+type EditableStoryWindowValue = WindowDef & {
+    contentItems?: StoryWindowContentItem[];
+};
+
 // Custom titlebar renderer that adds close and move buttons
 // Uses WindowsManager's texture loading system for the move icon
-const customTitlebarRenderer: RenderTitlebarFn = (
-    titlebarStore: unknown,
-    windowData: WindowDef,
-    contentContainer: Container
-) => {
+const customTitlebarRenderer: TitlebarContentRendererFn = ({
+    titlebarStore,
+    windowValue,
+    contentContainer
+}) => {
     const store = titlebarStore as TitlebarStore;
-    const closeButtonId = `close-btn-${windowData.id}`;
-    const moveButtonId = `move-btn-${windowData.id}`;
+    const closeButtonId = `close-btn-${windowValue.id}`;
+    const moveButtonId = `move-btn-${windowValue.id}`;
 
     // Check if close button already exists
     let closeBtn = contentContainer.getChildByLabel(closeButtonId) as Graphics | null;
@@ -130,7 +139,7 @@ const customTitlebarRenderer: RenderTitlebarFn = (
         // Add click handler
         closeBtn.on('pointerdown', (event) => {
             event.stopPropagation();
-            console.log(`Close button clicked for window: ${windowData.id}`);
+            console.log(`Close button clicked for window: ${windowValue.id}`);
         });
     }
 
@@ -158,7 +167,7 @@ const customTitlebarRenderer: RenderTitlebarFn = (
 
             moveBtn.on('pointerdown', (event) => {
                 event.stopPropagation();
-                console.log(`Move button clicked for window: ${windowData.id}`);
+                console.log(`Move button clicked for window: ${windowValue.id}`);
             });
         }
         // If texture not loaded yet, WindowsManager will mark all windows dirty when it loads
@@ -187,73 +196,154 @@ const meta: Meta<EditableWindowArgs> = {
         wrapper.style.width = '100%';
         wrapper.style.height = '650px';
 
-        // Track content added to windows for positioning
-        const windowContentCounts = new Map<string, number>();
+        const managedContentPrefix = 'editable-content';
+        const placeholderImagePath = '/placeholder-art.png';
 
         let wm: WindowsManager;
         let currentSelectedId: string | null = null;
+        let placeholderImageReady = false;
+        let placeholderImageLoading = false;
+        let contentItemCounter = 0;
+
+        const markAllStoryWindowsDirty = () => {
+            if (!wm) return;
+            for (const id of wm.value.windows.keys()) {
+                wm.windowBranch(id)?.markDirty();
+            }
+        };
+
+        const ensurePlaceholderImageLoaded = () => {
+            if (placeholderImageReady || placeholderImageLoading) {
+                return;
+            }
+
+            placeholderImageLoading = true;
+            Assets.load(placeholderImagePath)
+                .then(() => {
+                    placeholderImageReady = true;
+                    placeholderImageLoading = false;
+                    markAllStoryWindowsDirty();
+                })
+                .catch((err) => {
+                    placeholderImageLoading = false;
+                    console.error('Failed to load image:', err);
+                });
+        };
+
+        const getSelectedWindowStore = () => {
+            if (!currentSelectedId || !wm) return undefined;
+            return wm.windowBranch(currentSelectedId);
+        };
+
+        const appendWindowContent = (type: StoryWindowContentItem['type']) => {
+            const windowStore = getSelectedWindowStore();
+            if (!windowStore) return;
+
+            windowStore.mutate((draft) => {
+                const draftWithContent = draft as EditableStoryWindowValue;
+                const currentItems = Array.isArray(draftWithContent.contentItems)
+                    ? draftWithContent.contentItems
+                    : [];
+                const nextIndex = currentItems.length + 1;
+                const nextItem: StoryWindowContentItem = type === 'caption'
+                    ? {id: `${type}-${contentItemCounter++}`, type, text: `Caption ${nextIndex}`}
+                    : {id: `${type}-${contentItemCounter++}`, type};
+                draftWithContent.contentItems = [...currentItems, nextItem];
+            });
+
+            if (type === 'image') {
+                ensurePlaceholderImageLoaded();
+            }
+            windowStore.markDirty();
+        };
+
+        const windowContentRenderer: WindowContentRendererFn = ({
+            windowValue,
+            contentContainer,
+        }) => {
+            const contentValue = windowValue as EditableStoryWindowValue;
+            const items = Array.isArray(contentValue.contentItems) ? contentValue.contentItems : [];
+            const activeLabels = new Set<string>();
+
+            const titlebarHeight = windowValue.titlebar?.height || 30;
+            const rowHeight = 80;
+            const x = 10;
+            const startY = titlebarHeight + 10;
+            const maxWidth = Math.max(10, windowValue.width - 20);
+
+            for (const [index, item] of items.entries()) {
+                const y = startY + (index * rowHeight);
+                const label = `${managedContentPrefix}-${item.id}`;
+                activeLabels.add(label);
+
+                if (item.type === 'caption') {
+                    let caption = contentContainer.getChildByLabel(label) as Text | null;
+                    if (!caption) {
+                        caption = new Text({
+                            text: '',
+                            style: {
+                                fontSize: 14,
+                                fill: 0xffffff,
+                                fontFamily: 'Arial',
+                            }
+                        });
+                        caption.label = label;
+                        contentContainer.addChild(caption);
+                    }
+                    caption.text = item.text ?? `Caption ${index + 1}`;
+                    caption.position.set(x, y);
+                    continue;
+                }
+
+                if (!placeholderImageReady) {
+                    ensurePlaceholderImageLoaded();
+                    continue;
+                }
+
+                const texture = Assets.get(placeholderImagePath);
+                if (!texture) {
+                    continue;
+                }
+
+                let sprite = contentContainer.getChildByLabel(label) as Sprite | null;
+                if (!sprite) {
+                    sprite = new Sprite(texture);
+                    sprite.label = label;
+                    contentContainer.addChild(sprite);
+                } else if (sprite.texture !== texture) {
+                    sprite.texture = texture;
+                }
+
+                const safeWidth = Math.max(1, sprite.texture.width);
+                const scale = Math.min(1, maxWidth / safeWidth);
+                sprite.scale.set(scale);
+                sprite.position.set(x, y);
+            }
+
+            for (const child of [...contentContainer.children]) {
+                const childLabel = child.label;
+                if (typeof childLabel === 'string'
+                    && childLabel.startsWith(`${managedContentPrefix}-`)
+                    && !activeLabels.has(childLabel)) {
+                    child.destroy();
+                }
+            }
+        };
 
         // Add image to selected window
-        const addImageToWindow = async () => {
-            if (!currentSelectedId || !wm) return;
-
-            const contentContainer = wm.getContentContainer(currentSelectedId);
-            const windowStore = wm.windowBranch(currentSelectedId);
-            if (!contentContainer || !windowStore) return;
-
-            try {
-                const texture = await Assets.load('/placeholder-art.png');
-                const sprite = new Sprite(texture);
-
-                // Get current content count for positioning
-                const count = windowContentCounts.get(currentSelectedId) || 0;
-                const titlebarHeight = windowStore.value.titlebar?.height || 30;
-
-                // Scale image to fit window width with padding
-                const maxWidth = windowStore.value.width - 20;
-                const scale = Math.min(1, maxWidth / sprite.width);
-                sprite.scale.set(scale);
-
-                // Position below titlebar and any existing content
-                sprite.x = 10;
-                sprite.y = titlebarHeight + 10 + (count * 80);
-
-                contentContainer.addChild(sprite);
-                windowContentCounts.set(currentSelectedId, count + 1);
-
+        const addImageToWindow = () => {
+            appendWindowContent('image');
+            if (currentSelectedId) {
                 console.log(`Added image to window: ${currentSelectedId}`);
-            } catch (err) {
-                console.error('Failed to load image:', err);
             }
         };
 
         // Add caption to selected window
         const addCaptionToWindow = () => {
-            if (!currentSelectedId || !wm) return;
-
-            const contentContainer = wm.getContentContainer(currentSelectedId);
-            const windowStore = wm.windowBranch(currentSelectedId);
-            if (!contentContainer || !windowStore) return;
-
-            const count = windowContentCounts.get(currentSelectedId) || 0;
-            const titlebarHeight = windowStore.value.titlebar?.height || 30;
-
-            const caption = new Text({
-                text: `Caption ${count + 1}`,
-                style: {
-                    fontSize: 14,
-                    fill: 0xffffff,
-                    fontFamily: 'Arial',
-                }
-            });
-
-            caption.x = 10;
-            caption.y = titlebarHeight + 10 + (count * 80);
-
-            contentContainer.addChild(caption);
-            windowContentCounts.set(currentSelectedId, count + 1);
-
-            console.log(`Added caption to window: ${currentSelectedId}`);
+            appendWindowContent('caption');
+            if (currentSelectedId) {
+                console.log(`Added caption to window: ${currentSelectedId}`);
+            }
         };
 
         // Selection indicator
@@ -357,7 +447,6 @@ const meta: Meta<EditableWindowArgs> = {
                 resizeMode: 'ONLY_CORNER',
                 zIndex: 1,
                 variant: STYLE_VARIANT.DEFAULT,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Default Style',
                     mode: 'persistent',
@@ -369,7 +458,9 @@ const meta: Meta<EditableWindowArgs> = {
                         width: 16,
                         height: 16
                     }
-                }
+                },
+                titlebarContentRenderer: customTitlebarRenderer,
+                windowContentRenderer
             });
 
             // Window 2: Blue style
@@ -381,14 +472,14 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 2,
                 variant: STYLE_VARIANT.BLUE,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Blue Style',
                     mode: 'persistent',
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
 
             // Window 3: Light grayscale style
@@ -400,14 +491,14 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 3,
                 variant: STYLE_VARIANT.LIGHT_GRAYSCALE,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Light Grayscale',
                     mode: 'persistent',
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
 
             // Window 4: Alert Info style
@@ -419,14 +510,14 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 4,
                 variant: STYLE_VARIANT.ALERT_INFO,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Alert Info',
                     mode: 'persistent',
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
 
             // Window 5: Alert Danger style
@@ -438,14 +529,14 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 5,
                 variant: STYLE_VARIANT.ALERT_DANGER,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Alert Danger',
                     mode: 'persistent',
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
 
             // Window 6: Alert Warning style
@@ -457,14 +548,14 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 6,
                 variant: STYLE_VARIANT.ALERT_WARNING,
-                storeClass: EditableWindowStore,
                 titlebar: {
                     title: 'Alert Warning',
                     mode: 'persistent',
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
 
             // Window 7: Inverted style with custom style override
@@ -476,7 +567,6 @@ const meta: Meta<EditableWindowArgs> = {
                 dragFromTitlebar: true,
                 zIndex: 7,
                 variant: STYLE_VARIANT.INVERTED,
-                storeClass: EditableWindowStore,
                 customStyle: {
                     selectedBorderColor: {r: 0, g: 1, b: 0.5}, // Custom green selection
                     selectedBorderWidth: 3
@@ -487,14 +577,9 @@ const meta: Meta<EditableWindowArgs> = {
                     height: 26,
                     padding: 6,
                     fontSize: 11
-                }
+                },
+                windowContentRenderer
             });
-
-            // Set custom renderer on editor window's titlebar (with move icon)
-            const editorBranch = wm.windowBranch('editor');
-            if (editorBranch?.titlebarStore) {
-                editorBranch.titlebarStore.renderTitlebar = customTitlebarRenderer;
-            }
 
             // Subscribe to selection changes
             wm.$subject.subscribe(() => {

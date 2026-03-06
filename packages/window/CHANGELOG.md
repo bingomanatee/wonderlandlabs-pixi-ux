@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2.0.0 - 2026-03-06
+
+- Breaking: replaced titlebar render hooks with `titlebarContentRenderer` using a single object parameter:
+  `{ titlebarStore, titlebarValue, windowStore, windowValue, contentContainer }`.
+- Added `windowContentRenderer` for generated body content using:
+  `{ windowStore, windowValue, contentContainer }`.
+- Added `localRect` and `localScale` to `titlebarContentRenderer` and `windowContentRenderer` params for
+  bounds-relative layout.
+- Added `onResolve(state)` window-level pre-render hook, executed before sub-renderer updates.
+- Added startup-only `modifyInitialTitlebarParams({ state, config }) => ({ state, config })`.
+- Removed deprecated alias `onModifyInitialTitlebarParams`.
+- Updated docs, storybook demos, and package-validator demo to use the new renderer APIs.
+
 ## 1.1.8 - 2026-03-04
 
 - Anchored window drag and resize coordinate reconciliation to the manager frame container by converting between frame space and window local space via `toGlobal(...)`/`toLocal(...)`.

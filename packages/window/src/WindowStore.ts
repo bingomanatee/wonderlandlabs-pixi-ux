@@ -1,5 +1,20 @@
 import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
-import type {PartialWindowStyle, RgbColor, WindowCloseHandler, WindowDef, WindowRectTransform, WindowStyle} from "./types";
+import type {
+    ConfigureTitlebarFn,
+    ModifyInitialTitlebarParamsResult,
+    ModifyInitialTitlebarParamsFn,
+    PartialWindowStyle,
+    RgbColor,
+    TitlebarConfig,
+    TitlebarContentRendererFn,
+    TitlebarStoreClass,
+    WindowContentRendererFn,
+    WindowCloseHandler,
+    WindowDef,
+    WindowResolveHookFn,
+    WindowRectTransform,
+    WindowStyle
+} from "./types";
 import {Application, Container, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 import rgbToColor from "./rgbToColor";
@@ -11,11 +26,19 @@ import {distinctUntilChanged, map} from 'rxjs';
 import type {Subscription} from 'rxjs';
 import {resolveWindowStyle} from './styles';
 import {STYLE_VARIANT} from './constants';
+import {isEqual} from 'lodash-es';
 
 // Default color for handles and selection border (blue)
 const HANDLE_COLOR: RgbColor = {r: 0.3, g: 0.6, b: 1};
 
 export class WindowStore extends TickerForest<WindowDef> {
+    static titlebarStoreClass: TitlebarStoreClass = TitlebarStore;
+    static titlebarContentRenderer?: TitlebarContentRendererFn;
+    static windowContentRenderer?: WindowContentRendererFn;
+    static onResolve?: WindowResolveHookFn;
+    static configureTitlebar?: ConfigureTitlebarFn;
+    static modifyInitialTitlebarParams?: ModifyInitialTitlebarParamsFn;
+
     handlesContainer?: Container; // Shared container for resize handles
     customStyle?: PartialWindowStyle; // User style overrides
     rectTransform?: WindowRectTransform; // Optional transform for resizer rectangle
@@ -38,6 +61,12 @@ export class WindowStore extends TickerForest<WindowDef> {
         position: {x: 0, y: 0}
     });
     #contentMask: Graphics = new Graphics();
+    #titlebarContentRendererOverride?: TitlebarContentRendererFn;
+    #windowContentRendererOverride?: WindowContentRendererFn;
+    #onResolveOverride?: WindowResolveHookFn;
+    #titlebarConfigureOverride?: ConfigureTitlebarFn;
+    #titlebarModifyInitialParamsOverride?: ModifyInitialTitlebarParamsFn;
+    #initialTitlebarParamsApplied = false;
 
     /**
      * Get the resolved style for this window (variant + custom overrides)
@@ -56,13 +85,16 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #initTitlebar() {
+        const subclass = (this.constructor as typeof WindowStore).titlebarStoreClass ?? TitlebarStore;
         // Create titlebar store as a branch using $branches.$add
         // @ts-ignore
         this.#titlebarStore = this.$branches.$add(['titlebar'], {
-            subclass: TitlebarStore,
+            subclass,
         }, this.application!) as unknown as TitlebarStore;
         this.#titlebarStore.application = this.application;
         this.#titlebarStore.set('isDirty', true);
+        this.#applyTitlebarHooks();
+        this.#applyInitialTitlebarParamOverrides();
         this.#syncTitlebarCloseState();
 
         this.#sizeSubscription?.unsubscribe();
@@ -78,6 +110,7 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     resolveComponents(parentContainer?: Container, handlesContainer?: Container) {
+        this.#applyResolveHook();
         this.#refreshRoot();
         this.#refreshBackground();
         this.#refreshSelectionBorder();
@@ -102,6 +135,118 @@ export class WindowStore extends TickerForest<WindowDef> {
     #closable = false;
     #onClose?: WindowCloseHandler;
 
+    #applyTitlebarHooks(): void {
+        const titlebarStore = this.#titlebarStore;
+        if (!titlebarStore) {
+            return;
+        }
+
+        const ctor = this.constructor as typeof WindowStore;
+        const contentRenderer = this.#titlebarContentRendererOverride ?? ctor.titlebarContentRenderer;
+        const configureHook = this.#titlebarConfigureOverride ?? ctor.configureTitlebar;
+
+        if (contentRenderer) {
+            titlebarStore.titlebarContentRenderer = contentRenderer;
+        }
+
+        if (configureHook) {
+            configureHook(titlebarStore, this);
+        }
+    }
+
+    #applyWindowContentRenderer(): void {
+        const ctor = this.constructor as typeof WindowStore;
+        const contentRenderer = this.#windowContentRendererOverride ?? ctor.windowContentRenderer;
+        if (!contentRenderer) {
+            return;
+        }
+        const {width, height} = this.value;
+        contentRenderer({
+            windowStore: this,
+            windowValue: this.value,
+            contentContainer: this.#contentContainer,
+            localRect: new Rectangle(0, 0, width, height),
+            localScale: {
+                x: this.#contentContainer.scale.x,
+                y: this.#contentContainer.scale.y,
+            },
+        });
+    }
+
+    #applyResolveHook(): void {
+        const ctor = this.constructor as typeof WindowStore;
+        const resolveHook = this.#onResolveOverride ?? ctor.onResolve;
+        if (!resolveHook) {
+            return;
+        }
+        resolveHook(this.value);
+    }
+
+    #applyPatch<T extends object>(target: T, patch: Partial<T>): boolean {
+        let changed = false;
+        for (const [key, value] of Object.entries(patch) as [keyof T, T[keyof T]][]) {
+            if (value === undefined) {
+                continue;
+            }
+            if (!isEqual(target[key], value)) {
+                target[key] = value;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    #applyInitialTitlebarParamOverrides(): void {
+        if (this.#initialTitlebarParamsApplied) {
+            return;
+        }
+
+        const titlebarStore = this.#titlebarStore;
+        if (!titlebarStore) {
+            return;
+        }
+
+        const ctor = this.constructor as typeof WindowStore;
+        const modifyHook = this.#titlebarModifyInitialParamsOverride ?? ctor.modifyInitialTitlebarParams;
+        if (!modifyHook) {
+            return;
+        }
+
+        const next = modifyHook({
+            state: titlebarStore.value as TitlebarConfig,
+            config: this.value,
+        }) as ModifyInitialTitlebarParamsResult | void;
+
+        if (!next) {
+            this.#initialTitlebarParamsApplied = true;
+            return;
+        }
+
+        if (next.state) {
+            let titlebarChanged = false;
+            titlebarStore.mutate((draft) => {
+                titlebarChanged = this.#applyPatch(draft, next.state!);
+            });
+            if (titlebarChanged) {
+                titlebarStore.set('isDirty', true);
+                titlebarStore.queueResolve();
+            }
+        }
+
+        if (next.config) {
+            let windowChanged = false;
+            this.mutate((draft) => {
+                windowChanged = this.#applyPatch(draft, next.config!);
+            });
+            if (windowChanged) {
+                this.set('isDirty', true);
+                this.queueResolve();
+            }
+        }
+
+        this.#initialTitlebarParamsApplied = true;
+    }
+
     /**
      * Get the titlebar store for custom configuration
      */
@@ -123,6 +268,48 @@ export class WindowStore extends TickerForest<WindowDef> {
 
     setOnClose(onClose?: WindowCloseHandler): void {
         this.#onClose = onClose;
+    }
+
+    setTitlebarContentRenderer(titlebarContentRenderer?: TitlebarContentRendererFn): void {
+        this.#titlebarContentRendererOverride = titlebarContentRenderer;
+        if (!this.#titlebarStore) {
+            return;
+        }
+        if (titlebarContentRenderer) {
+            this.#titlebarStore.titlebarContentRenderer = titlebarContentRenderer;
+        } else {
+            const ctor = this.constructor as typeof WindowStore;
+            this.#titlebarStore.titlebarContentRenderer = ctor.titlebarContentRenderer;
+        }
+        this.#titlebarStore.markDirty();
+        this.#titlebarStore.queueResolve();
+    }
+
+    configureTitlebar(configureTitlebar?: ConfigureTitlebarFn): void {
+        this.#titlebarConfigureOverride = configureTitlebar;
+        if (!this.#titlebarStore || !configureTitlebar) {
+            return;
+        }
+        configureTitlebar(this.#titlebarStore, this);
+        this.#titlebarStore.markDirty();
+        this.#titlebarStore.queueResolve();
+    }
+
+    setModifyInitialTitlebarParams(modifyInitialTitlebarParams?: ModifyInitialTitlebarParamsFn): void {
+        this.#titlebarModifyInitialParamsOverride = modifyInitialTitlebarParams;
+        this.#applyInitialTitlebarParamOverrides();
+    }
+
+    setWindowContentRenderer(windowContentRenderer?: WindowContentRendererFn): void {
+        this.#windowContentRendererOverride = windowContentRenderer;
+        this.markDirty();
+        this.queueResolve();
+    }
+
+    setOnResolve(onResolve?: WindowResolveHookFn): void {
+        this.#onResolveOverride = onResolve;
+        this.markDirty();
+        this.queueResolve();
     }
 
     setRectTransform(rectTransform?: WindowRectTransform): void {
@@ -473,6 +660,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#contentContainer.eventMode = contentClickable ? 'static' : 'none';
 
         this.#refreshContentMask();
+        this.#applyWindowContentRenderer();
     }
 
     #refreshContentMask() {

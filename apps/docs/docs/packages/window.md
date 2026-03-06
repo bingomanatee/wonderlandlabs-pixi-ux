@@ -141,6 +141,312 @@ app.stage (or your root container)
               Ensures handles are always visible regardless of window z-index
 ```
 
+## Zoom-Independent Titlebar Sizing
+
+Titlebar visual height is kept stable under zoom by enabling `TickerForest` scale dirty tracking with the
+`dirtyOnScale` parameter in `TitlebarStore` (Y-axis only).
+
+In the built-in implementation, this is enabled automatically when `WindowStore` creates `TitlebarStore`.
+There is no extra `addWindow(...)` flag required.
+
+If you implement a custom titlebar store, keep this setting on:
+
+```ts
+dirtyOnScale: {
+  enabled: true,
+  watchX: false,
+  watchY: true,
+  relativeToRootParent: true,
+}
+```
+
+## Content Placement Rules (Important)
+
+- Put window body content in `WindowStore.contentContainer` (or `WindowsManager.getContentContainer(id)`).
+- Put titlebar controls that must remain zoom-independent in the
+  `titlebarContentRenderer({ ..., contentContainer })` callback container.
+- Use `windowContentRenderer({ ..., contentContainer })` for generated body content.
+- Do not attach zoom-independent titlebar controls directly to the raw `titlebarContainer`; use the provided
+  render callback container so they stay in the counter-scaled layer.
+
+## State-First Content Updates (Required Pattern)
+
+For runtime content changes (toolbar clicks, async results, external events), use this flow:
+
+1. Mutate store state (including custom fields) on the relevant `WindowStore` / `TitlebarStore`.
+2. Set dirty state (`isDirty = true`), usually by calling `markDirty()` on the store.
+3. Use `windowContentRenderer` and/or `titlebarContentRenderer` to upsert `Graphics`/`Container`/`Text` nodes into
+   the provided `contentContainer` during the refresh cycle.
+
+Do not directly add/remove Pixi content from event handlers as your primary update path.
+
+Renderer timing in the current implementation:
+
+- `onResolve(state)` runs first in `WindowStore.resolveComponents(...)` for window-level pre-render work.
+- `WindowStore.resolve()` calls `resolveComponents(...)`, which calls `#refreshContentContainer()`, which calls
+  `#applyWindowContentRenderer()`.
+- `TitlebarStore.resolve()` calls `resolveComponents()`, which invokes `titlebarContentRenderer(...)` when set.
+
+Why this pattern is required:
+
+- Pixi mutations outside the ticker-driven refresh path can cause visual artifacts.
+- Multiple state changes between ticks are naturally coalesced to one final render snapshot.
+- If content is added then removed before the next tick, the renderer can resolve to "no-op" instead of doing
+  unnecessary add/remove churn.
+
+### Titlebar Content Hook Pattern
+
+Use `addWindow(..., { titlebarContentRenderer })` as the hook for zoom-independent titlebar UI.
+Keep the renderer idempotent (upsert by label), then call `markDirty()` + `queueResolve()` whenever external
+state changes. Use `configureTitlebar` for one-time setup after the titlebar store is created.
+Use `modifyInitialTitlebarParams` for a startup-only functional parameter transform:
+`modifyInitialTitlebarParams: ({ state, config }) => ({ state, config })`.
+Use `onResolve` for general window-level pre-render logic that should run before content renderers:
+`onResolve: (state) => { ... }`.
+
+Renderer signature:
+
+```ts
+titlebarContentRenderer: ({
+  titlebarStore,
+  titlebarValue,
+  windowStore,
+  windowValue,
+  contentContainer,
+  localRect,
+  localScale,
+}) => {
+  // add/update contentContainer children
+}
+
+windowContentRenderer: ({
+  windowStore,
+  windowValue,
+  contentContainer,
+  localRect,
+  localScale,
+}) => {
+  // add/update contentContainer children
+}
+
+onResolve: (state) => {
+  // window-level pre-render hook
+}
+```
+
+- `localRect` is the known render bounds in the renderer container's local coordinate space.
+- `localScale` is the renderer container's effective local scale (`x`, `y`) for scale-aware layout.
+
+```ts
+import { Graphics, Text } from 'pixi.js';
+
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  isDraggable: true,
+  titlebar: { title: 'Notes', height: 30 },
+  titlebarContentRenderer: ({ windowValue, contentContainer }) => {
+    const countLabel = 'titlebar-count';
+    let countText = contentContainer.getChildByLabel(countLabel) as Text | null;
+    if (!countText) {
+      countText = new Text({
+        text: '',
+        style: { fontSize: 12, fill: 0xffffff },
+      });
+      countText.label = countLabel;
+      countText.position.set(340, -6);
+      contentContainer.addChild(countText);
+    }
+
+    const pinLabel = 'titlebar-pin';
+    let pin = contentContainer.getChildByLabel(pinLabel) as Graphics | null;
+    if (!pin) {
+      pin = new Graphics({ label: pinLabel });
+      pin.circle(0, 0, 5).fill(0xffcc00);
+      pin.position.set(320, 0);
+      contentContainer.addChild(pin);
+    }
+
+    // Update values each render.
+    countText.text = `W:${Math.round(windowValue.width)}`;
+  },
+});
+```
+
+```ts
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  modifyInitialTitlebarParams: ({ state, config }) => ({
+    state: {
+      ...state,
+      title: `${config.id.toUpperCase()} (${config.width}x${config.height})`,
+    },
+  }),
+});
+```
+
+### Content Generator Function Example
+
+Use a generator/factory to produce a renderer that writes multiple items into the titlebar
+`contentContainer` in one place.
+
+```ts
+import { Text } from 'pixi.js';
+
+type TitlebarItem = {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+};
+
+function makeTitlebarContentRenderer(getItems: () => TitlebarItem[]) {
+  return ({ contentContainer }) => {
+    const active = new Set<string>();
+
+    for (const item of getItems()) {
+      const label = `tb-item-${item.id}`;
+      active.add(label);
+
+      let node = contentContainer.getChildByLabel(label) as Text | null;
+      if (!node) {
+        node = new Text({
+          text: '',
+          style: { fontSize: 11, fill: 0xffffff },
+        });
+        node.label = label;
+        contentContainer.addChild(node);
+      }
+
+      node.text = item.text;
+      node.position.set(item.x, item.y);
+    }
+
+    // Optional cleanup for removed items.
+    for (const child of contentContainer.children.slice()) {
+      const label = child.label ?? '';
+      if (label.startsWith('tb-item-') && !active.has(label)) {
+        contentContainer.removeChild(child);
+        child.destroy();
+      }
+    }
+  };
+}
+
+const getTitlebarItems = () => [
+  { id: 'status', text: 'READY', x: 300, y: -6 },
+  { id: 'count', text: '3', x: 370, y: -6 },
+];
+
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  modifyInitialTitlebarParams: ({ state, config }) => ({
+    state: { ...state, title: `Doc: ${config.id}` },
+  }),
+  titlebarContentRenderer: makeTitlebarContentRenderer(getTitlebarItems),
+});
+```
+
+### Window-Level Misc Hook (`onResolve`)
+
+Use `onResolve` for window-level custom logic that should run before content renderers, without requiring a custom
+`WindowStore` subclass or post-construction branch mutation.
+
+```ts
+import { Text } from 'pixi.js';
+
+const snapshot = { renderCount: 0, width: 0, height: 0 };
+
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  onResolve: (state) => {
+    snapshot.renderCount += 1;
+    snapshot.width = Math.round(state.width);
+    snapshot.height = Math.round(state.height);
+  },
+  titlebarContentRenderer: ({ contentContainer }) => {
+    const label = 'tb-size';
+    let text = contentContainer.getChildByLabel(label) as Text | null;
+    if (!text) {
+      text = new Text({ text: '', style: { fontSize: 11, fill: 0xffffff } });
+      text.label = label;
+      text.position.set(300, -6);
+      contentContainer.addChild(text);
+    }
+    text.text = `${snapshot.width}x${snapshot.height}`;
+  },
+});
+```
+
+### Complete Example: `addWindow` + zoom-independent titlebar
+
+`addWindow(...)` does not need a special "scale titlebar" flag. The built-in `TitlebarStore` already enables
+`dirtyOnScale` for Y-axis counter-scaling.
+
+```ts
+import { Application, Container, Graphics, Text } from 'pixi.js';
+import { WindowsManager } from '@wonderlandlabs-pixi-ux/window';
+
+const app = new Application();
+await app.init({ width: 1200, height: 800 });
+
+// Simulate editor zoom by scaling the parent container.
+const zoomLayer = new Container();
+zoomLayer.scale.set(1.75, 1.75);
+app.stage.addChild(zoomLayer);
+
+const windows = new WindowsManager({
+  app,
+  container: zoomLayer,
+});
+
+windows.addWindow('notes', {
+  x: 120,
+  y: 100,
+  width: 420,
+  height: 280,
+  isDraggable: true,
+  isResizeable: true,
+  titlebar: {
+    title: 'Notes',
+    height: 30,
+  },
+  titlebarContentRenderer: ({ contentContainer }) => {
+    const pin = contentContainer.getChildByLabel('pin-btn') as Graphics | null;
+    if (!pin) {
+      const nextPin = new Graphics({ label: 'pin-btn' });
+      nextPin.circle(0, 0, 6).fill(0xffcc00);
+      nextPin.position.set(380, 0);
+      contentContainer.addChild(nextPin);
+    }
+  },
+  windowContentRenderer: ({ contentContainer }) => {
+    const body = contentContainer.getChildByLabel('body-title') as Text | null;
+    if (!body) {
+      const text = new Text({
+        text: 'Body content via windowContentRenderer',
+        style: { fontSize: 14, fill: 0xffffff },
+      });
+      text.label = 'body-title';
+      text.position.set(12, 42);
+      contentContainer.addChild(text);
+    }
+  },
+});
+
+```
+
 ## Why guardContainer?
 
 The `guardContainer` exists to protect event listeners on `rootContainer` from being purged when PixiJS event models are changed. By wrapping `rootContainer` in a plain container with no event configuration, we ensure that:

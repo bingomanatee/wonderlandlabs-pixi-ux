@@ -1,5 +1,5 @@
 import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
-import type {RenderTitlebarFn, TitlebarConfig} from "./types";
+import type {TitlebarConfig, TitlebarContentRendererFn} from "./types";
 import type {Application} from "pixi.js";
 import {Assets, Container, Graphics, Rectangle, Sprite, Text} from "pixi.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
@@ -16,7 +16,7 @@ interface TitlebarStoreValue extends TitlebarConfig {
 
 export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     // Optional custom render function
-    renderTitlebar?: RenderTitlebarFn;
+    titlebarContentRenderer?: TitlebarContentRendererFn;
 
     // Pixi components - created in property definitions
     #contentContainer: Container = new Container({
@@ -154,9 +154,28 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         this.#refreshTitle();
 
         // Call custom render function if provided
-        if (this.renderTitlebar) {
+        if (this.titlebarContentRenderer) {
             const windowStore = this.$parent as WindowStore;
-            this.renderTitlebar(this, windowStore.value, this.#contentContainer);
+            const padding = this.value.padding ?? 0;
+            const height = this.value.height;
+            const width = windowStore?.value?.width || 0;
+            this.titlebarContentRenderer({
+                titlebarStore: this,
+                titlebarValue: this.value,
+                windowStore,
+                windowValue: windowStore.value,
+                contentContainer: this.#contentContainer,
+                localRect: new Rectangle(
+                    -padding,
+                    -((height / 2) + padding),
+                    width,
+                    height,
+                ),
+                localScale: {
+                    x: this.#counterScaledContentContainer.scale.x,
+                    y: this.#counterScaledContentContainer.scale.y,
+                },
+            });
         }
     }
 
