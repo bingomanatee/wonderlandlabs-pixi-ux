@@ -43,7 +43,7 @@ on top of that foundation.
 
 ## How To Use This Site
 
-- Start with [Package Docs](/packages) for an index of all modules.
+- Use the **Package Docs** section in the left sidebar for all package pages.
 - Open any package page for API usage and examples mirrored from the package README.
 
 ## Package Set
@@ -51,20 +51,28 @@ on top of that foundation.
 <!-- PACKAGE_TABLE_START -->
 | Package | Version | Docs | GitHub |
 | --- | --- | --- | --- |
-| `@wonderlandlabs-pixi-ux/box` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/box) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/box) |
-| `@wonderlandlabs-pixi-ux/button` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/button) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/button) |
-| `@wonderlandlabs-pixi-ux/caption` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/caption) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/caption) |
-| `@wonderlandlabs-pixi-ux/drag` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/drag) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/drag) |
-| `@wonderlandlabs-pixi-ux/grid` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/grid) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/grid) |
-| `@wonderlandlabs-pixi-ux/resizer` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/resizer) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/resizer) |
-| `@wonderlandlabs-pixi-ux/root-container` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/root-container) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/root-container) |
-| `@wonderlandlabs-pixi-ux/style-tree` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/style-tree) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/style-tree) |
-| `@wonderlandlabs-pixi-ux/ticker-forest` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/ticker-forest) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/ticker-forest) |
-| `@wonderlandlabs-pixi-ux/toolbar` | `1.1.11` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/toolbar) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/toolbar) |
-| `@wonderlandlabs-pixi-ux/window` | `1.1.13` | [![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)](/packages/window) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/window) |
+| `@wonderlandlabs-pixi-ux/box`<br/><sub>Tree-based layout engine for measurable areas, alignment, constraints, and BoxTree traversal.</sub> | `1.1.11` | [View Docs](/packages/box) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/box) |
+| `@wonderlandlabs-pixi-ux/button`<br/><sub>Button store that composes BoxTree layout with StyleTree-driven visual states.</sub> | `1.1.11` | [View Docs](/packages/button) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/button) |
+| `@wonderlandlabs-pixi-ux/caption`<br/><sub>Caption/speech/thought bubble rendering with configurable geometry and text styling.</sub> | `1.1.11` | [View Docs](/packages/caption) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/caption) |
+| `@wonderlandlabs-pixi-ux/drag`<br/><sub>Drag interaction state controller that normalizes pointer-driven movement workflows.</sub> | `1.1.11` | [View Docs](/packages/drag) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/drag) |
+| `@wonderlandlabs-pixi-ux/grid`<br/><sub>Zoom-aware Pixi grid rendering manager for infinite canvas and artboard use cases.</sub> | `1.1.11` | [View Docs](/packages/grid) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/grid) |
+| `@wonderlandlabs-pixi-ux/resizer`<br/><sub>Interactive resize handles and rectangle mutation flow for Pixi containers.</sub> | `1.1.11` | [View Docs](/packages/resizer) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/resizer) |
+| `@wonderlandlabs-pixi-ux/root-container`<br/><sub>Root container utilities for centered stage coordinates with zoom/pan behavior.</sub> | `1.1.11` | [View Docs](/packages/root-container) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/root-container) |
+| `@wonderlandlabs-pixi-ux/style-tree`<br/><sub>Hierarchical style matching engine keyed by noun paths and state selectors.</sub> | `1.1.11` | [View Docs](/packages/style-tree) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/style-tree) |
+| `@wonderlandlabs-pixi-ux/ticker-forest`<br/><sub>Forestry base class that schedules dirty-state resolve work on a Pixi ticker.</sub> | `1.1.11` | [View Docs](/packages/ticker-forest) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/ticker-forest) |
+| `@wonderlandlabs-pixi-ux/toolbar`<br/><sub>Toolbar composition store for arranging and styling groups of buttons.</sub> | `1.1.11` | [View Docs](/packages/toolbar) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/toolbar) |
+| `@wonderlandlabs-pixi-ux/window`<br/><sub>Window manager and window store primitives with titlebar, drag, and resize support.</sub> | `1.1.13` | [View Docs](/packages/window) | [![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)](https://github.com/bingomanatee/forestry-pixi/tree/main/packages/window) |
 <!-- PACKAGE_TABLE_END -->
 
 _This table is generated from `packages/*/package.json` via `yarn workspace @wonderlandlabs-pixi-ux/docs sync:intro-package-table`._
+
+## Cross Dependencies
+
+- `style-tree` is used directly by `box`, `button`, `caption`, and `window`.
+- `box` is used by `caption`, `window`, and `button`.
+- `drag` and `resizer` are used by `window`.
+- `ticker-forest` is used directly by `box`.
+- `button` is used directly by `toolbar`.
 
 ## Documentation Source
 

@@ -10,8 +10,21 @@ const packagesDir = path.resolve(__dirname, '../../../packages');
 const tableStart = '<!-- PACKAGE_TABLE_START -->';
 const tableEnd = '<!-- PACKAGE_TABLE_END -->';
 const githubBase = 'https://github.com/bingomanatee/forestry-pixi/tree/main/packages';
-const docsBadge = '[![View Docs](https://img.shields.io/badge/View-Docs-0F6D63?style=flat-square)]';
+const docsLink = '[View Docs]';
 const githubBadge = '[![GitHub](https://img.shields.io/badge/GitHub-Source-24292e?style=flat-square&logo=github)]';
+const summaryBySlug = {
+  box: 'Tree-based layout engine for measurable areas, alignment, constraints, and BoxTree traversal.',
+  button: 'Button store that composes BoxTree layout with StyleTree-driven visual states.',
+  caption: 'Caption/speech/thought bubble rendering with configurable geometry and text styling.',
+  drag: 'Drag interaction state controller that normalizes pointer-driven movement workflows.',
+  grid: 'Zoom-aware Pixi grid rendering manager for infinite canvas and artboard use cases.',
+  resizer: 'Interactive resize handles and rectangle mutation flow for Pixi containers.',
+  'root-container': 'Root container utilities for centered stage coordinates with zoom/pan behavior.',
+  'style-tree': 'Hierarchical style matching engine keyed by noun paths and state selectors.',
+  'ticker-forest': 'Forestry base class that schedules dirty-state resolve work on a Pixi ticker.',
+  toolbar: 'Toolbar composition store for arranging and styling groups of buttons.',
+  window: 'Window manager and window store primitives with titlebar, drag, and resize support.',
+};
 
 async function readPackageRows() {
   const entries = await fs.readdir(packagesDir, { withFileTypes: true });
@@ -52,8 +65,9 @@ function buildTable(rows) {
   ];
 
   for (const row of rows) {
+    const summary = summaryBySlug[row.slug] ?? '-';
     lines.push(
-      `| \`${row.name}\` | \`${row.version}\` | ${docsBadge}(/packages/${row.slug}) | ${githubBadge}(${githubBase}/${row.slug}) |`,
+      `| \`${row.name}\`<br/><sub>${summary}</sub> | \`${row.version}\` | ${docsLink}(/packages/${row.slug}) | ${githubBadge}(${githubBase}/${row.slug}) |`,
     );
   }
 
