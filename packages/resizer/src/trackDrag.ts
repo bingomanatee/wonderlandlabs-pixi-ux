@@ -1,4 +1,5 @@
 import { Container as PixiContainer, FederatedPointerEvent } from 'pixi.js';
+import {PointerManager, PointerTraceToken} from '@wonderlandlabs-pixi-ux/ticker-forest';
 
 /**
  * Callbacks for drag events
@@ -42,6 +43,7 @@ export function trackDrag(
   let isDragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
+  let pointerTraceToken: PointerTraceToken | null = null;
 
   // Use stage for move/up listeners if provided, otherwise use target
   const moveUpTarget = stage || target;
@@ -55,6 +57,9 @@ export function trackDrag(
 
   const onDragMove = (event: FederatedPointerEvent) => {
     if (!isDragging) return;
+    if (!PointerManager.singleton.acceptsPointer(pointerTraceToken, event.pointerId)) {
+      return;
+    }
 
     const point = resolveEventPoint(event);
     const deltaX = point.x - dragStartX;
@@ -65,13 +70,19 @@ export function trackDrag(
 
   const onDragEnd = (event: FederatedPointerEvent) => {
     if (!isDragging) return;
+    if (!PointerManager.singleton.acceptsPointer(pointerTraceToken, event.pointerId)) {
+      return;
+    }
 
     isDragging = false;
+    PointerManager.singleton.endTrace(pointerTraceToken);
+    pointerTraceToken = null;
 
     // Remove move/up listeners from stage or target
     moveUpTarget.off('pointermove', onDragMove);
     moveUpTarget.off('pointerup', onDragEnd);
     moveUpTarget.off('pointerupoutside', onDragEnd);
+    moveUpTarget.off('pointercancel', onDragEnd);
 
     callbacks.onDragEnd?.(event);
   };
@@ -79,6 +90,12 @@ export function trackDrag(
   const onDragStart = (event: FederatedPointerEvent) => {
     // Prevent multiple simultaneous drags
     if (isDragging) return;
+    const nextToken = PointerManager.singleton.beginTrace('ResizerTrackDrag', event.pointerId);
+    if (!nextToken) {
+      event.stopPropagation();
+      return;
+    }
+    pointerTraceToken = nextToken;
 
     const point = resolveEventPoint(event);
     isDragging = true;
@@ -89,6 +106,7 @@ export function trackDrag(
     moveUpTarget.on('pointermove', onDragMove);
     moveUpTarget.on('pointerup', onDragEnd);
     moveUpTarget.on('pointerupoutside', onDragEnd);
+    moveUpTarget.on('pointercancel', onDragEnd);
 
     callbacks.onDragStart?.(event);
   };
@@ -104,6 +122,9 @@ export function trackDrag(
     moveUpTarget.off('pointermove', onDragMove);
     moveUpTarget.off('pointerup', onDragEnd);
     moveUpTarget.off('pointerupoutside', onDragEnd);
+    moveUpTarget.off('pointercancel', onDragEnd);
+    PointerManager.singleton.endTrace(pointerTraceToken);
+    pointerTraceToken = null;
     isDragging = false;
   };
 

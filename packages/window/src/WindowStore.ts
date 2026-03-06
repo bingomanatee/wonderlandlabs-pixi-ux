@@ -479,12 +479,15 @@ export class WindowStore extends TickerForest<WindowDef> {
                 self.#rootContainer.cursor = 'grabbing';
 
                 // Start drag with current container position
-                self.#dragStore!.startDragContainer(
+                const started = self.#dragStore!.startDragContainer(
                     self.value.id,
                     event,
                     self.#rootContainer,
                     self.#getFrameContainer()
                 );
+                if (!started) {
+                    self.#rootContainer.cursor = 'grab';
+                }
             });
             this.#dragInitialized = true;
         }
@@ -517,12 +520,16 @@ export class WindowStore extends TickerForest<WindowDef> {
             self.#clickStartY = event.global.y;
 
             // Start drag with current container position (root container moves)
-            self.#dragStore!.startDragContainer(
+            const started = self.#dragStore!.startDragContainer(
                 self.value.id,
                 event,
                 self.#rootContainer,
                 self.#getFrameContainer()
             );
+            if (!started) {
+                titlebarContainer.cursor = 'grab';
+                return;
+            }
 
             // Set up click detection timeout
             self.#clickTimeout = setTimeout(() => {

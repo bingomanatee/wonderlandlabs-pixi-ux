@@ -21,9 +21,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@wonderlandlabs-pixi-ux/ticker-forest": "1.1.11",
-    "@wonderlandlabs/forestry4": "^4.1.15",
-    "zod": "^4.3.6"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "1.1.11"
   },
   "engines": {
     "node": ">=20.0.0"

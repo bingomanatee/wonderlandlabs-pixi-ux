@@ -1,5 +1,6 @@
 import type { Application, Container as PixiContainer, FederatedPointerEvent } from 'pixi.js';
 import { Point } from 'pixi.js';
+import {PointerManager, PointerTraceToken} from '@wonderlandlabs-pixi-ux/ticker-forest';
 
 export interface StageDraggableResult {
   destroy: () => void;
@@ -28,6 +29,7 @@ export function makeStageDraggable(
   container: PixiContainer
 ): StageDraggableResult {
   let isDragging = false;
+  let pointerTraceToken: PointerTraceToken | null = null;
   const dragStart = new Point();
   const dragOffset = new Point();
   
@@ -35,6 +37,9 @@ export function makeStageDraggable(
   let pendingPosition: { x: number; y: number } | null = null;
   
   const onDragMove = (event: FederatedPointerEvent) => {
+    if (!PointerManager.singleton.acceptsPointer(pointerTraceToken, event.pointerId)) {
+      return;
+    }
     const position = event.global;
     const dx = position.x - dragStart.x;
     const dy = position.y - dragStart.y;
@@ -61,14 +66,20 @@ export function makeStageDraggable(
     });
   };
 
-  const onDragEnd = () => {
+  const onDragEnd = (event: FederatedPointerEvent) => {
+    if (!PointerManager.singleton.acceptsPointer(pointerTraceToken, event.pointerId)) {
+      return;
+    }
     isDragging = false;
     pendingPosition = null;
+    PointerManager.singleton.endTrace(pointerTraceToken);
+    pointerTraceToken = null;
 
     // Remove move/up listeners
     app.stage.off('pointermove', onDragMove);
     app.stage.off('pointerup', onDragEnd);
     app.stage.off('pointerupoutside', onDragEnd);
+    app.stage.off('pointercancel', onDragEnd);
 
     // Emit drag-end event
     app.stage.emit('stage-drag', {
@@ -80,6 +91,12 @@ export function makeStageDraggable(
   const onDragStart = (event: FederatedPointerEvent) => {
     // Prevent multiple simultaneous drags
     if (isDragging) return;
+    const nextToken = PointerManager.singleton.beginTrace('StageDraggable', event.pointerId);
+    if (!nextToken) {
+      event.stopPropagation();
+      return;
+    }
+    pointerTraceToken = nextToken;
 
     isDragging = true;
 
@@ -91,6 +108,7 @@ export function makeStageDraggable(
     app.stage.on('pointermove', onDragMove);
     app.stage.on('pointerup', onDragEnd);
     app.stage.on('pointerupoutside', onDragEnd);
+    app.stage.on('pointercancel', onDragEnd);
 
     // Emit drag-start event
     app.stage.emit('stage-drag', {
@@ -111,7 +129,10 @@ export function makeStageDraggable(
     app.stage.off('pointermove', onDragMove);
     app.stage.off('pointerup', onDragEnd);
     app.stage.off('pointerupoutside', onDragEnd);
+    app.stage.off('pointercancel', onDragEnd);
     pendingPosition = null;
+    PointerManager.singleton.endTrace(pointerTraceToken);
+    pointerTraceToken = null;
     isDragging = false;
   };
   
@@ -119,4 +140,3 @@ export function makeStageDraggable(
     destroy,
   };
 }
-
