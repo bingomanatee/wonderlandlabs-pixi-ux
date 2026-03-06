@@ -1616,9 +1616,9 @@ __metadata:
   linkType: hard
 
 "@csstools/css-syntax-patches-for-csstree@npm:^1.0.21":
-  version: 1.0.29
-  resolution: "@csstools/css-syntax-patches-for-csstree@npm:1.0.29"
-  checksum: cedba88cd96a824ffa6fe411446fae51301fe5f6644c528e4bd56faa5fd22c3aeb618be8aebfd3759727654bbe8860d866eb0d2187c40e9f62e4e9994c02e889
+  version: 1.1.0
+  resolution: "@csstools/css-syntax-patches-for-csstree@npm:1.1.0"
+  checksum: ef84e09ead31d204e238eb674016b34a54083344348b4e4fd63cb03486dcaa5b53feeff74a6c246763973cca0eb3213a70f49ca8545ce26a3b3d9c97255f4dd1
   languageName: node
   linkType: hard
 
@@ -3714,11 +3714,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@published/window@npm:@wonderlandlabs-pixi-ux/window@1.1.11, @wonderlandlabs-pixi-ux/window@npm:1.1.11, @wonderlandlabs-pixi-ux/window@workspace:packages/window":
-  version: 0.0.0-use.local
-  resolution: "@wonderlandlabs-pixi-ux/window@workspace:packages/window"
+"@published/window@npm:@wonderlandlabs-pixi-ux/window@1.1.11":
+  version: 1.1.11
+  resolution: "@wonderlandlabs-pixi-ux/window@npm:1.1.11"
   dependencies:
-    "@types/lodash-es": "npm:^4.17.12"
     "@wonderlandlabs-pixi-ux/drag": "npm:1.1.11"
     "@wonderlandlabs-pixi-ux/resizer": "npm:1.1.11"
     "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.1.11"
@@ -3726,12 +3725,12 @@ __metadata:
     "@wonderlandlabs/forestry4": "npm:^4.1.15"
     lodash-es: "npm:^4.17.22"
     rxjs: "npm:^7.8.2"
-    typescript: "npm:^5.5.4"
     zod: "npm:^4.3.6"
   peerDependencies:
     pixi.js: 8.16.0
-  languageName: unknown
-  linkType: soft
+  checksum: 413d0e9da12de25bf3d3735054dc494bee456f0f99e1ff71ab8fd168ec88c83aaa410bceb2c6047e1a8bf6591880d7ace037b55a465910210da7e2a6527a031f
+  languageName: node
+  linkType: hard
 
 "@react-router/dev@npm:^7.13.1":
   version: 7.13.1
@@ -4601,11 +4600,11 @@ __metadata:
   linkType: hard
 
 "@types/node@npm:*, @types/node@npm:>=20.0.0, @types/node@npm:^25.0.11":
-  version: 25.3.3
-  resolution: "@types/node@npm:25.3.3"
+  version: 25.3.5
+  resolution: "@types/node@npm:25.3.5"
   dependencies:
     undici-types: "npm:~7.18.0"
-  checksum: 63e1d3816a9f4a706ab5d588d18cb98aa824b97748ff585537d327528e9438f58f69f45c7762e7cd3a1ab32c1619f551aabe8075d13172f9273cf10f6d83ab91
+  checksum: 4cf0834a6f6933bf0aca6afead117ae3db3b8f02a5f7187a24f871db0fb9344e5e46573ba387bc53b7505e1e219c4c535cbe67221ced95bb5ad98573223b19d0
   languageName: node
   linkType: hard
 
@@ -4631,9 +4630,9 @@ __metadata:
   linkType: hard
 
 "@types/qs@npm:*":
-  version: 6.14.0
-  resolution: "@types/qs@npm:6.14.0"
-  checksum: 5b3036df6e507483869cdb3858201b2e0b64b4793dc4974f188caa5b5732f2333ab9db45c08157975054d3b070788b35088b4bc60257ae263885016ee2131310
+  version: 6.15.0
+  resolution: "@types/qs@npm:6.15.0"
+  checksum: 1b104cac50e655fc41d7fc1de2c2aba2908c4cf833a555b6808fb4c96752662b439238f2392a15d2590a7a6ca75dbd40e42d9378ac2be0d548ee484954363688
   languageName: node
   linkType: hard
 
@@ -5247,7 +5246,7 @@ __metadata:
     "@wonderlandlabs-pixi-ux/grid": "npm:1.1.11"
     "@wonderlandlabs-pixi-ux/resizer": "npm:1.1.11"
     "@wonderlandlabs-pixi-ux/root-container": "npm:1.1.11"
-    "@wonderlandlabs-pixi-ux/window": "npm:1.1.11"
+    "@wonderlandlabs-pixi-ux/window": "npm:1.1.13"
     pixi.js: "npm:8.16.0"
     react: "npm:^18.2.1"
     react-dom: "npm:^18.2.1"
@@ -5289,6 +5288,25 @@ __metadata:
     "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.1.11"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
+    zod: "npm:^4.3.6"
+  peerDependencies:
+    pixi.js: 8.16.0
+  languageName: unknown
+  linkType: soft
+
+"@wonderlandlabs-pixi-ux/window@npm:1.1.13, @wonderlandlabs-pixi-ux/window@workspace:packages/window":
+  version: 0.0.0-use.local
+  resolution: "@wonderlandlabs-pixi-ux/window@workspace:packages/window"
+  dependencies:
+    "@types/lodash-es": "npm:^4.17.12"
+    "@wonderlandlabs-pixi-ux/drag": "npm:1.1.11"
+    "@wonderlandlabs-pixi-ux/resizer": "npm:1.1.11"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.1.11"
+    "@wonderlandlabs-pixi-ux/toolbar": "npm:1.1.11"
+    "@wonderlandlabs/forestry4": "npm:^4.1.15"
+    lodash-es: "npm:^4.17.22"
+    rxjs: "npm:^7.8.2"
+    typescript: "npm:^5.5.4"
     zod: "npm:^4.3.6"
   peerDependencies:
     pixi.js: 8.16.0
@@ -6767,12 +6785,12 @@ __metadata:
   linkType: hard
 
 "css-tree@npm:^3.1.0":
-  version: 3.2.0
-  resolution: "css-tree@npm:3.2.0"
+  version: 3.2.1
+  resolution: "css-tree@npm:3.2.1"
   dependencies:
     mdn-data: "npm:2.27.1"
     source-map-js: "npm:^1.2.1"
-  checksum: 3b3747cdddc46bad1a1770b55e96fdd1edf87000a5dca50c51a32b94a03a2900492942649ce6ea54ad67e1cdfae7df09623cef2014d020c7f5293f74cbe1a7a7
+  checksum: 1f65e9ccaa56112a4706d6f003dd43d777f0dbcf848e66fd320f823192533581f8dd58daa906cb80622658332d50284d6be13b87a6ab4556cbbfe9ef535bbf7e
   languageName: node
   linkType: hard
 
