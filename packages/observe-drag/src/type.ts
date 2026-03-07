@@ -20,3 +20,13 @@ export interface PixiApplicationLike<TEvent extends PixiEventLike = PixiEventLik
 export type DragOwner = number | null;
 export type VoidFn = (...args: unknown[]) => void;
 export type DebugListener = (context: unknown) => void;
+
+export type ObserveDragPhase = 'onDown' | 'onDrag' | 'onUp' | 'onBlocked' | 'internal';
+
+export interface ObserveDragListeners<PtrEvent extends PixiEventLike = PixiEventLike, DragContext = unknown> {
+    onDown?(downEvent: PtrEvent): DragContext;
+    onDrag?(moveEvent: PtrEvent, context: DragContext): void;
+    onUp?(terminalEvent: PtrEvent, context: DragContext): void;
+    onBlocked?(downEvent: PtrEvent): void;
+    onError?(error: unknown, phase: ObserveDragPhase, event?: PtrEvent): void;
+}

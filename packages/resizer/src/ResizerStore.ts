@@ -1,7 +1,6 @@
 import {TickerForest} from '@wonderlandlabs-pixi-ux/ticker-forest';
+import observeDrag from '@wonderlandlabs-pixi-ux/observe-drag';
 import {Application, Container, FederatedPointerEvent, Graphics, Rectangle} from 'pixi.js';
-import {distinctUntilChanged} from 'rxjs';
-import {trackDrag} from './trackDrag';
 import type {
     Color,
     TrackDragResult,
@@ -428,6 +427,8 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
      * Create all handles and attach drag tracking
      */
     private createHandles() {
+        const observeDragApp = {stage: this.stage ?? this.#targetContainer};
+        const subscribeToDown = observeDrag<FederatedPointerEvent>(observeDragApp);
         const positions = this.getHandlePositions();
 
         positions.forEach((position) => {
@@ -435,22 +436,83 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             this.handles.set(position, handle);
             this.handlesContainer.addChild(handle);
 
-            // Attach drag tracking using bound methods
-            const tracker = trackDrag(
-                handle,
-                {
-                    onDragStart: (event) => this.$.onDragStart(event, position),
-                    onDragMove: this.$.onDragMove,
-                    onDragEnd: this.$.onDragEnd
-                },
-                this.stage,
-                this.deltaSpace
-            );
+            const tracker = this.createHandleDragTracker(handle, position, subscribeToDown);
 
             this.dragTrackers.set(handle, tracker);
         });
 
         this.dirty();
+    }
+
+    private createHandleDragTracker(
+        handle: Graphics,
+        position: HandlePosition,
+        subscribeToDown: ReturnType<typeof observeDrag<FederatedPointerEvent>>,
+    ): TrackDragResult {
+        let isDragging = false;
+        type DragContext = {
+            dragStartX: number;
+            dragStartY: number;
+            pointerId: number;
+        };
+
+        const resolveEventPoint = (event: FederatedPointerEvent): {x: number; y: number} => {
+            if (!this.deltaSpace) {
+                return {x: event.global.x, y: event.global.y};
+            }
+            const localPoint = this.deltaSpace.toLocal(event.global);
+            return {x: localPoint.x, y: localPoint.y};
+        };
+
+        const resetDragState = () => {
+            isDragging = false;
+        };
+
+        const dragDownSubscription = subscribeToDown<DragContext>(handle, {
+            onDown: (event) => {
+                const point = resolveEventPoint(event);
+                isDragging = true;
+                this.$.onDragStart(event, position);
+                return {
+                    dragStartX: point.x,
+                    dragStartY: point.y,
+                    pointerId: event.pointerId,
+                };
+            },
+            onDrag: (event, dragContext) => {
+                if (!isDragging || event.pointerId !== dragContext.pointerId) {
+                    return;
+                }
+                const point = resolveEventPoint(event);
+                const deltaX = point.x - dragContext.dragStartX;
+                const deltaY = point.y - dragContext.dragStartY;
+
+                this.$.onDragMove(deltaX, deltaY, event);
+            },
+            onUp: (event, dragContext) => {
+                const didDrag = isDragging && event.pointerId === dragContext.pointerId;
+                resetDragState();
+                if (didDrag) {
+                    this.$.onDragEnd(event);
+                }
+            },
+            onBlocked: (event) => {
+                event.stopPropagation();
+            },
+            onError: (_error, _phase, event) => {
+                event?.stopPropagation();
+                resetDragState();
+            },
+        });
+
+        handle.eventMode = 'static';
+
+        return {
+            destroy: () => {
+                dragDownSubscription.unsubscribe();
+                resetDragState();
+            },
+        };
     }
 
     /**

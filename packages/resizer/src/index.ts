@@ -1,5 +1,5 @@
 export { enableHandles } from './enableHandles.js';
-export { trackDrag } from './trackDrag.js';
+export { trackDrag } from './_deprecated/trackDrag.js';
 export { ResizerStore } from './ResizerStore.js';
 export type { Rect } from './rectTypes.js';
 export { RectSchema } from './rectTypes.js';

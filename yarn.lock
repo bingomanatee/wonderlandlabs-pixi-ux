@@ -5278,7 +5278,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag":
+"@wonderlandlabs-pixi-ux/observe-drag@npm:1.2.0, @wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag"
   dependencies:
@@ -5321,6 +5321,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/resizer@workspace:packages/resizer"
   dependencies:
+    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.0"
     "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.0"
     pixi.js: "npm:8.16.0"
     rxjs: "npm:^7.8.2"

@@ -1,52 +1,45 @@
 # @wonderlandlabs-pixi-ux/observe-drag
 
-Previous attempts to generalize drags hit snags and, while difficult to diagnose, could freeze the browser completely.
-This appears to happen when multiple targets receive down events and trigger a cascade of complex updates.
+`observe-drag` enforces a single active drag owner per Pixi stage.
 
-To avoid that congestion, this package creates an owner `BehaviorSubject`, `drag$`.
-When anyone receives a `pointerDown`, it sends a bundle to `down$` including:
-```js
-{
-  downEvent: FederatedEvent,
-  move$: Subject<MoveEvent>
-}
-```
+## Behavior
 
-`down$`'s listener terminates (calling `move$.error(MoveBusyError)`) if `drag$.value` is non-empty.
+1. A `pointerdown` is accepted only when no active pointer is in progress.
+2. Accepted drags forward matching `pointermove` events (`pointerId` must match the accepted down).
+3. `pointerup`, `pointerupoutside`, or `pointercancel` ends the active drag and releases ownership.
+4. Competing `pointerdown` events while busy call `onBlocked`.
 
-Otherwise, in closure it listens to `pointermove` and streams its data (filtered for `downEvent.pointerId`) to `move$.next()`.
-It also listens to `pointerup` (filtered for `pointerId`) and several other terminal events; on receiving a value it:
-1. calls move$.complete()
-2. unhooks all created listeners from stage
-3. completes any other scoped streams
-
-## Implications
-
-1. **Only one listener to a given stage can receive move events at any given time**. Other down events are ignored and no listener cluster is generated.
-2. **Pointer events from other IDs are ignored inside a given closure**. Up/leave events from other pointers neither terminate scoped streams nor send coordinates to them.
-3. **Move and terminal listeners are only created after a down is received, and only endure until termination**.
-4. **All listeners and streams terminate on completion**.
-5. **Each pointerdown must use a fresh move Subject**. Terminal events (`pointerup`, `pointerupoutside`, `pointercancel`) call `complete()` on the active subject, so reusing one subject across drags will drop later events.
-
-## Subscriber Contract
-
-Every terminal pointer event calls `complete()` on the active move subject. If a `pointerdown` arrives while another pointer is active, observe-drag calls `error(new Error('drag busy'))` on the contender's subject.
-
-If you subscribe without an `error` handler, that error is unhandled and will throw, which can break runtime flow.
-
-Use subscribers that handle all three channels:
+## API
 
 ```ts
-const move$ = new Subject<PixiEvent>();
-move$.subscribe({
-  next(point) {
-    // handle move updates
+import observeDrag from '@wonderlandlabs-pixi-ux/observe-drag';
+
+const observeDown = observeDrag({stage: app.stage});
+
+const sub = observeDown<DragContext>(target, {
+  onDown(event) {
+    return {pointerId: event.pointerId, startX: event.global.x, startY: event.global.y};
   },
-  error(err) {
-    // required: handle contention errors (e.g. "drag busy")
+  onDrag(event, context) {
+    // move updates for the active pointer
   },
-  complete() {
-    // active drag finished (up/upoutside/cancel)
+  onUp(event, context) {
+    // drag finished
+  },
+  onBlocked(event) {
+    // another drag currently owns the stage
+  },
+  onError(error, phase, event) {
+    // listener threw; handle safely
   },
 });
+
+// cleanup
+sub.unsubscribe();
 ```
+
+## Notes
+
+- You do not need to re-subscribe after each `pointerup`; one subscription handles repeated drag cycles.
+- `onDown` can return any context object; that same object is passed into `onDrag` and `onUp`.
+- `onError` is reserved for thrown listener errors and internal callback failures. Busy contention uses `onBlocked`, not `onError`.

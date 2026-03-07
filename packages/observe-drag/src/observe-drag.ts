@@ -1,5 +1,14 @@
-import {BehaviorSubject, filter, Subject, Subscription} from 'rxjs';
-import type {DebugListener, DragOwner, PixiApplicationLike, PixiEventLike, PixiEventTargetLike, VoidFn,} from './type';
+import {BehaviorSubject} from 'rxjs';
+import type {
+    DebugListener,
+    DragOwner,
+    ObserveDragListeners,
+    ObserveDragPhase,
+    PixiApplicationLike,
+    PixiEventLike,
+    PixiEventTargetLike,
+    VoidFn,
+} from './type';
 import {
     POINTER_EVT_CANCEL,
     POINTER_EVT_DOWN,
@@ -51,80 +60,91 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
     }
     const downPointerId$ = appPointerSubject.get(app)!;
 
-    /**
-     *
-     * @param target
-     * @param dragSubject
-     * @param debug
-     */
-    function observeDragSubscriber(
+    function observeDragSubscriber<DragContext = undefined>(
         target: PixiEventTargetLike<PtrEvent>,
-        dragSubject: Subject<PtrEvent>, debug?: Map<string, DebugListener>
+        listeners: ObserveDragListeners<PtrEvent, DragContext> = {} as ObserveDragListeners<PtrEvent, DragContext>,
+        debug?: Map<string, DebugListener>,
     ) {
         let terminate: VoidFn | undefined = undefined;
 
+        function reportListenerError(error: unknown, phase: ObserveDragPhase, event?: PtrEvent) {
+            debug?.get('listener.error')?.({error, phase, event});
+            if (listeners.onError) {
+                listeners.onError(error, phase, event);
+                return;
+            }
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error(String(error));
+        }
+
         /**
-         * The "Main Trigger": for each down, dynaically add listeners for move and up
-         * and use subscribe to pipe them
+         * The "Main Trigger": for each down, dynamically add listeners for move and up
          * @param downEvent
          */
         function handlePointerDown(downEvent: PtrEvent) {
-            let watchPointerIdSub: Subscription | undefined = undefined;
-
             if (downPointerId$.value !== null) {
-                debug?.get('pid$.terminate-early')?.(downPointerId$.value)
-                dragSubject.error(new Error('drag busy'));
+                debug?.get('pid$.terminate-early')?.(downPointerId$.value);
+                debug?.get('pointer.busy')?.(downEvent);
+                try {
+                    listeners.onBlocked?.(downEvent);
+                } catch (error) {
+                    reportListenerError(error, 'onBlocked', downEvent);
+                }
                 return;
             }
-            downPointerId$.next(downEvent.pointerId);
 
-            const move$: Subject<PtrEvent> = new Subject();
-            if (debug?.has('move$')) {
-                move$.subscribe(debug.get('move$'));
-            }
-            move$.pipe(filter(
-                (moveEvent: PtrEvent) => moveEvent.pointerId === downEvent.pointerId)
-            ).subscribe(dragSubject);
+            const activePointerId = downEvent.pointerId;
+            downPointerId$.next(activePointerId);
+            debug?.get('down.accepted')?.(downEvent);
 
-            function handlePointerMove(onMoveEvent: PtrEvent) {
-                move$.next(onMoveEvent);
-            }
+            let dragContext: DragContext | undefined = undefined;
 
-            function handlePointerTerminal(terminalEvent: PtrEvent) {
-                if (terminalEvent.pointerId === downEvent.pointerId) {
-                    move$.complete();
-                }
-            }
-
-            terminate = (...args: unknown[]) => {
-                const reason = args[0];
+            terminate = (reason?: unknown) => {
                 removeListener(app.stage, POINTER_EVT_MOVE, handlePointerMove);
                 removeListener(app.stage, POINTER_EVT_UP, handlePointerTerminal);
                 removeListener(app.stage, POINTER_EVT_UP_OUTSIDE, handlePointerTerminal);
                 removeListener(app.stage, POINTER_EVT_CANCEL, handlePointerTerminal);
                 terminate = undefined;
-                watchPointerIdSub?.unsubscribe();
-                watchPointerIdSub = undefined;
-                downPointerId$.next(null);
+                if (downPointerId$.value === activePointerId) {
+                    downPointerId$.next(null);
+                }
                 debug?.get('terminate')?.(reason);
+            };
+
+            try {
+                dragContext = listeners.onDown?.(downEvent);
+            } catch (error) {
+                terminate('onDown error');
+                reportListenerError(error, 'onDown', downEvent);
+                return;
             }
 
-            /**
-             * crazy-time borderline condition -
-             * if for any reason the pointerId strays from the seed event,
-             * terminate
-             */
-            watchPointerIdSub = downPointerId$.pipe(filter((pid) => pid !== downEvent.pointerId)).subscribe({
-                next() {
-                    terminate?.('pointerId changed');
+            function handlePointerMove(onMoveEvent: PtrEvent) {
+                if (onMoveEvent.pointerId !== downEvent.pointerId) {
+                    return;
                 }
-            });
+                try {
+                    listeners.onDrag?.(onMoveEvent, dragContext as DragContext);
+                } catch (error) {
+                    terminate?.('onDrag error');
+                    reportListenerError(error, 'onDrag', onMoveEvent);
+                }
+            }
 
-            move$.subscribe({
-                complete() {
-                    terminate?.('move$ complete');
+            function handlePointerTerminal(terminalEvent: PtrEvent) {
+                if (terminalEvent.pointerId === downEvent.pointerId) {
+                    debug?.get('pointer.terminal')?.(terminalEvent);
+                    try {
+                        listeners.onUp?.(terminalEvent, dragContext as DragContext);
+                    } catch (error) {
+                        reportListenerError(error, 'onUp', terminalEvent);
+                    } finally {
+                        terminate?.('pointer terminal');
+                    }
                 }
-            });
+            }
 
             addListener(app.stage, POINTER_EVT_MOVE, handlePointerMove);
             addListener(app.stage, POINTER_EVT_UP, handlePointerTerminal);
@@ -137,10 +157,10 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
 
         return {
             unsubscribe() {
-                terminate?.();
+                terminate?.('unsubscribe');
                 removeListener(target, POINTER_EVT_DOWN, handlePointerDown);
             }
-        }
+        };
     }
 
     return observeDragSubscriber;
