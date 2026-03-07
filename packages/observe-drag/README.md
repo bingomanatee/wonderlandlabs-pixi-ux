@@ -26,3 +26,27 @@ It also listens to `pointerup` (filtered for `pointerId`) and several other term
 2. **Pointer events from other IDs are ignored inside a given closure**. Up/leave events from other pointers neither terminate scoped streams nor send coordinates to them.
 3. **Move and terminal listeners are only created after a down is received, and only endure until termination**.
 4. **All listeners and streams terminate on completion**.
+5. **Each pointerdown must use a fresh move Subject**. Terminal events (`pointerup`, `pointerupoutside`, `pointercancel`) call `complete()` on the active subject, so reusing one subject across drags will drop later events.
+
+## Subscriber Contract
+
+Every terminal pointer event calls `complete()` on the active move subject. If a `pointerdown` arrives while another pointer is active, observe-drag calls `error(new Error('drag busy'))` on the contender's subject.
+
+If you subscribe without an `error` handler, that error is unhandled and will throw, which can break runtime flow.
+
+Use subscribers that handle all three channels:
+
+```ts
+const move$ = new Subject<PixiEvent>();
+move$.subscribe({
+  next(point) {
+    // handle move updates
+  },
+  error(err) {
+    // required: handle contention errors (e.g. "drag busy")
+  },
+  complete() {
+    // active drag finished (up/upoutside/cancel)
+  },
+});
+```

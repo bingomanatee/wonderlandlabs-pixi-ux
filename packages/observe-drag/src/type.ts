@@ -7,8 +7,10 @@ export interface PixiEventLike {
 }
 
 export interface PixiEventTargetLike<TEvent extends PixiEventLike = PixiEventLike> {
-    addEventListener(type: PixiEventName, listener: (event: TEvent) => void): void;
-    removeEventListener(type: PixiEventName, listener: (event: TEvent) => void): void;
+    addEventListener?(type: PixiEventName, listener: (event: TEvent) => void): void;
+    removeEventListener?(type: PixiEventName, listener: (event: TEvent) => void): void;
+    on?(type: PixiEventName, listener: (event: TEvent) => void): void;
+    off?(type: PixiEventName, listener: (event: TEvent) => void): void;
 }
 
 export interface PixiApplicationLike<TEvent extends PixiEventLike = PixiEventLike> {

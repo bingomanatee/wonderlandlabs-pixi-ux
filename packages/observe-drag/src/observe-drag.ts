@@ -1,8 +1,47 @@
 import {BehaviorSubject, filter, Subject, Subscription} from 'rxjs';
 import type {DebugListener, DragOwner, PixiApplicationLike, PixiEventLike, PixiEventTargetLike, VoidFn,} from './type';
-import {POINTER_EVT_DOWN, POINTER_EVT_MOVE, POINTER_EVT_UP} from './constants';
+import {
+    POINTER_EVT_CANCEL,
+    POINTER_EVT_DOWN,
+    POINTER_EVT_MOVE,
+    POINTER_EVT_UP,
+    POINTER_EVT_UP_OUTSIDE,
+    type PixiEventName,
+} from './constants';
 
 const appPointerSubject: WeakMap<object, BehaviorSubject<DragOwner>> = new WeakMap();
+
+function addListener<PtrEvent extends PixiEventLike = PixiEventLike>(
+    target: PixiEventTargetLike<PtrEvent>,
+    eventName: PixiEventName,
+    listener: (event: PtrEvent) => void,
+): void {
+    if (target.addEventListener) {
+        target.addEventListener(eventName, listener);
+        return;
+    }
+    if (target.on) {
+        target.on(eventName, listener);
+        return;
+    }
+    throw new Error('observeDrag: event target must support addEventListener/removeEventListener or on/off');
+}
+
+function removeListener<PtrEvent extends PixiEventLike = PixiEventLike>(
+    target: PixiEventTargetLike<PtrEvent>,
+    eventName: PixiEventName,
+    listener: (event: PtrEvent) => void,
+): void {
+    if (target.removeEventListener) {
+        target.removeEventListener(eventName, listener);
+        return;
+    }
+    if (target.off) {
+        target.off(eventName, listener);
+        return;
+    }
+    throw new Error('observeDrag: event target must support addEventListener/removeEventListener or on/off');
+}
 
 export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLike>(
     app: PixiApplicationLike<PtrEvent>
@@ -34,6 +73,7 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
 
             if (downPointerId$.value !== null) {
                 debug?.get('pid$.terminate-early')?.(downPointerId$.value)
+                dragSubject.error(new Error('drag busy'));
                 return;
             }
             downPointerId$.next(downEvent.pointerId);
@@ -50,10 +90,18 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
                 move$.next(onMoveEvent);
             }
 
+            function handlePointerTerminal(terminalEvent: PtrEvent) {
+                if (terminalEvent.pointerId === downEvent.pointerId) {
+                    move$.complete();
+                }
+            }
+
             terminate = (...args: unknown[]) => {
                 const reason = args[0];
-                app.stage.removeEventListener(POINTER_EVT_MOVE, handlePointerMove);
-                app.stage.removeEventListener(POINTER_EVT_UP, handlePointerUp);
+                removeListener(app.stage, POINTER_EVT_MOVE, handlePointerMove);
+                removeListener(app.stage, POINTER_EVT_UP, handlePointerTerminal);
+                removeListener(app.stage, POINTER_EVT_UP_OUTSIDE, handlePointerTerminal);
+                removeListener(app.stage, POINTER_EVT_CANCEL, handlePointerTerminal);
                 terminate = undefined;
                 watchPointerIdSub?.unsubscribe();
                 watchPointerIdSub = undefined;
@@ -72,30 +120,25 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
                 }
             });
 
-            function handlePointerUp(upEvent: PtrEvent) {
-                if (upEvent.pointerId === downEvent.pointerId) {
-                    move$.complete();
-                }
-            }
-
             move$.subscribe({
                 complete() {
                     terminate?.('move$ complete');
                 }
             });
 
-
-            app.stage.addEventListener(POINTER_EVT_MOVE, handlePointerMove);
-            app.stage.addEventListener(POINTER_EVT_UP, handlePointerUp);
+            addListener(app.stage, POINTER_EVT_MOVE, handlePointerMove);
+            addListener(app.stage, POINTER_EVT_UP, handlePointerTerminal);
+            addListener(app.stage, POINTER_EVT_UP_OUTSIDE, handlePointerTerminal);
+            addListener(app.stage, POINTER_EVT_CANCEL, handlePointerTerminal);
 
         }
 
-        target.addEventListener(POINTER_EVT_DOWN, handlePointerDown);
+        addListener(target, POINTER_EVT_DOWN, handlePointerDown);
 
         return {
             unsubscribe() {
                 terminate?.();
-                target.removeEventListener(POINTER_EVT_DOWN, handlePointerDown);
+                removeListener(target, POINTER_EVT_DOWN, handlePointerDown);
             }
         }
     }

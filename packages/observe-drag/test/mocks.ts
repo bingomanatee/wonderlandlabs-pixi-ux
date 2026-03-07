@@ -20,6 +20,14 @@ export class MockPixiEventTarget<TEvent extends PixiEventLike> implements PixiEv
         this.#listeners.get(type)?.delete(listener);
     }
 
+    on(type: PixiEventName, listener: (event: TEvent) => void): void {
+        this.addEventListener(type, listener);
+    }
+
+    off(type: PixiEventName, listener: (event: TEvent) => void): void {
+        this.removeEventListener(type, listener);
+    }
+
     emit(type: PixiEventName, event: TEvent): void {
         const listeners = this.#listeners.get(type);
         if (!listeners) {
@@ -48,5 +56,39 @@ export function createMockPixiEventTarget<TEvent extends PixiEventLike>(): MockP
 
 export function createMockPointerApp<TEvent extends PixiEventLike>(): MockPointerApp<TEvent> {
     const stage = createMockPixiEventTarget<TEvent>();
+    return {stage};
+}
+
+export class MockPixiOnOffTarget<TEvent extends PixiEventLike> implements PixiEventTargetLike<TEvent> {
+    #listeners = new Map<PixiEventName, Set<(event: TEvent) => void>>();
+
+    on(type: PixiEventName, listener: (event: TEvent) => void): void {
+        if (!this.#listeners.has(type)) {
+            this.#listeners.set(type, new Set());
+        }
+        this.#listeners.get(type)!.add(listener);
+    }
+
+    off(type: PixiEventName, listener: (event: TEvent) => void): void {
+        this.#listeners.get(type)?.delete(listener);
+    }
+
+    emit(type: PixiEventName, event: TEvent): void {
+        const listeners = this.#listeners.get(type);
+        if (!listeners) {
+            return;
+        }
+        for (const listener of [...listeners]) {
+            listener(event);
+        }
+    }
+}
+
+export type MockOnOffPointerApp<TEvent extends PixiEventLike> = PixiApplicationLike<TEvent> & {
+    stage: MockPixiOnOffTarget<TEvent>;
+};
+
+export function createMockOnOffPointerApp<TEvent extends PixiEventLike>(): MockOnOffPointerApp<TEvent> {
+    const stage = new MockPixiOnOffTarget<TEvent>();
     return {stage};
 }
