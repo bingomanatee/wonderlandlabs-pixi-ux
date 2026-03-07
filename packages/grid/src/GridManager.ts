@@ -195,16 +195,17 @@ export class GridManager extends TickerForest<GridManagerValue> {
     const safeScaleX = Math.max(0.0001, Math.abs(scale.x));
     const safeScaleY = Math.max(0.0001, Math.abs(scale.y));
 
-    const pos = container.position;
-    const rawLeft = (0 - pos.x) / safeScaleX;
-    const rawRight = (screen.width - pos.x) / safeScaleX;
-    const rawTop = (0 - pos.y) / safeScaleY;
-    const rawBottom = (screen.height - pos.y) / safeScaleY;
+    // Derive visible container-space bounds from viewport corners.
+    // This keeps bounds correct even when parent transforms (centering/pan) are applied.
+    const topLeft = container.toLocal({ x: 0, y: 0 });
+    const topRight = container.toLocal({ x: screen.width, y: 0 });
+    const bottomLeft = container.toLocal({ x: 0, y: screen.height });
+    const bottomRight = container.toLocal({ x: screen.width, y: screen.height });
 
-    const left = Math.min(rawLeft, rawRight);
-    const right = Math.max(rawLeft, rawRight);
-    const top = Math.min(rawTop, rawBottom);
-    const bottom = Math.max(rawTop, rawBottom);
+    const left = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const right = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const top = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    const bottom = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
 
     const padX = Math.max(spacingX * 2, 48 / Math.abs(safeScaleX));
     const padY = Math.max(spacingY * 2, 48 / Math.abs(safeScaleY));

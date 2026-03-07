@@ -37,6 +37,7 @@ const { root } = createRootContainer(app);
 app.stage.addChild(root); // manual mount
 const { zoomPan } = createZoomPan(app, root);
 root.addChild(zoomPan); // manual mount
+// makeStageDraggable uses observe-drag + dragTargetDecorator under the hood.
 makeStageDraggable(app, zoomPan);
 makeStageZoomable(app, zoomPan);
 
@@ -150,6 +151,7 @@ new GridManager({
 ## Runtime Behavior
 
 - Listens for `stage-zoom` and `stage-drag` events from stage decorators.
+- Works with `makeStageDraggable` drag ownership semantics (single active drag stream).
 - Redraws visible lines directly with `Graphics` primitives.
 - Optionally caches the rendered grid container as a texture with zoom-adaptive resolution.
 - Keeps line thickness visually stable across zoom levels.

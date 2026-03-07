@@ -1,4 +1,4 @@
-import type { Container } from 'pixi.js';
+import type { Container, FederatedPointerEvent } from 'pixi.js';
 
 export interface RootContainerResult {
   stage: Container;
@@ -13,6 +13,15 @@ export interface ZoomPanResult {
 
 export interface StageDraggableResult {
   destroy: () => void;
+}
+
+export interface StageDraggableOptions {
+  dragTarget?: Container;
+  getDragTarget?: (event: FederatedPointerEvent) => Container | undefined;
+  targetPointTransform?: (
+    point: { x: number; y: number },
+    event: FederatedPointerEvent
+  ) => { x: number; y: number };
 }
 
 export interface StageDragEvent {

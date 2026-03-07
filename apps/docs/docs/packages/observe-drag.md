@@ -7,52 +7,104 @@ description: Package README for @wonderlandlabs-pixi-ux/observe-drag
 
 Repository: [https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/observe-drag](https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux/tree/main/packages/observe-drag)
 
-Previous attempts to generalize drags were hitting snags; while difficult to diagnose they froze up the browser completely.
-This was likely because multiple targets were receiving `pointerdown` events causing a cascade of complex updates.
+`observe-drag` enforces a single active drag owner per Pixi stage.
 
-To stop this, this package creates an owner `BehaviorSubject`, `drag$`.
-When anyone receives a `pointerdown`, it sends a bundle to `down$` including:
+## Behavior
 
-```js
-{
-  downEvent: FederatedEvent,
-  move$: Subject<MoveEvent>
-}
-```
+1. A `pointerdown` is accepted only when no active pointer is in progress.
+2. Accepted drags forward matching `pointermove` events (`pointerId` must match the accepted down).
+3. `pointerup`, `pointerupoutside`, or `pointercancel` ends the active drag and releases ownership.
+4. Competing `pointerdown` events while busy call `onBlocked`.
 
-`down$`'s listener terminates (calling `move$.error(MoveBusyError)`) if `drag$.value` is non-empty.
+## Usage
 
-Otherwise, in closure it listens to `pointermove` and streams its data (filtered for `downEvent.pointerId`) to `move$.next()`.
-It also listens to `pointerup` (filtered by `pointerId`) and other terminal events; on terminal value it:
+`dragTargetDecorator` wraps your listeners and handles Pixi container movement with default assumptions:
 
-1. calls `move$.complete()`
-2. unhooks all created listeners from stage
-3. completes any other scoped streams
+1. target is a Pixi `Container`-like object (`position`, optional `parent.toLocal`)
+2. pointer coordinates come from Pixi events (`event.global`)
+3. movement is calculated in parent-local space when possible (`parent.toLocal(globalPoint)`)
 
-## Implications
-
-1. **Only one listener to a given stage can receive move events at any given time**. Other down events are ignored and no listener cluster is generated.
-2. **Pointer events from other IDs are ignored inside a given closure**. Up/leave events from other pointers neither terminate scoped streams nor send coordinates to it.
-3. **Move and terminal listeners are only created and added after a down is received, and only endure until termination**.
-4. **All listeners and streams terminate on completion**.
-
-## Subscriber Contract
-
-Every terminal pointer event calls `complete()` on the active move subject. If a `pointerdown` arrives while another pointer is active, observe-drag calls `error(new Error('drag busy'))` on the contender subject.
-
-If you subscribe without an `error` handler, that error is unhandled and will throw, which can break runtime flow.
+### 1. Simple Dragging
 
 ```ts
-const move$ = new Subject<PixiEvent>();
-move$.subscribe({
-  next(point) {
-    // handle move updates
-  },
-  error(err) {
-    // required: handle contention errors (e.g. "drag busy")
-  },
-  complete() {
-    // active drag finished (up/upoutside/cancel)
-  },
-});
+import observeDrag, {dragTargetDecorator} from '@wonderlandlabs-pixi-ux/observe-drag';
+
+const observeDown = observeDrag({stage: app.stage});
+const sub = observeDown(target, dragTargetDecorator(), {dragTarget: myContainer});
 ```
+
+### 2. Custom Listeners
+
+```ts
+const sub = observeDown(
+  target,
+  dragTargetDecorator({
+    listeners: {
+      onStart(event, dragTarget) {
+        // optional domain setup
+      },
+      onMove(event, context, dragTarget) {
+        // extra side effects after default movement
+      },
+      onUp(event, context, dragTarget) {
+        // drag finished
+      },
+      onBlocked(event, dragTarget) {
+        // another drag currently owns the stage
+      },
+      onError(error, phase, event, dragTarget) {
+        // listener threw; handle safely
+      },
+    },
+  }),
+  {
+    dragTarget: myContainer,
+    getDragTarget(downEvent) {
+      // optional dynamic target resolution
+      return downEvent.pointerId === 2 ? altContainer : myContainer;
+    },
+    debug: new Map([
+      ['down.accepted', console.log],
+      ['pointer.busy', console.warn],
+    ]),
+  },
+);
+```
+
+### 3. Snapping / Transform
+
+```ts
+const sub = observeDown(
+  target,
+  dragTargetDecorator({
+    transformPoint(point) {
+      return {
+        x: Math.round(point.x / 10) * 10,
+        y: Math.round(point.y / 10) * 10,
+      };
+    },
+  }),
+  {dragTarget: myContainer},
+);
+```
+
+### Optional Zero-Arg Decorator
+
+```ts
+const sub = observeDown(target, dragTargetDecorator(), {dragTarget: boxContainer});
+
+sub.unsubscribe();
+```
+
+## Notes
+
+- You do not need to re-subscribe after each `pointerup`; one subscription handles repeated drag cycles.
+- Returning context from `onStart` is optional.
+- Receiving context in `onMove` and `onUp` is optional; if `onStart` returns nothing, context is `undefined`.
+- If returned, `onStart` context can be any object and is passed into `onMove` and `onUp`.
+- Core observe-drag does not move targets by itself; use `dragTargetDecorator()` for default target motion, or move the target in your own listeners.
+- Subscription options support `dragTarget` (static) and `getDragTarget(downEvent, context)` (dynamic), and that resolved target is passed to callbacks.
+- `dragTargetDecorator()` provides default Pixi container dragging using parent-local coordinates, then delegates to your wrapped listeners.
+- `dragTargetDecorator()` works with no parameters.
+- `debug` is part of the options object (`{ debug: Map<...> }`), not a separate third-arg overload.
+- `onError` is reserved for thrown listener errors and internal callback failures. Busy contention uses `onBlocked`, not `onError`.

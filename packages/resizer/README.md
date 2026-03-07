@@ -1,6 +1,6 @@
 # @wonderlandlabs-pixi-ux/resizer
 
-Resize handles and drag helpers for PixiJS containers.
+Resize handles for PixiJS containers.
 
 ## Installation
 
@@ -12,7 +12,6 @@ yarn add @wonderlandlabs-pixi-ux/resizer
 
 - `enableHandles(container, rect, config): ResizerStore`
 - `ResizerStore`
-- `trackDrag(target, callbacks, stage?)`
 
 ## Basic Usage
 
@@ -125,9 +124,11 @@ When provided with `onTransformedRect`, the same transform can be previewed duri
 - `asRect`
 - `getColor()`
 
-## `trackDrag` Utility
+## Legacy `trackDrag` Utility (Deprecated)
 
-`trackDrag` is exported independently if you need plain drag tracking without resize handles.
+`trackDrag` remains exported from `src/_deprecated` for compatibility, but `ResizerStore`
+now uses `@wonderlandlabs-pixi-ux/observe-drag` for drag ownership and lifecycle.
+Prefer `observe-drag` for any new drag behavior.
 
 ```ts
 trackDrag(target, {

@@ -1,17 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/html';
-import observeDrag from './index';
+import observeDrag, {dragTargetDecorator} from './index';
 import {createRootContainer, createZoomPan, makeStageZoomable} from '@wonderlandlabs-pixi-ux/root-container';
 import {Application, Container, FederatedPointerEvent, Graphics, Text} from 'pixi.js';
 
 interface ObserveDragArgs {}
-
-type DragStart = {
-    pointerId: number;
-    pointerX: number;
-    pointerY: number;
-    boxX: number;
-    boxY: number;
-};
 
 const meta: Meta<ObserveDragArgs> = {
     title: 'Observe Drag/Three Draggables',
@@ -164,46 +156,30 @@ function makeObservedDraggable(args: {
         target.alpha = 1;
     };
 
-    const downSubscription = subscribeToDown<DragStart>(
+    const downSubscription = subscribeToDown(
         target,
-        {
-            onDown(event) {
-                const parent = target.parent;
-                const localPoint = parent ? parent.toLocal(event.global) : event.global;
-                target.cursor = 'grabbing';
-                setStatus(`${id}: drag accepted for pointer ${event.pointerId}`);
-                return {
-                    pointerId: event.pointerId,
-                    pointerX: localPoint.x,
-                    pointerY: localPoint.y,
-                    boxX: target.position.x,
-                    boxY: target.position.y,
-                };
+        dragTargetDecorator<FederatedPointerEvent, undefined, Container>({
+            listeners: {
+                onStart(event) {
+                    target.cursor = 'grabbing';
+                    target.alpha = 0.95;
+                    setStatus(`${id}: drag accepted for pointer ${event.pointerId}`);
+                },
+                onUp(event) {
+                    resetCycleState();
+                    setStatus(`${id}: drag complete (terminal pointer ${event.pointerId})`);
+                },
+                onBlocked() {
+                    setStatus(`${id}: drag busy (another stream owns pointer tracking)`);
+                },
+                onError(error, phase) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    resetCycleState();
+                    setStatus(`${id}: drag ${phase} error: ${message}`);
+                },
             },
-            onDrag(event, dragStart) {
-                if (event.pointerId !== dragStart.pointerId) {
-                    return;
-                }
-                const parent = target.parent;
-                const localPoint = parent ? parent.toLocal(event.global) : event.global;
-                const dx = localPoint.x - dragStart.pointerX;
-                const dy = localPoint.y - dragStart.pointerY;
-                target.position.set(dragStart.boxX + dx, dragStart.boxY + dy);
-                target.alpha = 0.95;
-            },
-            onUp(event) {
-                resetCycleState();
-                setStatus(`${id}: drag complete (terminal pointer ${event.pointerId})`);
-            },
-            onBlocked() {
-                setStatus(`${id}: drag busy (another stream owns pointer tracking)`);
-            },
-            onError(error, phase) {
-                const message = error instanceof Error ? error.message : String(error);
-                resetCycleState();
-                setStatus(`${id}: drag ${phase} error: ${message}`);
-            },
-        },
+        }),
+        {dragTarget: target},
     );
 
     return () => {

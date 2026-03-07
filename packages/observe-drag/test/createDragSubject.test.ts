@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import observeDrag from '../src/observe-drag';
+import {dragTargetDecorator} from '../src/dragTargetDecorator';
 import type {PixiEventLike} from '../src/type';
 import {
     POINTER_EVT_CANCEL,
@@ -16,6 +17,7 @@ import {
 } from './mocks';
 
 type TestPixiEvent = PixiEventLike;
+type TestPixiEventWithGlobal = TestPixiEvent & {global: {x: number; y: number}};
 type DragEventLogEntry =
     | ['down', string, number, number]
     | ['move', string, number, number]
@@ -35,12 +37,12 @@ describe('observeDrag', () => {
         const eventLog: DragEventLogEntry[] = [];
 
         const subA = subscribeToDown<{targetName: string; moveCount: number; downCount: number}>(targetA, {
-            onDown() {
+            onStart() {
                 const context = {targetName: 'A', moveCount: 0, downCount: ++downCount};
                 eventLog.push(['down', context.targetName, context.moveCount, context.downCount]);
                 return context;
             },
-            onDrag(_event, context) {
+            onMove(_event, context) {
                 context.moveCount += 1;
                 eventLog.push(['move', context.targetName, context.moveCount, context.downCount]);
             },
@@ -49,12 +51,12 @@ describe('observeDrag', () => {
             },
         });
         const subB = subscribeToDown<{targetName: string; moveCount: number; downCount: number}>(targetB, {
-            onDown() {
+            onStart() {
                 const context = {targetName: 'B', moveCount: 0, downCount: ++downCount};
                 eventLog.push(['down', context.targetName, context.moveCount, context.downCount]);
                 return context;
             },
-            onDrag(_event, context) {
+            onMove(_event, context) {
                 context.moveCount += 1;
                 eventLog.push(['move', context.targetName, context.moveCount, context.downCount]);
             },
@@ -135,9 +137,9 @@ describe('observeDrag', () => {
         const seenA: number[] = [];
         const seenB: number[] = [];
         const seenC: number[] = [];
-        const subA = subscribeToDown(targetA, {onDrag: (event) => seenA.push(event.pointerId)});
-        const subB = subscribeToDown(targetB, {onDrag: (event) => seenB.push(event.pointerId)});
-        const subC = subscribeToDown(targetC, {onDrag: (event) => seenC.push(event.pointerId)});
+        const subA = subscribeToDown(targetA, {onMove: (event) => seenA.push(event.pointerId)});
+        const subB = subscribeToDown(targetB, {onMove: (event) => seenB.push(event.pointerId)});
+        const subC = subscribeToDown(targetC, {onMove: (event) => seenC.push(event.pointerId)});
 
         targetA.emit(POINTER_EVT_DOWN, {pointerId: 10});
         stage.emit(POINTER_EVT_MOVE, {pointerId: 10});
@@ -169,8 +171,8 @@ describe('observeDrag', () => {
         const seenA: number[] = [];
         const seenB: number[] = [];
 
-        const subA = subscribeToDown(targetA, {onDrag: (event) => seenA.push(event.pointerId)});
-        const subB = subscribeToDown(targetB, {onDrag: (event) => seenB.push(event.pointerId)});
+        const subA = subscribeToDown(targetA, {onMove: (event) => seenA.push(event.pointerId)});
+        const subB = subscribeToDown(targetB, {onMove: (event) => seenB.push(event.pointerId)});
 
         targetA.emit(POINTER_EVT_DOWN, {pointerId: 21});
         stage.emit(POINTER_EVT_MOVE, {pointerId: 21});
@@ -186,7 +188,112 @@ describe('observeDrag', () => {
         subB.unsubscribe();
     });
 
-    it('passes onDown context to onDrag/onUp and routes listener throws to onError', () => {
+    it('dragTargetDecorator works with no parameters', () => {
+        const app = createMockPointerApp<TestPixiEventWithGlobal>();
+        const {stage} = app;
+        const subscribeToDown = observeDrag<TestPixiEventWithGlobal>(app);
+        const target = createMockPixiEventTarget<TestPixiEventWithGlobal>();
+        const dragTarget = {
+            position: {
+                x: 5,
+                y: 7,
+                set(x: number, y: number) {
+                    this.x = x;
+                    this.y = y;
+                },
+            },
+            parent: {
+                toLocal(point: {x: number; y: number}) {
+                    return {x: point.x / 2, y: point.y / 2};
+                },
+            },
+        };
+
+        const sub = subscribeToDown(target, dragTargetDecorator(), {dragTarget});
+
+        target.emit(POINTER_EVT_DOWN, {pointerId: 51, global: {x: 20, y: 20}});
+        stage.emit(POINTER_EVT_MOVE, {pointerId: 51, global: {x: 30, y: 40}});
+        stage.emit(POINTER_EVT_UP, {pointerId: 51, global: {x: 30, y: 40}});
+
+        expect(dragTarget.position.x).toBe(10);
+        expect(dragTarget.position.y).toBe(17);
+        sub.unsubscribe();
+    });
+
+    it('passes direct dragTarget from subscription options to callbacks', () => {
+        const app = createMockPointerApp<TestPixiEvent>();
+        const {stage} = app;
+        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const target = createMockPixiEventTarget<TestPixiEvent>();
+        const dragTarget = {id: 'target-A'};
+        const seenTargetIds: string[] = [];
+
+        const sub = subscribeToDown<{moves: number}, {id: string}>(
+            target,
+            {
+                onStart(_event, dragTargetFromOptions) {
+                    seenTargetIds.push(`start:${dragTargetFromOptions?.id ?? 'none'}`);
+                    return {moves: 0};
+                },
+                onMove(_event, context, dragTargetFromOptions) {
+                    context.moves += 1;
+                    seenTargetIds.push(`move${context.moves}:${dragTargetFromOptions?.id ?? 'none'}`);
+                },
+                onUp(_event, _context, dragTargetFromOptions) {
+                    seenTargetIds.push(`up:${dragTargetFromOptions?.id ?? 'none'}`);
+                },
+            },
+            {dragTarget},
+        );
+
+        target.emit(POINTER_EVT_DOWN, {pointerId: 51});
+        stage.emit(POINTER_EVT_MOVE, {pointerId: 51});
+        stage.emit(POINTER_EVT_UP, {pointerId: 51});
+
+        expect(seenTargetIds).toEqual(['start:target-A', 'move1:target-A', 'up:target-A']);
+        sub.unsubscribe();
+    });
+
+    it('supports getDragTarget resolver functions from subscription options', () => {
+        const app = createMockPointerApp<TestPixiEvent>();
+        const {stage} = app;
+        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const target = createMockPixiEventTarget<TestPixiEvent>();
+        const targetA = {id: 'A'};
+        const targetB = {id: 'B'};
+        const seenTargetIds: string[] = [];
+
+        const sub = subscribeToDown<{useB: boolean}, {id: string}>(
+            target,
+            {
+                onStart(event) {
+                    return {useB: event.pointerId === 62};
+                },
+                onMove(_event, _context, dragTargetFromOptions) {
+                    seenTargetIds.push(dragTargetFromOptions?.id ?? 'none');
+                },
+            },
+            {
+                getDragTarget(_downEvent, context) {
+                    return context?.useB ? targetB : targetA;
+                },
+            },
+        );
+
+        target.emit(POINTER_EVT_DOWN, {pointerId: 61});
+        stage.emit(POINTER_EVT_MOVE, {pointerId: 61});
+        stage.emit(POINTER_EVT_UP, {pointerId: 61});
+
+        target.emit(POINTER_EVT_DOWN, {pointerId: 62});
+        stage.emit(POINTER_EVT_MOVE, {pointerId: 62});
+        stage.emit(POINTER_EVT_UP, {pointerId: 62});
+
+        expect(seenTargetIds).toEqual(['A', 'B']);
+
+        sub.unsubscribe();
+    });
+
+    it('passes onStart context to onMove/onUp and routes listener throws to onError', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
         const subscribeToDown = observeDrag<TestPixiEvent>(app);
@@ -198,12 +305,12 @@ describe('observeDrag', () => {
         const onErrorPhases: string[] = [];
 
         const sub = subscribeToDown<{targetName: string; moveCount: number; downCount: number}>(target, {
-            onDown() {
+            onStart() {
                 const context = {targetName: 'main', moveCount: 0, downCount: ++downCount};
                 eventLog.push(['down', context.targetName, context.moveCount, context.downCount]);
                 return context;
             },
-            onDrag(_, context) {
+            onMove(_, context) {
                 context.moveCount += 1;
                 eventLog.push(['move', context.targetName, context.moveCount, context.downCount]);
             },
@@ -213,7 +320,7 @@ describe('observeDrag', () => {
         });
 
         const throwSub = subscribeToDown(throwTarget, {
-            onDown() {
+            onStart() {
                 throw new Error('down boom');
             },
             onError(error, phase) {
@@ -236,7 +343,7 @@ describe('observeDrag', () => {
         ]);
 
         throwTarget.emit(POINTER_EVT_DOWN, {pointerId: 41});
-        expect(onErrorPhases).toEqual(['onDown:down boom']);
+        expect(onErrorPhases).toEqual(['onStart:down boom']);
 
         target.emit(POINTER_EVT_DOWN, {pointerId: 42});
         stage.emit(POINTER_EVT_MOVE, {pointerId: 42});

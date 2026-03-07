@@ -18,7 +18,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@wonderlandlabs-pixi-ux/ticker-forest": "1.2.0",
+    "@wonderlandlabs-pixi-ux/observe-drag": "1.2.0",
     "pixi.js": "8.16.0"
   },
   "engines": {

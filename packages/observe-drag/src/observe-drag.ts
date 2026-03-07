@@ -4,6 +4,7 @@ import type {
     DragOwner,
     ObserveDragListeners,
     ObserveDragPhase,
+    ObserveDragSubscriptionOptions,
     PixiApplicationLike,
     PixiEventLike,
     PixiEventTargetLike,
@@ -60,17 +61,20 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
     }
     const downPointerId$ = appPointerSubject.get(app)!;
 
-    function observeDragSubscriber<DragContext = undefined>(
+    function observeDragSubscriber<DragContext = undefined, DragTarget = undefined>(
         target: PixiEventTargetLike<PtrEvent>,
-        listeners: ObserveDragListeners<PtrEvent, DragContext> = {} as ObserveDragListeners<PtrEvent, DragContext>,
-        debug?: Map<string, DebugListener>,
+        listeners: ObserveDragListeners<PtrEvent, DragContext, DragTarget> =
+            {} as ObserveDragListeners<PtrEvent, DragContext, DragTarget>,
+        options?: ObserveDragSubscriptionOptions<PtrEvent, DragContext, DragTarget>,
     ) {
+        const subscriptionOptions = options ?? {};
+        const debug = options?.debug;
         let terminate: VoidFn | undefined = undefined;
 
-        function reportListenerError(error: unknown, phase: ObserveDragPhase, event?: PtrEvent) {
+        function reportListenerError(error: unknown, phase: ObserveDragPhase, event?: PtrEvent, dragTarget?: DragTarget) {
             debug?.get('listener.error')?.({error, phase, event});
             if (listeners.onError) {
-                listeners.onError(error, phase, event);
+                listeners.onError(error, phase, event, dragTarget);
                 return;
             }
             if (error instanceof Error) {
@@ -80,7 +84,7 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
         }
 
         /**
-         * The "Main Trigger": for each down, dynamically add listeners for move and up
+         * The main trigger: for each down, dynamically add listeners for move and up.
          * @param downEvent
          */
         function handlePointerDown(downEvent: PtrEvent) {
@@ -88,9 +92,9 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
                 debug?.get('pid$.terminate-early')?.(downPointerId$.value);
                 debug?.get('pointer.busy')?.(downEvent);
                 try {
-                    listeners.onBlocked?.(downEvent);
+                    listeners.onBlocked?.(downEvent, subscriptionOptions.dragTarget);
                 } catch (error) {
-                    reportListenerError(error, 'onBlocked', downEvent);
+                    reportListenerError(error, 'onBlocked', downEvent, subscriptionOptions.dragTarget);
                 }
                 return;
             }
@@ -100,6 +104,7 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
             debug?.get('down.accepted')?.(downEvent);
 
             let dragContext: DragContext | undefined = undefined;
+            let resolvedDragTarget: DragTarget | undefined = subscriptionOptions.dragTarget;
 
             terminate = (reason?: unknown) => {
                 removeListener(app.stage, POINTER_EVT_MOVE, handlePointerMove);
@@ -114,10 +119,25 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
             };
 
             try {
-                dragContext = listeners.onDown?.(downEvent);
+                const preStartDragTarget = subscriptionOptions.getDragTarget?.(downEvent, undefined);
+                if (preStartDragTarget !== undefined) {
+                    resolvedDragTarget = preStartDragTarget;
+                }
+                dragContext = listeners.onStart?.(downEvent, resolvedDragTarget);
             } catch (error) {
-                terminate('onDown error');
-                reportListenerError(error, 'onDown', downEvent);
+                terminate('onStart error');
+                reportListenerError(error, 'onStart', downEvent, resolvedDragTarget);
+                return;
+            }
+
+            try {
+                const contextDragTarget = subscriptionOptions.getDragTarget?.(downEvent, dragContext);
+                if (contextDragTarget !== undefined) {
+                    resolvedDragTarget = contextDragTarget;
+                }
+            } catch (error) {
+                terminate('dragTarget setup error');
+                reportListenerError(error, 'onStart', downEvent, resolvedDragTarget);
                 return;
             }
 
@@ -126,10 +146,10 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
                     return;
                 }
                 try {
-                    listeners.onDrag?.(onMoveEvent, dragContext as DragContext);
+                    listeners.onMove?.(onMoveEvent, dragContext as DragContext, resolvedDragTarget);
                 } catch (error) {
-                    terminate?.('onDrag error');
-                    reportListenerError(error, 'onDrag', onMoveEvent);
+                    terminate?.('onMove error');
+                    reportListenerError(error, 'onMove', onMoveEvent, resolvedDragTarget);
                 }
             }
 
@@ -137,9 +157,9 @@ export default function observeDrag<PtrEvent extends PixiEventLike = PixiEventLi
                 if (terminalEvent.pointerId === downEvent.pointerId) {
                     debug?.get('pointer.terminal')?.(terminalEvent);
                     try {
-                        listeners.onUp?.(terminalEvent, dragContext as DragContext);
+                        listeners.onUp?.(terminalEvent, dragContext as DragContext, resolvedDragTarget);
                     } catch (error) {
-                        reportListenerError(error, 'onUp', terminalEvent);
+                        reportListenerError(error, 'onUp', terminalEvent, resolvedDragTarget);
                     } finally {
                         terminate?.('pointer terminal');
                     }

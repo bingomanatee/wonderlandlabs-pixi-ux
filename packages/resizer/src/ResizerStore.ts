@@ -449,11 +449,9 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         position: HandlePosition,
         subscribeToDown: ReturnType<typeof observeDrag<FederatedPointerEvent>>,
     ): TrackDragResult {
-        let isDragging = false;
         type DragContext = {
             dragStartX: number;
             dragStartY: number;
-            pointerId: number;
         };
 
         const resolveEventPoint = (event: FederatedPointerEvent): {x: number; y: number} => {
@@ -464,44 +462,35 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             return {x: localPoint.x, y: localPoint.y};
         };
 
-        const resetDragState = () => {
-            isDragging = false;
-        };
-
         const dragDownSubscription = subscribeToDown<DragContext>(handle, {
-            onDown: (event) => {
+            onStart: (event) => {
                 const point = resolveEventPoint(event);
-                isDragging = true;
-                this.$.onDragStart(event, position);
+                this.onDragStart(event, position);
                 return {
                     dragStartX: point.x,
                     dragStartY: point.y,
-                    pointerId: event.pointerId,
                 };
             },
-            onDrag: (event, dragContext) => {
-                if (!isDragging || event.pointerId !== dragContext.pointerId) {
+            onMove: (event, dragContext) => {
+                if (!dragContext) {
                     return;
                 }
                 const point = resolveEventPoint(event);
                 const deltaX = point.x - dragContext.dragStartX;
                 const deltaY = point.y - dragContext.dragStartY;
 
-                this.$.onDragMove(deltaX, deltaY, event);
+                this.onDragMove(deltaX, deltaY, event);
             },
-            onUp: (event, dragContext) => {
-                const didDrag = isDragging && event.pointerId === dragContext.pointerId;
-                resetDragState();
-                if (didDrag) {
-                    this.$.onDragEnd(event);
-                }
+            onUp: (event) => {
+                this.onDragEnd(event);
             },
             onBlocked: (event) => {
                 event.stopPropagation();
             },
             onError: (_error, _phase, event) => {
                 event?.stopPropagation();
-                resetDragState();
+                this.dragHandle = null;
+                this.dragStartRect = null;
             },
         });
 
@@ -510,7 +499,8 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         return {
             destroy: () => {
                 dragDownSubscription.unsubscribe();
-                resetDragState();
+                this.dragHandle = null;
+                this.dragStartRect = null;
             },
         };
     }
