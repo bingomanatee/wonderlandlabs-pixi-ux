@@ -63,10 +63,13 @@ const sub = observeDown(
       // optional dynamic target resolution
       return downEvent.pointerId === 2 ? altContainer : myContainer;
     },
-    debug: new Map([
-      ['down.accepted', console.log],
-      ['pointer.busy', console.warn],
-    ]),
+    debug(source, message, data) {
+      if (message === 'pointer.busy') {
+        console.warn(source, message, data);
+        return;
+      }
+      console.log(source, message, data);
+    },
   },
 );
 ```
@@ -106,5 +109,5 @@ sub.unsubscribe();
 - Subscription options support `dragTarget` (static) and `getDragTarget(downEvent, context)` (dynamic), and that resolved target is passed to callbacks.
 - `dragTargetDecorator()` provides default Pixi container dragging using parent-local coordinates, then delegates to your wrapped listeners.
 - `dragTargetDecorator()` works with no parameters.
-- `debug` is part of the options object (`{ debug: Map<...> }`), not a separate third-arg overload.
+- `debug` is part of the options object (`{ debug(source, message, data) {} }`), not a separate third-arg overload.
 - `onError` is reserved for thrown listener errors and internal callback failures. Busy contention uses `onBlocked`, not `onError`.

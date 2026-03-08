@@ -5335,7 +5335,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/root-container@workspace:packages/root-container"
   dependencies:
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.0"
+    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.0"
     pixi.js: "npm:8.16.0"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"

@@ -2,6 +2,7 @@ export { GridManager } from './GridManager.js';
 export type {
   GridLineOptions,
   GridLineConfig,
+  MajorGridFrequency,
   ArtboardOptions,
   ArtboardConfig,
   GridStoreValue,
@@ -13,4 +14,4 @@ export type {
   GridRedrawReason,
   WorldBounds,
 } from './types.js';
-export { GridLineSchema, ArtboardSchema, GridStoreSchema } from './types.js';
+export { GridLineSchema, MajorGridFrequencySchema, ArtboardSchema, GridStoreSchema } from './types.js';

@@ -33,29 +33,29 @@ const handles = enableHandles(box, new Rectangle(80, 80, 240, 140), {
   mode: 'EDGE_AND_CORNER',
   size: 12,
   color: { r: 0.2, g: 0.6, b: 1 },
-  constrain: false,
+  minSize: { x: 200, y: 200 },
   drawRect: (rect) => {
+    // rect is reported in the resizer coordinate space (see "Coordinate Model")
     box.position.set(rect.x, rect.y);
     shape.clear().rect(0, 0, rect.width, rect.height).fill(0x4da3ff);
   },
   onRelease: (rect) => {
     console.log('final', rect.width, rect.height);
   },
-  rectTransform: ({ rect, phase, handle }) => {
-    const snap = (value) => Math.round(value / 20) * 20;
-    return new Rectangle(snap(rect.x), snap(rect.y), snap(rect.width), snap(rect.height));
-  },
-  onTransformedRect: (rawRect, transformedRect, phase) => {
-    if (phase === 'drag') {
-      // Optional preview for snapped/augmented coordinates while dragging.
-    }
-  },
 });
 
-// Optional helpers:
 handles.setVisible(true);
 handles.setRect(new Rectangle(100, 100, 300, 160));
 ```
+
+## Coordinate Model
+
+- `resizer` treats rectangle values as world/frame coordinates.
+- Handles are assumed to live on a layer that is not offset or scaled relative to global space.
+- `resizer` does not compensate for handle-layer transforms (position/scale/rotation/skew).
+- Ideally, use the final front-most container on `app.stage` for handles, or a child of such a container that remains untransformed.
+- If your target lives in a transformed local space, convert in your consumer (`drawRect`/`onRelease`).
+- `deltaSpace` controls which container pointer deltas are measured in.
 
 ## `EnableHandlesConfig`
 
@@ -68,8 +68,8 @@ handles.setRect(new Rectangle(100, 100, 300, 160));
   color?: { r: number, g: number, b: number },
   constrain?: boolean,
   mode?: 'ONLY_EDGE' | 'ONLY_CORNER' | 'EDGE_AND_CORNER',
-  rectTransform?: (params: { rect: Rectangle, phase: 'drag' | 'release', handle: HandlePosition | null }) => Rectangle | Rect,
-  onTransformedRect?: (rawRect: Rectangle, transformedRect: Rectangle, phase: 'drag' | 'release') => void,
+  deltaSpace?: Container,
+  minSize?: { x: number, y: number },
 }
 ```
 
@@ -79,15 +79,7 @@ handles.setRect(new Rectangle(100, 100, 300, 160));
 - `ONLY_EDGE`: Shows 4 handles at edge midpoints (`top-center`, `middle-right`, `bottom-center`, `middle-left`).
 - `EDGE_AND_CORNER`: Shows all 8 handles.
 
-Choose `mode` based on the interaction model you want:
-
-- Corner-only is usually best for freeform diagonal resizing.
-- Edge-only is useful when users should primarily resize width/height independently.
-- Full mode is best for editor-like UX where all resize affordances are visible.
-
 ## Hook Notes
-
-All hooks are optional. If you omit them, resizing still works with the default rectangle updates.
 
 - `drawRect(rect, container)`
   - Called during resolve after internal rectangle state changes.
@@ -95,26 +87,6 @@ All hooks are optional. If you omit them, resizing still works with the default 
 
 - `onRelease(rect)`
   - Called once when drag ends.
-  - If `rectTransform` is provided, this receives the transformed/committed rectangle.
-  - If `rectTransform` is omitted, this receives the raw dragged rectangle.
-
-- `rectTransform({ rect, phase, handle })`
-  - Called with a single object argument:
-    - `rect`: raw rectangle for this phase.
-    - `phase`: `'drag' | 'release'`.
-    - `handle`: active `HandlePosition` while dragging, otherwise `null`.
-  - Return a `Rectangle` or `Rect`.
-  - `'drag'` phase is for preview logic.
-  - `'release'` phase is committed to store state before `onRelease`.
-
-- `onTransformedRect(rawRect, transformedRect, phase)`
-  - Called when `rectTransform` is present.
-  - Useful for overlay/preview visuals (for example snapping guides or marching-ants previews).
-  - During `'drag'`, transformed output is preview-only unless you choose to render it.
-  - During `'release'`, transformed output is the value being committed.
-
-`rectTransform` is applied when drag ends (`phase: 'release'`), and the transformed rectangle is committed to store state.
-When provided with `onTransformedRect`, the same transform can be previewed during drag (`phase: 'drag'`) for augmented overlays/snapping guides.
 
 ## `ResizerStore` Methods
 
@@ -122,18 +94,6 @@ When provided with `onTransformedRect`, the same transform can be previewed duri
 - `setVisible(visible)`
 - `removeHandles()`
 - `asRect`
+- `isDragging`
+- `isRunning`
 - `getColor()`
-
-## Legacy `trackDrag` Utility (Deprecated)
-
-`trackDrag` remains exported from `src/_deprecated` for compatibility, but `ResizerStore`
-now uses `@wonderlandlabs-pixi-ux/observe-drag` for drag ownership and lifecycle.
-Prefer `observe-drag` for any new drag behavior.
-
-```ts
-trackDrag(target, {
-  onDragStart: (e) => {},
-  onDragMove: (dx, dy, e) => {},
-  onDragEnd: (e) => {},
-}, stage);
-```

@@ -1,8 +1,6 @@
 # @wonderlandlabs-pixi-ux/grid
 
-Grid/artboard renderer for PixiJS using `GridManager`. it is designed to render a visual grid 
-with major and minor division lines, respecting the relative scale of the root. 
-If the lines are too close to be meaningful they are reduced to major/2 or removed altogether. 
+Grid/artboard renderer for PixiJS using `GridManager`.
 
 
 ## Installation
@@ -45,7 +43,7 @@ const grid = new GridManager({
   },
   gridSpec: {
     grid: { x: 50, y: 50, color: 0xcccccc, alpha: 0.5 },
-    gridMajor: { x: 200, y: 200, color: 0x999999, alpha: 0.7 },
+    majorGridFrequency: 4,
     artboard: { x: 0, y: 0, width: 800, height: 600, color: 0x000000, alpha: 1 },
   },
 });
@@ -64,10 +62,17 @@ grid.cleanup();
 ```ts
 {
   grid: { x: number, y: number, color: number, alpha: number },
-  gridMajor?: { x: number, y: number, color: number, alpha: number },
+  majorGridFrequency?: number | { x: number, y: number },
   artboard?: { x: number, y: number, width: number, height: number, color: number, alpha: number },
 }
 ```
+
+`majorGridFrequency` semantics:
+
+- `0` disables major grid lines.
+- `1` makes every grid line a major grid line.
+- `2` shows one base grid line between major lines.
+- `{ x, y }` lets you control X/Y major frequency independently.
 
 ## Grid Manager Config
 
@@ -83,7 +88,7 @@ grid.cleanup();
   },
   gridSpec: {
     grid: { x: number, y: number, color: number, alpha: number },
-    gridMajor?: { x: number, y: number, color: number, alpha: number },
+    majorGridFrequency?: number | { x: number, y: number },
     artboard?: { x: number, y: number, width: number, height: number, color: number, alpha: number },
   },
 }
@@ -147,6 +152,7 @@ new GridManager({
 - Listens for `stage-zoom` and `stage-drag` events from stage decorators.
 - Works with `makeStageDraggable` drag ownership semantics (single active drag stream).
 - Redraws visible lines directly with `Graphics` primitives.
+- Draws major grid lines at `grid * majorGridFrequency` (major lines reuse grid color with stronger alpha).
 - Optionally caches the rendered grid container as a texture with zoom-adaptive resolution.
 - Keeps line thickness visually stable across zoom levels.
 - Automatically increases effective spacing at small zoom to reduce visual clutter.

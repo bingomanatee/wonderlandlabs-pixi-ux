@@ -22,9 +22,18 @@ export function makeStageZoomable(
   const minZoom = options.minZoom ?? 0.1;
   const maxZoom = options.maxZoom ?? 10;
   const zoomSpeed = options.zoomSpeed ?? 0.1;
+  const maybeApp = app as unknown as {
+    canvas?: HTMLCanvasElement;
+    renderer?: { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement };
+  };
+  const nativeWheelTarget =
+    maybeApp.canvas ?? maybeApp.renderer?.canvas ?? maybeApp.renderer?.view ?? null;
+
+  const onNativeWheel = (event: WheelEvent) => {
+    event.preventDefault();
+  };
 
   const onWheel = (event: FederatedWheelEvent) => {
-    event.preventDefault();
     event.stopPropagation();
 
     // Get mouse position in world coordinates before zoom
@@ -63,6 +72,7 @@ export function makeStageZoomable(
   app.stage.eventMode = 'static';
   app.stage.hitArea = app.screen;
   app.stage.on('wheel', onWheel);
+  nativeWheelTarget?.addEventListener('wheel', onNativeWheel, { passive: false });
 
   // Utility functions
   const setZoom = (zoom: number) => {
@@ -77,6 +87,7 @@ export function makeStageZoomable(
   // Cleanup function
   const destroy = () => {
     app.stage.off('wheel', onWheel);
+    nativeWheelTarget?.removeEventListener('wheel', onNativeWheel);
   };
 
   return {

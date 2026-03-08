@@ -60,6 +60,9 @@ function pointerPointInSpace(event: FederatedPointerEvent, coordinateSpace?: Con
     return {x: localPoint.x, y: localPoint.y};
 }
 
+/**
+ * @deprecated Use `@wonderlandlabs-pixi-ux/observe-drag` (`dragObserverFactory` + `dragDecorator`) instead.
+ */
 export class DragStore {
     readonly $: DragStoreActions;
     readonly eventValues: DragEventValues = {

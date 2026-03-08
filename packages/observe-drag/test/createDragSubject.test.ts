@@ -1,7 +1,8 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+import {BehaviorSubject} from 'rxjs';
 import observeDrag from '../src/observe-drag';
 import {dragTargetDecorator} from '../src/dragTargetDecorator';
-import type {PixiEventLike} from '../src/type';
+import type {DragOwner, PixiEventLike} from '../src/type';
 import {
     POINTER_EVT_CANCEL,
     POINTER_EVT_DOWN,
@@ -25,6 +26,100 @@ type DragEventLogEntry =
     | ['blocked', string, number, number];
 
 describe('observeDrag', () => {
+    it('uses independent pointer locks per stage by default', () => {
+        const appA = createMockPointerApp<TestPixiEvent>();
+        const appB = createMockPointerApp<TestPixiEvent>();
+        const subA = observeDrag<TestPixiEvent>(appA);
+        const subB = observeDrag<TestPixiEvent>(appB);
+
+        const targetA = createMockPixiEventTarget<TestPixiEvent>();
+        const targetB = createMockPixiEventTarget<TestPixiEvent>();
+
+        const movesA: number[] = [];
+        const movesB: number[] = [];
+        const blockedB: number[] = [];
+
+        const dragA = subA(targetA, {
+            onMove(event) {
+                movesA.push(event.pointerId);
+            },
+        });
+
+        const dragB = subB(targetB, {
+            onMove(event) {
+                movesB.push(event.pointerId);
+            },
+            onBlocked(event) {
+                blockedB.push(event.pointerId);
+            },
+        });
+
+        targetA.emit(POINTER_EVT_DOWN, {pointerId: 1});
+        appA.stage.emit(POINTER_EVT_MOVE, {pointerId: 1});
+
+        // Different stage: should not be blocked while appA still owns its stage.
+        targetB.emit(POINTER_EVT_DOWN, {pointerId: 2});
+        appB.stage.emit(POINTER_EVT_MOVE, {pointerId: 2});
+        appB.stage.emit(POINTER_EVT_UP, {pointerId: 2});
+
+        appA.stage.emit(POINTER_EVT_UP, {pointerId: 1});
+
+        expect(movesA).toEqual([1]);
+        expect(blockedB).toEqual([]);
+        expect(movesB).toEqual([2]);
+
+        dragA.unsubscribe();
+        dragB.unsubscribe();
+    });
+
+    it('supports shared lock injection across factories', () => {
+        const sharedLock$ = new BehaviorSubject<DragOwner>(null);
+        const appA = createMockPointerApp<TestPixiEvent>();
+        const appB = createMockPointerApp<TestPixiEvent>();
+        const subA = observeDrag<TestPixiEvent>(appA, {activePointer$: sharedLock$});
+        const subB = observeDrag<TestPixiEvent>(appB, {activePointer$: sharedLock$});
+
+        const targetA = createMockPixiEventTarget<TestPixiEvent>();
+        const targetB = createMockPixiEventTarget<TestPixiEvent>();
+
+        const movesA: number[] = [];
+        const movesB: number[] = [];
+        const blockedB: number[] = [];
+
+        const dragA = subA(targetA, {
+            onMove(event) {
+                movesA.push(event.pointerId);
+            },
+        });
+        const dragB = subB(targetB, {
+            onMove(event) {
+                movesB.push(event.pointerId);
+            },
+            onBlocked(event) {
+                blockedB.push(event.pointerId);
+            },
+        });
+
+        targetA.emit(POINTER_EVT_DOWN, {pointerId: 11});
+        appA.stage.emit(POINTER_EVT_MOVE, {pointerId: 11});
+
+        targetB.emit(POINTER_EVT_DOWN, {pointerId: 12});
+        appB.stage.emit(POINTER_EVT_MOVE, {pointerId: 12});
+        expect(blockedB).toEqual([12]);
+        expect(movesB).toEqual([]);
+
+        appA.stage.emit(POINTER_EVT_UP, {pointerId: 11});
+        targetB.emit(POINTER_EVT_DOWN, {pointerId: 12});
+        appB.stage.emit(POINTER_EVT_MOVE, {pointerId: 12});
+        appB.stage.emit(POINTER_EVT_UP, {pointerId: 12});
+
+        expect(movesA).toEqual([11]);
+        expect(movesB).toEqual([12]);
+
+        dragA.unsubscribe();
+        dragB.unsubscribe();
+    });
+
     it('locks to first pointerdown and calls onBlocked for contenders until released', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
@@ -365,5 +460,169 @@ describe('observeDrag', () => {
 
         sub.unsubscribe();
         throwSub.unsubscribe();
+    });
+
+    it('releases blocked drag after 1s with no move activity', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const {stage} = app;
+            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const targetA = createMockPixiEventTarget<TestPixiEvent>();
+            const targetB = createMockPixiEventTarget<TestPixiEvent>();
+            const movesB: number[] = [];
+            const blockedB: number[] = [];
+
+            const subA = subscribeToDown(targetA, {});
+            const subB = subscribeToDown(targetB, {
+                onMove(event) {
+                    movesB.push(event.pointerId);
+                },
+                onBlocked(event) {
+                    blockedB.push(event.pointerId);
+                },
+            });
+
+            targetA.emit(POINTER_EVT_DOWN, {pointerId: 81});
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 82});
+            expect(blockedB).toEqual([82]);
+
+            await vi.advanceTimersByTimeAsync(1000);
+
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 82});
+            stage.emit(POINTER_EVT_MOVE, {pointerId: 82});
+            stage.emit(POINTER_EVT_UP, {pointerId: 82});
+
+            expect(movesB).toEqual([82]);
+
+            subA.unsubscribe();
+            subB.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('resets inactivity timeout on move and releases after 1s from last move', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const {stage} = app;
+            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const targetA = createMockPixiEventTarget<TestPixiEvent>();
+            const targetB = createMockPixiEventTarget<TestPixiEvent>();
+            const blockedB: number[] = [];
+            const movesB: number[] = [];
+
+            const subA = subscribeToDown(targetA, {});
+            const subB = subscribeToDown(targetB, {
+                onBlocked(event) {
+                    blockedB.push(event.pointerId);
+                },
+                onMove(event) {
+                    movesB.push(event.pointerId);
+                },
+            });
+
+            targetA.emit(POINTER_EVT_DOWN, {pointerId: 91});
+            await vi.advanceTimersByTimeAsync(500);
+            stage.emit(POINTER_EVT_MOVE, {pointerId: 91});
+
+            await vi.advanceTimersByTimeAsync(900);
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 92});
+            expect(blockedB).toEqual([92]);
+
+            await vi.advanceTimersByTimeAsync(100);
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 92});
+            stage.emit(POINTER_EVT_MOVE, {pointerId: 92});
+            stage.emit(POINTER_EVT_UP, {pointerId: 92});
+
+            expect(movesB).toEqual([92]);
+
+            subA.unsubscribe();
+            subB.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('supports custom abortTime in subscription options', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const {stage} = app;
+            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const targetA = createMockPixiEventTarget<TestPixiEvent>();
+            const targetB = createMockPixiEventTarget<TestPixiEvent>();
+            const blockedB: number[] = [];
+            const movesB: number[] = [];
+
+            const subA = subscribeToDown(targetA, {}, {abortTime: 200});
+            const subB = subscribeToDown(targetB, {
+                onBlocked(event) {
+                    blockedB.push(event.pointerId);
+                },
+                onMove(event) {
+                    movesB.push(event.pointerId);
+                },
+            });
+
+            targetA.emit(POINTER_EVT_DOWN, {pointerId: 101});
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 102});
+            expect(blockedB).toEqual([102]);
+
+            await vi.advanceTimersByTimeAsync(200);
+
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 102});
+            stage.emit(POINTER_EVT_MOVE, {pointerId: 102});
+            stage.emit(POINTER_EVT_UP, {pointerId: 102});
+
+            expect(movesB).toEqual([102]);
+
+            subA.unsubscribe();
+            subB.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('disables inactivity watchdog when abortTime is 0', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const {stage} = app;
+            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const targetA = createMockPixiEventTarget<TestPixiEvent>();
+            const targetB = createMockPixiEventTarget<TestPixiEvent>();
+            const blockedB: number[] = [];
+            const movesB: number[] = [];
+
+            const subA = subscribeToDown(targetA, {}, {abortTime: 0});
+            const subB = subscribeToDown(targetB, {
+                onBlocked(event) {
+                    blockedB.push(event.pointerId);
+                },
+                onMove(event) {
+                    movesB.push(event.pointerId);
+                },
+            });
+
+            targetA.emit(POINTER_EVT_DOWN, {pointerId: 111});
+            await vi.advanceTimersByTimeAsync(5000);
+
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 112});
+            expect(blockedB).toEqual([112]);
+
+            stage.emit(POINTER_EVT_UP, {pointerId: 111});
+            targetB.emit(POINTER_EVT_DOWN, {pointerId: 112});
+            stage.emit(POINTER_EVT_MOVE, {pointerId: 112});
+            stage.emit(POINTER_EVT_UP, {pointerId: 112});
+
+            expect(movesB).toEqual([112]);
+
+            subA.unsubscribe();
+            subB.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

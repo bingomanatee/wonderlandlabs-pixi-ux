@@ -51,10 +51,20 @@ export type ArtboardConfig = z.infer<typeof ArtboardSchema>;
 // Grid Store Schema
 // ============================================================================
 
+export const MajorGridFrequencySchema = z.union([
+  z.number().int().min(0),
+  z.object({
+    x: z.number().int().min(0),
+    y: z.number().int().min(0),
+  }),
+]);
+
+export type MajorGridFrequency = z.infer<typeof MajorGridFrequencySchema>;
+
 // Schema for grid configuration
 export const GridStoreSchema = z.object({
   grid: GridLineSchema,
-  gridMajor: GridLineSchema.optional(),
+  majorGridFrequency: MajorGridFrequencySchema.optional(),
   artboard: ArtboardSchema.optional(),
 });
 

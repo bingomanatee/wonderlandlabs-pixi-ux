@@ -19,13 +19,26 @@ export interface PixiApplicationLike<TEvent extends PixiEventLike = PixiEventLik
 
 export type DragOwner = number | null;
 export type VoidFn = (...args: unknown[]) => void;
-export type DebugListener = (context: unknown) => void;
+export type ObserveDragDebugFn = (source: string, message: string, data?: unknown) => void;
+export type ActivePointerLike = {value: DragOwner; next(value: DragOwner): void};
 export type DragPoint = {x: number; y: number};
 export type PositionLike = DragPoint & {set?(x: number, y: number): void};
 export type ParentLocalSpaceLike = {toLocal?(point: DragPoint): DragPoint};
 export type DragTargetLike = {position: PositionLike; parent?: ParentLocalSpaceLike | null};
+export type ResolveDragPointFn<
+    PtrEvent extends PixiEventLike = PixiEventLike,
+    DragTarget extends DragTargetLike = DragTargetLike,
+> = (event: PtrEvent, dragTarget?: DragTarget) => DragPoint | undefined;
 
 export type ObserveDragPhase = 'onStart' | 'onMove' | 'onUp' | 'onBlocked' | 'internal';
+
+export interface ObserveDragFactoryOptions {
+    /**
+     * Optional shared pointer lock. Provide this to serialize drags across
+     * multiple factories/stages; otherwise lock scope defaults to this factory instance.
+     */
+    activePointer$?: ActivePointerLike;
+}
 
 export interface ObserveDragListeners<
     PtrEvent extends PixiEventLike = PixiEventLike,
@@ -46,14 +59,31 @@ export interface ObserveDragSubscriptionOptions<
 > {
     dragTarget?: DragTarget;
     getDragTarget?(downEvent: PtrEvent, context: DragContext | undefined): DragTarget | undefined;
-    debug?: Map<string, DebugListener>;
+    /**
+     * Failsafe inactivity timeout in milliseconds.
+     * Set to `0` to disable the inactivity watchdog.
+     */
+    abortTime?: number;
+    debug?: ObserveDragDebugFn;
 }
 
+export interface DragDecoratorOptions<
+    PtrEvent extends PixiEventLike = PixiEventLike,
+    DragContext = unknown,
+    DragTarget extends DragTargetLike = DragTargetLike,
+> extends ObserveDragListeners<PtrEvent, DragContext, DragTarget> {
+    transformPoint?(point: DragPoint, event: PtrEvent, context: DragContext | undefined, dragTarget?: DragTarget): DragPoint;
+    resolvePoint?: ResolveDragPointFn<PtrEvent, DragTarget>;
+    moveTarget?: boolean;
+}
+
+/**
+ * @deprecated Use DragDecoratorOptions with top-level callbacks.
+ */
 export interface DragTargetDecoratorOptions<
     PtrEvent extends PixiEventLike = PixiEventLike,
     DragContext = unknown,
     DragTarget extends DragTargetLike = DragTargetLike,
-> {
+> extends DragDecoratorOptions<PtrEvent, DragContext, DragTarget> {
     listeners?: ObserveDragListeners<PtrEvent, DragContext, DragTarget>;
-    transformPoint?(point: DragPoint, event: PtrEvent, context: DragContext | undefined, dragTarget?: DragTarget): DragPoint;
 }

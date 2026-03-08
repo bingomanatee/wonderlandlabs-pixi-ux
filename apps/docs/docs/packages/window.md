@@ -45,40 +45,14 @@ windows.addWindow('notes', {
 });
 ```
 
-## Resize Transform Passthrough
+## Resize Coordinate Model
 
-`window` forwards `rectTransform` to the underlying `@wonderlandlabs-pixi-ux/resizer` instance.
-Use this to apply snapping or coordinate transforms during resize drags.
+`window` uses `@wonderlandlabs-pixi-ux/resizer` in frame/world coordinates.
 
-```ts
-windows.addWindow('snapped', {
-  x: 120,
-  y: 100,
-  width: 420,
-  height: 280,
-  isResizeable: true,
-  resizeMode: 'EDGE_AND_CORNER',
-  rectTransform: ({ rect, phase, handle }) => {
-    const snap = (n: number) => Math.round(n / 16) * 16;
-    const min = 64;
-
-    // Keep drag preview responsive; snap on release.
-    if (phase === 'drag') return rect;
-
-    return {
-      x: snap(rect.x),
-      y: snap(rect.y),
-      width: Math.max(min, snap(rect.width)),
-      height: Math.max(min, snap(rect.height)),
-    };
-  },
-});
-```
-
-Callback params:
-- `rect`: current rectangle candidate (`Rectangle`)
-- `phase`: `'drag' | 'release'`
-- `handle`: active resize handle id, or `null`
+- Handles are expected to render in an untransformed front-layer handles container.
+- Resizer output is treated as global/frame-space rect data.
+- `WindowStore` converts between frame-space and window-local coordinates before mutating window state.
+- If your consumer layout is transformed, perform conversion in the consumer layer.
 
 ## Overview
 

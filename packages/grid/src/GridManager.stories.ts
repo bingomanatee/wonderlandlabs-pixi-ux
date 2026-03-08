@@ -12,14 +12,15 @@ interface GridManagerStoryArgs {
   gridX: number;
   gridY: number;
   showMajorGrid: boolean;
-  majorGridX: number;
-  majorGridY: number;
+  usePerAxisMajorFrequency: boolean;
+  majorGridFrequency: number;
+  majorGridFrequencyX: number;
+  majorGridFrequencyY: number;
   showArtboard: boolean;
 }
 
 const meta: Meta<GridManagerStoryArgs> = {
   title: 'Grid/GridManager',
-  tags: ['autodocs'],
   argTypes: {
     gridX: {
       control: { type: 'range', min: 10, max: 100, step: 10 },
@@ -33,13 +34,21 @@ const meta: Meta<GridManagerStoryArgs> = {
       control: 'boolean',
       description: 'Show major grid',
     },
-    majorGridX: {
-      control: { type: 'range', min: 100, max: 500, step: 50 },
-      description: 'Major grid X spacing',
+    usePerAxisMajorFrequency: {
+      control: 'boolean',
+      description: 'Use separate X/Y major grid frequency values',
     },
-    majorGridY: {
-      control: { type: 'range', min: 100, max: 500, step: 50 },
-      description: 'Major grid Y spacing',
+    majorGridFrequency: {
+      control: { type: 'range', min: 0, max: 10, step: 1 },
+      description: 'Major line every N grid lines (0 disables major grid)',
+    },
+    majorGridFrequencyX: {
+      control: { type: 'range', min: 0, max: 10, step: 1 },
+      description: 'X-axis major line frequency (0 disables X majors)',
+    },
+    majorGridFrequencyY: {
+      control: { type: 'range', min: 0, max: 10, step: 1 },
+      description: 'Y-axis major line frequency (0 disables Y majors)',
     },
     showArtboard: {
       control: 'boolean',
@@ -50,8 +59,10 @@ const meta: Meta<GridManagerStoryArgs> = {
     gridX: 50,
     gridY: 50,
     showMajorGrid: true,
-    majorGridX: 200,
-    majorGridY: 200,
+    usePerAxisMajorFrequency: false,
+    majorGridFrequency: 4,
+    majorGridFrequencyX: 4,
+    majorGridFrequencyY: 4,
     showArtboard: true,
   },
 };
@@ -136,6 +147,12 @@ export const WithZoomPan: Story = {
       makeStageDraggable(app, zoomPan);
 
       // Create grid manager
+      const majorGridFrequency = !args.showMajorGrid
+        ? 0
+        : args.usePerAxisMajorFrequency
+          ? { x: args.majorGridFrequencyX, y: args.majorGridFrequencyY }
+          : args.majorGridFrequency;
+
       const gridManager = new GridManager({
         gridSpec: {
           grid: {
@@ -144,12 +161,7 @@ export const WithZoomPan: Story = {
             color: 0xcccccc,
             alpha: 0.5,
           },
-          gridMajor: args.showMajorGrid ? {
-            x: args.majorGridX,
-            y: args.majorGridY,
-            color: 0x999999,
-            alpha: 0.7,
-          } : undefined,
+          majorGridFrequency,
           artboard: args.showArtboard ? {
             x: 0,
             y: 0,
