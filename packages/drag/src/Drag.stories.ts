@@ -6,7 +6,7 @@ interface DragArgs {
 }
 
 const meta: Meta<DragArgs> = {
-    title: 'Drag/Draggable Container',
+    title: 'Drag (Deprecated)/Draggable Container',
     render: (args) => {
         const wrapper = document.createElement('div');
         wrapper.style.width = '100%';
@@ -124,4 +124,3 @@ export default meta;
 type Story = StoryObj<DragArgs>;
 
 export const SimpleDraggable: Story = {};
-

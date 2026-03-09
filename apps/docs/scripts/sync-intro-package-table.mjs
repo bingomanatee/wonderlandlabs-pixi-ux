@@ -16,8 +16,8 @@ const summaryBySlug = {
   box: 'Tree-based layout engine for measurable areas, alignment, constraints, and BoxTree traversal.',
   button: 'Button store that composes BoxTree layout with StyleTree-driven visual states.',
   caption: 'Caption/speech/thought bubble rendering with configurable geometry and text styling.',
-  drag: 'Drag interaction state controller that normalizes pointer-driven movement workflows.',
   grid: 'Zoom-aware Pixi grid rendering manager for infinite canvas and artboard use cases.',
+  'observe-drag': 'Serialized pointer-drag observer utilities with optional decorators for target motion.',
   resizer: 'Interactive resize handles and rectangle mutation flow for Pixi containers.',
   'root-container': 'Root container utilities for centered stage coordinates with zoom/pan behavior.',
   'style-tree': 'Hierarchical style matching engine keyed by noun paths and state selectors.',
@@ -39,6 +39,9 @@ async function readPackageRows() {
       const raw = await fs.readFile(packageJsonPath, 'utf8');
       const pkg = JSON.parse(raw);
       if (typeof pkg.name !== 'string' || !pkg.name.startsWith('@wonderlandlabs-pixi-ux/')) {
+        continue;
+      }
+      if (entry.name === 'drag') {
         continue;
       }
       if (typeof pkg.version !== 'string') {

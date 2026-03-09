@@ -15,14 +15,14 @@ import type {
     WindowRectTransform,
     WindowStyle
 } from "./types";
-import {Application, Container, Graphics, Rectangle} from "pixi.js";
+import {Application, Container, FederatedPointerEvent, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager";
 import rgbToColor from "./rgbToColor";
-import {DragStore} from "@wonderlandlabs-pixi-ux/drag";
+import dragObserverFactory from "@wonderlandlabs-pixi-ux/observe-drag";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore";
 import {ResizerStore} from "@wonderlandlabs-pixi-ux/resizer";
-import {distinctUntilChanged, map} from 'rxjs';
+import {distinctUntilChanged, filter, map} from 'rxjs';
 import type {Subscription} from 'rxjs';
 import {resolveWindowStyle} from './styles';
 import {STYLE_VARIANT} from './constants';
@@ -30,6 +30,12 @@ import {isEqual} from 'lodash-es';
 
 // Default color for handles and selection border (blue)
 const HANDLE_COLOR: RgbColor = {r: 0.3, g: 0.6, b: 1};
+type DragSubscription = {unsubscribe(): void};
+type WindowDragContext = {
+    startPointer: {x: number; y: number};
+    startPosition: {x: number; y: number};
+};
+type WindowDragDebugFn = (source: string, message: string, data?: unknown) => void;
 
 export class WindowStore extends TickerForest<WindowDef> {
     static titlebarStoreClass: TitlebarStoreClass = TitlebarStore;
@@ -85,27 +91,35 @@ export class WindowStore extends TickerForest<WindowDef> {
     }
 
     #initTitlebar() {
+        const self = this;
         const subclass = (this.constructor as typeof WindowStore).titlebarStoreClass ?? TitlebarStore;
         // Create titlebar store as a branch using $branches.$add
         // @ts-ignore
-        this.#titlebarStore = this.$branches.$add(['titlebar'], {
+        self.#titlebarStore = self.$branches.$add(['titlebar'], {
             subclass,
-        }, this.application!) as unknown as TitlebarStore;
-        this.#titlebarStore.application = this.application;
-        this.#titlebarStore.set('isDirty', true);
-        this.#applyTitlebarHooks();
-        this.#applyInitialTitlebarParamOverrides();
-        this.#syncTitlebarCloseState();
+        }, self.application!) as unknown as TitlebarStore;
+        self.#titlebarStore.application = self.application;
+        self.#titlebarStore.dirty();
+        self.#applyTitlebarHooks();
+        self.#applyInitialTitlebarParamOverrides();
+        self.#syncTitlebarCloseState();
 
-        this.#sizeSubscription?.unsubscribe();
-        this.#sizeSubscription = this.$subject.pipe(
-            map(() => `${this.value?.width}-${this.value?.height}`),
+        self.#dirtyCascadeSubscription?.unsubscribe();
+        self.#dirtyCascadeSubscription = self.dirty$
+            .pipe(
+                distinctUntilChanged(),
+                filter(Boolean),
+            )
+            .subscribe(() => {
+                self.#titlebarStore?.dirty();
+            });
+
+        self.#sizeSubscription?.unsubscribe();
+        self.#sizeSubscription = self.$subject.pipe(
+            map(() => `${self.value?.width}-${self.value?.height}`),
             distinctUntilChanged(),
         ).subscribe(() => {
-            this.#titlebarStore?.set('isDirty', true);
-            this.#titlebarStore?.queueResolve();
-            this.set('isDirty', true);
-            this.queueResolve();
+            self.dirty();
         });
     }
 
@@ -127,11 +141,14 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#refreshResizer(handlesContainer);
     }
 
-    #dragStore?: DragStore;
+    #rootDragSubscription?: DragSubscription;
+    #titlebarDragSubscription?: DragSubscription;
     #titlebarStore?: TitlebarStore;
     #resizerStore?: ResizerStore;
     #dragInitialized = false;
+    #dragPendingTitlebar = false;
     #sizeSubscription?: Subscription;
+    #dirtyCascadeSubscription?: Subscription;
     #closable = false;
     #onClose?: WindowCloseHandler;
 
@@ -228,8 +245,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                 titlebarChanged = this.#applyPatch(draft, next.state!);
             });
             if (titlebarChanged) {
-                titlebarStore.set('isDirty', true);
-                titlebarStore.queueResolve();
+                titlebarStore.dirty();
             }
         }
 
@@ -239,8 +255,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                 windowChanged = this.#applyPatch(draft, next.config!);
             });
             if (windowChanged) {
-                this.set('isDirty', true);
-                this.queueResolve();
+                this.dirty();
             }
         }
 
@@ -281,8 +296,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             const ctor = this.constructor as typeof WindowStore;
             this.#titlebarStore.titlebarContentRenderer = ctor.titlebarContentRenderer;
         }
-        this.#titlebarStore.markDirty();
-        this.#titlebarStore.queueResolve();
+        this.#titlebarStore.dirty();
     }
 
     configureTitlebar(configureTitlebar?: ConfigureTitlebarFn): void {
@@ -291,8 +305,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             return;
         }
         configureTitlebar(this.#titlebarStore, this);
-        this.#titlebarStore.markDirty();
-        this.#titlebarStore.queueResolve();
+        this.#titlebarStore.dirty();
     }
 
     setModifyInitialTitlebarParams(modifyInitialTitlebarParams?: ModifyInitialTitlebarParamsFn): void {
@@ -302,14 +315,12 @@ export class WindowStore extends TickerForest<WindowDef> {
 
     setWindowContentRenderer(windowContentRenderer?: WindowContentRendererFn): void {
         this.#windowContentRendererOverride = windowContentRenderer;
-        this.markDirty();
-        this.queueResolve();
+        this.dirty();
     }
 
     setOnResolve(onResolve?: WindowResolveHookFn): void {
         this.#onResolveOverride = onResolve;
-        this.markDirty();
-        this.queueResolve();
+        this.dirty();
     }
 
     setRectTransform(rectTransform?: WindowRectTransform): void {
@@ -323,7 +334,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             this.#resizerStore.removeHandles();
             this.#resizerStore.cleanup();
             this.#resizerStore = undefined;
-            this.markDirty();
+            this.dirty();
         }
     }
 
@@ -346,8 +357,18 @@ export class WindowStore extends TickerForest<WindowDef> {
             return;
         }
         this.#titlebarStore.set('showCloseButton', showCloseButton);
-        this.#titlebarStore.set('isDirty', true);
-        this.#titlebarStore.queueResolve();
+        this.#titlebarStore.dirty();
+    }
+
+    #isResizerRunning(): boolean {
+        if (!this.#resizerStore) {
+            return false;
+        }
+        const resizer = this.#resizerStore as unknown as {
+            isRunning?: boolean;
+            isDragging?: boolean;
+        };
+        return Boolean(resizer.isRunning ?? resizer.isDragging);
     }
 
     #getFrameContainer(): Container | undefined {
@@ -401,6 +422,126 @@ export class WindowStore extends TickerForest<WindowDef> {
         );
     }
 
+    #resolveDragObserver() {
+        const rootStore = this.$root as unknown as WindowsManager | undefined;
+        if (rootStore?.getDragObserver) {
+            return rootStore.getDragObserver();
+        }
+        return dragObserverFactory<FederatedPointerEvent>({
+            stage: this.application!.stage,
+            app: this.application,
+        });
+    }
+
+    #resolveDragPoint(event: FederatedPointerEvent): {x: number; y: number} {
+        const frameContainer = this.#getFrameContainer();
+        if (!frameContainer) {
+            return {x: event.global.x, y: event.global.y};
+        }
+        const localPoint = frameContainer.toLocal(event.global);
+        return {x: localPoint.x, y: localPoint.y};
+    }
+
+    #setWindowPositionFromFramePoint(frameX: number, frameY: number): void {
+        const localPos = this.#framePointToRootLocal(frameX, frameY);
+        this.#rootContainer.position.set(localPos.x, localPos.y);
+        if (this.value.x !== localPos.x || this.value.y !== localPos.y) {
+            this.mutate((draft) => {
+                draft.x = localPos.x;
+                draft.y = localPos.y;
+            });
+        }
+
+        if (this.#resizerStore && !this.#isResizerRunning()) {
+            const resizerRect = this.#rootLocalRectToFrame(new Rectangle(
+                localPos.x,
+                localPos.y,
+                this.value.width,
+                this.value.height
+            ));
+            this.#resizerStore.setRect(resizerRect);
+        }
+    }
+
+    #finalizeDrag(cursorTarget: Container): void {
+        const finalX = this.#rootContainer.position.x;
+        const finalY = this.#rootContainer.position.y;
+        if (this.value.x !== finalX || this.value.y !== finalY) {
+            this.mutate((draft) => {
+                draft.x = finalX;
+                draft.y = finalY;
+            });
+        }
+        cursorTarget.cursor = 'grab';
+    }
+
+    #resolveWindowDragDebug(): WindowDragDebugFn | undefined {
+        const globalDebug = (globalThis as unknown as {
+            __PIXI_WINDOW_DRAG_DEBUG__?: boolean | WindowDragDebugFn;
+        }).__PIXI_WINDOW_DRAG_DEBUG__;
+        if (!globalDebug) {
+            return undefined;
+        }
+        if (typeof globalDebug === 'function') {
+            return globalDebug;
+        }
+        return (source, message, data) => {
+            console.log(`[WindowStore:${this.value.id}] ${source}.${message}`, data);
+        };
+    }
+
+    #subscribeWindowDrag(sourceContainer: Container, trackClicks: boolean): DragSubscription {
+        const self = this;
+        const observeDown = this.#resolveDragObserver();
+        const debug = this.#resolveWindowDragDebug();
+        return observeDown<WindowDragContext, Container>(
+            sourceContainer,
+            {
+                onStart(event) {
+                    event.stopPropagation();
+                    sourceContainer.cursor = 'grabbing';
+                    if (trackClicks) {
+                        self.#clickStartTime = Date.now();
+                        self.#clickStartX = event.global.x;
+                        self.#clickStartY = event.global.y;
+                        self.#clickTimeout = setTimeout(() => {
+                            self.#clickTimeout = undefined;
+                        }, WindowStore.CLICK_MAX_TIME);
+                    }
+                    const rootStore = self.$root as unknown as WindowsManager;
+                    rootStore?.setSelectedWindow?.(self.value.id);
+                    const startPointer = self.#resolveDragPoint(event);
+                    const startPosition = self.#rootLocalPointToFrame(
+                        self.#rootContainer.position.x,
+                        self.#rootContainer.position.y
+                    );
+                    return {startPointer, startPosition};
+                },
+                onMove(moveEvent, context) {
+                    const nextPointer = self.#resolveDragPoint(moveEvent);
+                    const nextFrameX = context.startPosition.x + (nextPointer.x - context.startPointer.x);
+                    const nextFrameY = context.startPosition.y + (nextPointer.y - context.startPointer.y);
+                    self.#setWindowPositionFromFramePoint(nextFrameX, nextFrameY);
+                },
+                onUp() {
+                    self.#finalizeDrag(sourceContainer);
+                },
+                onBlocked(event) {
+                    event.stopPropagation();
+                    sourceContainer.cursor = 'grab';
+                },
+                onError(_error, _phase, event) {
+                    event?.stopPropagation();
+                    sourceContainer.cursor = 'grab';
+                },
+            },
+            {
+                dragTarget: sourceContainer,
+                debug,
+            }
+        );
+    }
+
     #refreshRoot() {
         const {x, y, isDraggable, zIndex} = this.value;
 
@@ -409,84 +550,26 @@ export class WindowStore extends TickerForest<WindowDef> {
         this.#guardContainer.zIndex = zIndex;
 
         // Only add drag behavior if isDraggable is true and not already initialized
-        if (isDraggable && !this.#dragStore) {
+        if (isDraggable && !this.#dragInitialized && !this.#dragPendingTitlebar) {
             this.#initDrag();
         }
     }
 
     #initDrag() {
-        const self = this;
         const {dragFromTitlebar} = this.value;
-
-        this.#dragStore = new DragStore({
-            app: this.application!,
-            callbacks: {
-                onDragStart() {
-                    const rootStore = self.$root as unknown as WindowsManager;
-                    rootStore?.setSelectedWindow?.(self.value.id);
-                },
-                onDrag(state) {
-                    const pos = self.#dragStore?.getCurrentItemPosition();
-                    if (pos) {
-                        const localPos = self.#framePointToRootLocal(pos.x, pos.y);
-                        self.#rootContainer.position.set(localPos.x, localPos.y);
-                        if (self.value.x !== localPos.x || self.value.y !== localPos.y) {
-                            self.mutate((draft) => {
-                                draft.x = localPos.x;
-                                draft.y = localPos.y;
-                            });
-                        }
-                        // Update resizer rect to match new position
-                        if (self.#resizerStore) {
-                            const resizerRect = self.#rootLocalRectToFrame(new Rectangle(
-                                localPos.x,
-                                localPos.y,
-                                self.value.width,
-                                self.value.height
-                            ));
-                            self.#resizerStore.setRect(resizerRect);
-                        }
-                    }
-                },
-                onDragEnd() {
-                    const finalX = self.#rootContainer.position.x;
-                    const finalY = self.#rootContainer.position.y;
-                    if (self.value.x !== finalX || self.value.y !== finalY) {
-                        self.mutate((draft) => {
-                            draft.x = finalX;
-                            draft.y = finalY;
-                        });
-                    }
-                    // Reset cursor on the drag target
-                    if (dragFromTitlebar && self.#titlebarStore) {
-                        self.#titlebarStore.container.cursor = 'grab';
-                    } else {
-                        self.#rootContainer.cursor = 'grab';
-                    }
-                },
-            },
-        });
 
         // Attach drag to titlebar or root container based on dragFromTitlebar setting
         if (dragFromTitlebar) {
             // Drag will be initialized after titlebar is ready
             // Mark as pending - will be set up in #initTitlebarDrag
+            this.#dragPendingTitlebar = true;
             this.#dragInitialized = false;
         } else {
             this.#rootContainer.cursor = 'grab';
-            this.#rootContainer.on('pointerdown', (event) => {
-                event.stopPropagation();
-                self.#rootContainer.cursor = 'grabbing';
-
-                // Start drag with current container position
-                self.#dragStore!.startDragContainer(
-                    self.value.id,
-                    event,
-                    self.#rootContainer,
-                    self.#getFrameContainer()
-                );
-            });
+            this.#rootDragSubscription?.unsubscribe();
+            this.#rootDragSubscription = this.#subscribeWindowDrag(this.#rootContainer, false);
             this.#dragInitialized = true;
+            this.#dragPendingTitlebar = false;
         }
     }
 
@@ -495,50 +578,34 @@ export class WindowStore extends TickerForest<WindowDef> {
     #clickStartX = 0;
     #clickStartY = 0;
     #clickTimeout?: ReturnType<typeof setTimeout>;
+    #titlebarPointerUpHandler?: (event: FederatedPointerEvent) => void;
+    #titlebarPointerUpOutsideHandler?: (event: FederatedPointerEvent) => void;
     static readonly CLICK_MAX_TIME = 800; // ms
     static readonly CLICK_MAX_DISTANCE = 10; // pixels
 
     #initTitlebarDrag() {
-        if (this.#dragInitialized || !this.#dragStore || !this.#titlebarStore) {
+        if (this.#dragInitialized || !this.#dragPendingTitlebar || !this.#titlebarStore) {
             return;
         }
 
-        const self = this;
         const titlebarContainer = this.#titlebarStore.container;
 
         titlebarContainer.cursor = 'grab';
-        titlebarContainer.on('pointerdown', (event) => {
-            event.stopPropagation();
-            titlebarContainer.cursor = 'grabbing';
+        this.#titlebarDragSubscription?.unsubscribe();
+        this.#titlebarDragSubscription = this.#subscribeWindowDrag(titlebarContainer, true);
 
-            // Record click start for click detection
-            self.#clickStartTime = Date.now();
-            self.#clickStartX = event.global.x;
-            self.#clickStartY = event.global.y;
+        this.#titlebarPointerUpHandler = (event: FederatedPointerEvent) => {
+            this.#handlePotentialClick(event.global.x, event.global.y);
+        };
+        this.#titlebarPointerUpOutsideHandler = (event: FederatedPointerEvent) => {
+            this.#handlePotentialClick(event.global.x, event.global.y);
+        };
 
-            // Start drag with current container position (root container moves)
-            self.#dragStore!.startDragContainer(
-                self.value.id,
-                event,
-                self.#rootContainer,
-                self.#getFrameContainer()
-            );
-
-            // Set up click detection timeout
-            self.#clickTimeout = setTimeout(() => {
-                self.#clickTimeout = undefined;
-            }, WindowStore.CLICK_MAX_TIME);
-        });
-
-        titlebarContainer.on('pointerup', (event) => {
-            self.#handlePotentialClick(event.global.x, event.global.y);
-        });
-
-        titlebarContainer.on('pointerupoutside', (event) => {
-            self.#handlePotentialClick(event.global.x, event.global.y);
-        });
+        titlebarContainer.on('pointerup', this.#titlebarPointerUpHandler);
+        titlebarContainer.on('pointerupoutside', this.#titlebarPointerUpOutsideHandler);
 
         this.#dragInitialized = true;
+        this.#dragPendingTitlebar = false;
     }
 
     #handlePotentialClick(endX: number, endY: number) {
@@ -549,9 +616,6 @@ export class WindowStore extends TickerForest<WindowDef> {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (elapsed <= WindowStore.CLICK_MAX_TIME && distance <= WindowStore.CLICK_MAX_DISTANCE) {
-            // This is a click! Cancel the drag and select the window
-            this.#dragStore?.cancelDrag();
-
             // Reset the window position to where it was before drag started
             const {x, y} = this.value;
             this.#rootContainer.position.set(x, y);
@@ -724,7 +788,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             const self = this;
             const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
 
-            this.#resizerStore = new ResizerStore({
+            const resizerConfig = {
                 container: this.#rootContainer,
                 handleContainer: handlesContainer,
                 deltaSpace: this.#getFrameContainer(),
@@ -733,6 +797,10 @@ export class WindowStore extends TickerForest<WindowDef> {
                 mode: resizeMode || 'ONLY_CORNER',
                 size: 8,
                 color: HANDLE_COLOR,
+                minSize: {
+                    x: minWidth ?? 200,
+                    y: minHeight ?? 200,
+                },
                 rectTransform: this.rectTransform,
                 drawRect: (rect: Rectangle) => {
                     const localRect = self.#frameRectToRootLocal(rect);
@@ -743,7 +811,7 @@ export class WindowStore extends TickerForest<WindowDef> {
                         draft.width = Math.max(localRect.width, minWidth || 50);
                         draft.height = Math.max(localRect.height, minHeight || 50);
                     });
-                    self.markDirty();
+                    self.dirty();
                 },
                 onRelease: (rect: Rectangle) => {
                     const localRect = self.#frameRectToRootLocal(rect);
@@ -754,20 +822,23 @@ export class WindowStore extends TickerForest<WindowDef> {
                         draft.x = localRect.x;
                         draft.y = localRect.y;
                     });
-                    self.markDirty();
+                    self.dirty();
                 }
-            });
+            } as unknown as ConstructorParameters<typeof ResizerStore>[0];
+
+            this.#resizerStore = new ResizerStore(resizerConfig);
         }
 
         // Update resizer rect if dimensions changed externally
         if (this.#resizerStore) {
+            const isResizerRunning = this.#isResizerRunning();
             const currentRect = this.#resizerStore.value.rect;
             const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
             const rectChanged = currentRect.x !== frameRect.x
                 || currentRect.y !== frameRect.y
                 || currentRect.width !== frameRect.width
                 || currentRect.height !== frameRect.height;
-            if (rectChanged) {
+            if (!isResizerRunning && rectChanged) {
                 // Sync to current window rect directly (no rectTransform pass here).
                 this.#resizerStore.setRect(frameRect);
             }
@@ -801,36 +872,12 @@ export class WindowStore extends TickerForest<WindowDef> {
         return this.#contentContainer;
     }
 
-    protected isDirty(): boolean {
-        return this.value.isDirty;
-    }
-
-    protected clearDirty(): void {
-        this.set('isDirty', false);
-    }
-
-    protected makeDirty(_data?: unknown): void {
-        this.set('isDirty', true);
-    }
-
-    /**
-     * Mark this window and its titlebar as dirty to trigger re-render
-     */
-    markDirty(): void {
-        this.makeDirty();
-        this.queueResolve();
-
-        this.#titlebarStore?.markDirty();
-    }
-
     protected resolve(): void {
-        if (this.isDirty()) {
-            if (!this.$isRoot) {
-                const rootStore = this.$root as unknown as WindowsManager;
-                if (rootStore?.windowsContainer) {
-                    this.resolveComponents(rootStore.windowsContainer, rootStore.handlesContainer);
-                    rootStore.updateZIndices();
-                }
+        if (!this.$isRoot) {
+            const rootStore = this.$root as unknown as WindowsManager;
+            if (rootStore?.windowsContainer) {
+                this.resolveComponents(rootStore.windowsContainer, rootStore.handlesContainer);
+                rootStore.updateZIndices();
             }
         }
     }
@@ -840,13 +887,24 @@ export class WindowStore extends TickerForest<WindowDef> {
 
         this.#sizeSubscription?.unsubscribe();
         this.#sizeSubscription = undefined;
+        this.#dirtyCascadeSubscription?.unsubscribe();
+        this.#dirtyCascadeSubscription = undefined;
         this.#onClose = undefined;
 
-        // Cleanup drag store
-        if (this.#dragStore) {
-            this.#dragStore.cleanup();
-            this.#dragStore = undefined;
+        // Cleanup drag subscriptions
+        this.#rootDragSubscription?.unsubscribe();
+        this.#rootDragSubscription = undefined;
+        this.#titlebarDragSubscription?.unsubscribe();
+        this.#titlebarDragSubscription = undefined;
+
+        if (this.#titlebarStore && this.#titlebarPointerUpHandler) {
+            this.#titlebarStore.container.off('pointerup', this.#titlebarPointerUpHandler);
         }
+        if (this.#titlebarStore && this.#titlebarPointerUpOutsideHandler) {
+            this.#titlebarStore.container.off('pointerupoutside', this.#titlebarPointerUpOutsideHandler);
+        }
+        this.#titlebarPointerUpHandler = undefined;
+        this.#titlebarPointerUpOutsideHandler = undefined;
 
         // Cleanup titlebar store
         if (this.#titlebarStore) {

@@ -1,5 +1,6 @@
-import {Application, Assets, Container, Texture} from 'pixi.js';
+import {Application, Assets, Container, FederatedPointerEvent, Texture} from 'pixi.js';
 import {Forest} from "@wonderlandlabs/forestry4";
+import dragObserverFactory from '@wonderlandlabs-pixi-ux/observe-drag';
 import {
     ConfigureTitlebarFn,
     ModifyInitialTitlebarParamsFn,
@@ -46,6 +47,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     container!: Container; // Parent container that holds both windowsContainer and handlesContainer
     windowsContainer!: Container; // Container for all windows
     handlesContainer!: Container; // Container for all resize handles (sibling to windowsContainer)
+    #dragObserverFactory!: ReturnType<typeof dragObserverFactory<FederatedPointerEvent>>;
 
     constructor(config: WindowsManagerConfig) {
         super(
@@ -67,6 +69,15 @@ export class WindowsManager extends Forest<WindowStoreValue> {
             }
         );
         this.app = config.app;
+        // Stage listeners are used by observe-drag for move/up tracking.
+        this.app.stage.eventMode = 'static';
+        if (!this.app.stage.hitArea) {
+            this.app.stage.hitArea = this.app.screen;
+        }
+        this.#dragObserverFactory = dragObserverFactory<FederatedPointerEvent>({
+            stage: this.app.stage,
+            app: this.app,
+        });
         this.#initContainers(config);
         this.initNewWindows(this.value.windows);
 
@@ -219,7 +230,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
             subclass: StoreClass,
         }, this.app) as unknown as WindowStore;
 
-        branch.set('isDirty', true);
+        branch.dirty();
         this.#windowsBranches.set(key, branch);
         branch.application = this.app;
         branch.handlesContainer = this.handlesContainer; // Pass shared handles container
@@ -259,6 +270,10 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     #onResolveMap = new Map<string, WindowResolveHookFn>();
     #configureTitlebarMap = new Map<string, ConfigureTitlebarFn>();
     #modifyInitialTitlebarParamsMap = new Map<string, ModifyInitialTitlebarParamsFn>();
+
+    getDragObserver() {
+        return this.#dragObserverFactory;
+    }
 
     windowBranch(id: string) {
         return this.#windowsBranches.get(id);
@@ -350,8 +365,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     #refreshWindowSelection(id: string) {
         const windowStore = this.#windowsBranches.get(id);
         if (windowStore) {
-            windowStore.set('isDirty', true);
-            windowStore.queueResolve();
+            windowStore.dirty();
         }
     }
 
@@ -541,7 +555,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
      */
     #markAllDirty() {
         for (const [, windowStore] of this.#windowsBranches) {
-            windowStore.markDirty();
+            windowStore.dirty();
         }
     }
 }

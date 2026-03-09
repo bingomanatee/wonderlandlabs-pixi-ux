@@ -1,6 +1,6 @@
 # Pixi Utils - Yarn Berry Monorepo
 
-A Yarn Berry (v4) monorepo with workspace packages for grid, drag, window, toolbar, and related Pixi utilities.
+A Yarn Berry (v4) monorepo with workspace packages for grid, observe-drag, window, toolbar, and related Pixi utilities.
 
 ## Structure
 
@@ -10,7 +10,7 @@ wonderlandlabs-pixi-ux/
 │   ├── grid/          # Grid component with configurable rows/cols
 │   ├── window/        # Window system with drag/resize support
 │   ├── caption/       # Caption bubbles and thought balloons
-│   └── drag/          # Drag hook utilities
+│   └── observe-drag/  # Drag observer utilities
 └── apps/
     └── demo/          # Vite React demo application
 ```
@@ -75,29 +75,15 @@ const gridStore = new GridStore({ rows: 4, cols: 4, gap: 10 });
 gridStore.setRows(5);
 ```
 
-### @wonderlandlabs-pixi-ux/drag
+### @wonderlandlabs-pixi-ux/observe-drag
 
-Drag hook and Forestry state controller for drag functionality.
+Serialized drag observer utilities for Pixi pointer workflows.
 
-**Hook:**
 ```tsx
-import { useDrag } from '@wonderlandlabs-pixi-ux/drag';
+import observeDrag, { dragDecorator } from '@wonderlandlabs-pixi-ux/observe-drag';
 
-const { isDragging, position, dragHandlers } = useDrag({
-  onDragStart: () => console.log('Started'),
-  onDragEnd: () => console.log('Ended')
-});
-```
-
-**Controller:**
-```tsx
-import { DragStore } from '@wonderlandlabs-pixi-ux/drag';
-
-const dragStore = new DragStore({
-  onDragStart: (id, x, y) => console.log('Drag started'),
-  onDrag: (id, x, y, dx, dy) => console.log('Dragging'),
-  onDragEnd: (id, x, y) => console.log('Drag ended')
-});
+const observeDown = observeDrag({ stage: app.stage });
+const sub = observeDown(target, dragDecorator(), { dragTarget: container });
 ```
 
 ## Demo App
@@ -112,7 +98,7 @@ The demo app (`apps/demo`) showcases core package integrations:
 All packages include Forestry4-based state controllers for reactive state management:
 
 - **GridStore** - Manage grid configuration with rows, columns, and cell calculations
-- **DragStore** - Manage drag state with callbacks
+- **observe-drag** - Serialize drag ownership and lifecycle callbacks
 
 See [CONTROLLERS.md](./CONTROLLERS.md) for detailed documentation and examples.
 
@@ -167,15 +153,16 @@ Internal package dependencies (workspace-to-workspace) are:
 | --- | --- |
 | `@wonderlandlabs-pixi-ux/style-tree` | _none_ |
 | `@wonderlandlabs-pixi-ux/ticker-forest` | _none_ |
-| `@wonderlandlabs-pixi-ux/root-container` | _none_ |
-| `@wonderlandlabs-pixi-ux/box` | `@wonderlandlabs-pixi-ux/ticker-forest` |
+| `@wonderlandlabs-pixi-ux/observe-drag` | _none_ |
+| `@wonderlandlabs-pixi-ux/root-container` | `@wonderlandlabs-pixi-ux/observe-drag` |
+| `@wonderlandlabs-pixi-ux/box` | _none_ |
 | `@wonderlandlabs-pixi-ux/button` | `@wonderlandlabs-pixi-ux/box`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/caption` | `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/drag` | `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/grid` | `@wonderlandlabs-pixi-ux/ticker-forest` |
-| `@wonderlandlabs-pixi-ux/resizer` | `@wonderlandlabs-pixi-ux/ticker-forest` |
+| `@wonderlandlabs-pixi-ux/resizer` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/toolbar` | `@wonderlandlabs-pixi-ux/button`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
-| `@wonderlandlabs-pixi-ux/window` | `@wonderlandlabs-pixi-ux/drag`, `@wonderlandlabs-pixi-ux/resizer`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/toolbar` |
+| `@wonderlandlabs-pixi-ux/window` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/resizer`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/toolbar` |
 
 ### Manual Publish Order
 
@@ -183,15 +170,16 @@ If publishing manually, use this dependency-safe order:
 
 1. `@wonderlandlabs-pixi-ux/style-tree`
 2. `@wonderlandlabs-pixi-ux/ticker-forest`
-3. `@wonderlandlabs-pixi-ux/root-container`
+3. `@wonderlandlabs-pixi-ux/observe-drag`
 4. `@wonderlandlabs-pixi-ux/box`
-5. `@wonderlandlabs-pixi-ux/drag`
-6. `@wonderlandlabs-pixi-ux/button` --- this and below may have semver above the current monorepo's version
-7. `@wonderlandlabs-pixi-ux/caption`
-8. `@wonderlandlabs-pixi-ux/grid`
-9. `@wonderlandlabs-pixi-ux/resizer`
-10. `@wonderlandlabs-pixi-ux/toolbar`
-11. `@wonderlandlabs-pixi-ux/window`
+5. `@wonderlandlabs-pixi-ux/drag` (deprecated standalone package; no longer required by `window`)
+6. `@wonderlandlabs-pixi-ux/root-container`
+7. `@wonderlandlabs-pixi-ux/button` --- this and below may have semver above the current monorepo's version
+8. `@wonderlandlabs-pixi-ux/caption`
+9. `@wonderlandlabs-pixi-ux/grid`
+10. `@wonderlandlabs-pixi-ux/resizer`
+11. `@wonderlandlabs-pixi-ux/toolbar`
+12. `@wonderlandlabs-pixi-ux/window`
 
 as we much build and link each package in order, manual build, publish for each is reccommended. 
 i.e., 

@@ -1,6 +1,6 @@
 import {Container, Rectangle} from 'pixi.js';
-import {EnableHandlesConfig} from "./enableHandlesConfig";
-import {ResizerStore} from "./ResizerStore";
+import type {EnableHandlesConfig} from './types';
+import {ResizerStore} from './ResizerStore';
 
 /**
  * Enable resize handles on a container.
@@ -12,24 +12,23 @@ import {ResizerStore} from "./ResizerStore";
  * @returns ResizerStore - Forestry state managing the current rectangle
  */
 export function enableHandles(
-  container: Container,
-  rect: Rectangle,
-  config: EnableHandlesConfig
+    container: Container,
+    rect: Rectangle,
+    config: EnableHandlesConfig,
 ): ResizerStore {
-  const store = new ResizerStore({
-    container,
-    rect,
-    app: config.app,
-    drawRect: config.drawRect,
-    onRelease: config.onRelease,
-    size: config.size,
-    color: config.color,
-    constrain: config.constrain,
-    mode: config.mode,
-    rectTransform: config.rectTransform,
-    onTransformedRect: config.onTransformedRect,
-    deltaSpace: config.deltaSpace,
-  });
+    const store = new ResizerStore({
+        container,
+        rect,
+        app: config.app,
+        drawRect: config.drawRect,
+        onRelease: config.onRelease,
+        size: config.size,
+        color: config.color,
+        constrain: config.constrain,
+        mode: config.mode,
+        minSize: config.minSize,
+        onHandlePointerDown: config.onHandlePointerDown,
+    });
 
-  return store;
+    return store;
 }

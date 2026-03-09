@@ -1,5 +1,4 @@
 export { enableHandles } from './enableHandles.js';
-export { trackDrag } from './trackDrag.js';
 export { ResizerStore } from './ResizerStore.js';
 export type { Rect } from './rectTypes.js';
 export { RectSchema } from './rectTypes.js';
@@ -11,16 +10,13 @@ export {
 
 export type {
   Color,
+  EnableHandlesConfig,
   HandleMode,
   RectTransform,
+  MinSize,
   RectTransformParams,
   RectTransformPhase,
+  ResizerStoreConfig,
+  ResizerStoreValue,
   TransformedRectCallback,
 } from './types.js';
-
-export type {
-  TrackDragCallbacks,
-  TrackDragResult,
-} from './trackDrag.js';
-
-export type { EnableHandlesConfig } from "./enableHandlesConfig.js";

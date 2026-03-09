@@ -1,58 +1,21 @@
 import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import { Container, Graphics } from 'pixi.js';
-import type { Application } from 'pixi.js';
-import type { GridStoreValue, GridManagerValue } from './types';
-
-export interface GridCacheOptions {
-  enabled?: boolean;
-  resolution?: number;
-  antialias?: boolean;
-  debug?: boolean | GridCacheDebugOptions;
-}
-
-export interface GridCacheDebugInfo {
-  reason: GridRedrawReason;
-  zoom: number;
-  baseResolution: number;
-  activeResolution: number;
-  textureWidthPx: number;
-  textureHeightPx: number;
-  pixelCount: number;
-  measuredBytes: number | null;
-  measuredBytesMethod: 'resource-byteLength' | 'resource-data-byteLength' | 'unavailable';
-  estimatedBytes: number;
-  estimatedMiB: number;
-}
-
-export interface GridCacheDebugOptions {
-  logger?: (info: GridCacheDebugInfo) => void;
-  logIntervalMs?: number;
-}
-
-export interface GridManagerConfig {
-  gridSpec: GridStoreValue;
-  application: Application;
-  zoomPanContainer: Container;
-  cache?: GridCacheOptions;
-}
-
-interface WorldBounds {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
-type GridRedrawReason = 'zoom' | 'drag' | 'resize' | 'spec-update' | 'init' | 'unknown';
+import type {
+  GridStoreValue,
+  GridManagerValue,
+  GridCacheDebugInfo,
+  GridManagerConfig,
+  WorldBounds,
+  GridRedrawReason,
+} from './types';
 
 /**
  * Grid manager that redraws visible lines directly into Graphics objects.
  * This avoids tiled texture seam artifacts and keeps behavior deterministic.
  */
 export class GridManager extends TickerForest<GridManagerValue> {
-  #zoomPanContainer: Container;
   #_gridContainer?: Container;
-  #_gridMinor?: Graphics;
+  #_grid?: Graphics;
   #_gridMajor?: Graphics;
   #_artboard?: Graphics;
   #cacheEnabled: boolean;
@@ -64,6 +27,14 @@ export class GridManager extends TickerForest<GridManagerValue> {
   #cacheDebugIntervalMs: number;
   #lastCacheDebugAtMs: number = Number.NEGATIVE_INFINITY;
   #lastRedrawReason: GridRedrawReason = 'init';
+
+  static readonly #DEFAULT_WORLD_BOUNDS: WorldBounds = {
+    left: -2000,
+    right: 2000,
+    top: -2000,
+    bottom: 2000,
+  };
+  static readonly #MAJOR_ALPHA_MULTIPLIER = 1.4;
 
   #onStageZoom = (): void => {
     this.#invalidate('zoom');
@@ -82,13 +53,11 @@ export class GridManager extends TickerForest<GridManagerValue> {
       {
         value: {
           gridSpec: config.gridSpec,
-          dirty: false,
         },
       },
       { app: config.application, container: config.zoomPanContainer }
     );
 
-    this.#zoomPanContainer = config.zoomPanContainer;
     this.#cacheEnabled = config.cache?.enabled ?? true;
     this.#cacheBaseResolution = Math.max(Number.EPSILON, config.cache?.resolution ?? 2);
     this.#cacheActiveResolution = this.#cacheBaseResolution;
@@ -105,36 +74,19 @@ export class GridManager extends TickerForest<GridManagerValue> {
     this.#initialize();
   }
 
-  protected isDirty(): boolean {
-    return this.value.dirty;
-  }
-
-  protected clearDirty(): void {
-    this.mutate(draft => {
-      draft.dirty = false;
-    });
-  }
-
-  protected makeDirty(_data?: unknown): void {
-    this.mutate(draft => {
-      draft.dirty = true;
-    });
-  }
-
-  protected markDirty(): void {
-    this.makeDirty();
-  }
-
   protected resolve(): void {
     this.#redrawGrid();
-    this.clearDirty();
   }
 
   get #gridContainer(): Container {
     if (!this.#_gridContainer) {
+      const parent = this.container;
+      if (!parent) {
+        throw new Error('GridManager requires a container');
+      }
       const container = new Container();
       container.label = 'GridContainer';
-      this.#zoomPanContainer.addChildAt(container, 0);
+      parent.addChildAt(container, 0);
       if (this.#cacheEnabled) {
         container.cacheAsTexture({
           resolution: this.#cacheActiveResolution,
@@ -146,14 +98,14 @@ export class GridManager extends TickerForest<GridManagerValue> {
     return this.#_gridContainer;
   }
 
-  get #minorGraphics(): Graphics {
-    if (!this.#_gridMinor) {
+  get #gridGraphics(): Graphics {
+    if (!this.#_grid) {
       const graphics = new Graphics();
-      graphics.label = 'GridMinor';
+      graphics.label = 'Grid';
       this.#gridContainer.addChild(graphics);
-      this.#_gridMinor = graphics;
+      this.#_grid = graphics;
     }
-    return this.#_gridMinor;
+    return this.#_grid;
   }
 
   get #majorGraphics(): Graphics {
@@ -178,8 +130,8 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   #initialize(): void {
     this.#gridContainer;
-    this.#minorGraphics;
-    if (this.value.gridSpec.gridMajor) {
+    this.#gridGraphics;
+    if (this.#resolveMajorFrequency()) {
       this.#majorGraphics;
     }
     if (this.value.gridSpec.artboard) {
@@ -196,68 +148,101 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   #invalidate(reason: GridRedrawReason): void {
     this.#lastRedrawReason = reason;
-    this.markDirty();
-    this.queueResolve();
+    this.dirty();
+  }
+
+  #resolveMajorFrequency(): { x: number; y: number } | undefined {
+    const rawFrequency = this.value.gridSpec.majorGridFrequency;
+    if (typeof rawFrequency === 'number') {
+      const frequency = Math.max(0, Math.floor(rawFrequency));
+      if (frequency === 0) {
+        return undefined;
+      }
+      return { x: frequency, y: frequency };
+    }
+    if (!rawFrequency) {
+      return undefined;
+    }
+    const x = Math.max(0, Math.floor(rawFrequency.x));
+    const y = Math.max(0, Math.floor(rawFrequency.y));
+    if (x === 0 && y === 0) {
+      return undefined;
+    }
+    return { x, y };
   }
 
   #applyDensityFloor(spacingX: number, spacingY: number, zoom: number): { x: number; y: number } {
     let multiplier = 1;
-    while (spacingX * zoom * multiplier < 16 || spacingY * zoom * multiplier < 16) {
+    while (
+      (spacingX > 0 && spacingX * zoom * multiplier < 16)
+      || (spacingY > 0 && spacingY * zoom * multiplier < 16)
+    ) {
       multiplier *= 2;
     }
 
     return {
-      x: spacingX * multiplier,
-      y: spacingY * multiplier,
+      x: spacingX > 0 ? spacingX * multiplier : 0,
+      y: spacingY > 0 ? spacingY * multiplier : 0,
     };
   }
 
-  #resolveMinorSpacing(zoom: number): { x: number; y: number } {
+  #resolveGridSpacing(zoom: number): { x: number; y: number } {
     const { gridSpec } = this.value;
     let spacingX = gridSpec.grid.x;
     let spacingY = gridSpec.grid.y;
+    const majorFrequency = this.#resolveMajorFrequency();
 
-    const isMinorTooDense = spacingX * zoom < 16 || spacingY * zoom < 16;
-    if (isMinorTooDense && gridSpec.gridMajor) {
-      // Use half-major spacing so minor lines remain visible between major lines
-      // instead of landing on top of them.
-      spacingX = Math.max(1, gridSpec.gridMajor.x / 2);
-      spacingY = Math.max(1, gridSpec.gridMajor.y / 2);
+    if (majorFrequency) {
+      if (spacingX * zoom < 16 && majorFrequency.x > 0) {
+        spacingX = Math.max(1, (gridSpec.grid.x * majorFrequency.x) / 2);
+      }
+      if (spacingY * zoom < 16 && majorFrequency.y > 0) {
+        spacingY = Math.max(1, (gridSpec.grid.y * majorFrequency.y) / 2);
+      }
     }
 
     return this.#applyDensityFloor(spacingX, spacingY, zoom);
   }
 
   #resolveMajorSpacing(zoom: number): { x: number; y: number } | undefined {
-    const { gridSpec } = this.value;
-    if (!gridSpec.gridMajor) {
+    const majorFrequency = this.#resolveMajorFrequency();
+    if (!majorFrequency) {
+      return undefined;
+    }
+    const spacingX = majorFrequency.x > 0 ? this.value.gridSpec.grid.x * majorFrequency.x : 0;
+    const spacingY = majorFrequency.y > 0 ? this.value.gridSpec.grid.y * majorFrequency.y : 0;
+    if (spacingX <= 0 && spacingY <= 0) {
       return undefined;
     }
 
-    return this.#applyDensityFloor(gridSpec.gridMajor.x, gridSpec.gridMajor.y, zoom);
+    return this.#applyDensityFloor(spacingX, spacingY, zoom);
   }
 
   #worldBounds(spacingX: number, spacingY: number): WorldBounds {
     const screen = this.application?.screen;
+    const container = this.container;
     if (!screen) {
-      return { left: -2000, right: 2000, top: -2000, bottom: 2000 };
+      return GridManager.#DEFAULT_WORLD_BOUNDS;
+    }
+    if (!container) {
+      return GridManager.#DEFAULT_WORLD_BOUNDS;
     }
 
-    const rawScaleX = this.#zoomPanContainer.scale.x;
-    const rawScaleY = this.#zoomPanContainer.scale.y;
-    const safeScaleX = Math.abs(rawScaleX) < 0.0001 ? 0.0001 : rawScaleX;
-    const safeScaleY = Math.abs(rawScaleY) < 0.0001 ? 0.0001 : rawScaleY;
+    const scale = this.getScale();
+    const safeScaleX = Math.max(0.0001, Math.abs(scale.x));
+    const safeScaleY = Math.max(0.0001, Math.abs(scale.y));
 
-    const pos = this.#zoomPanContainer.position;
-    const rawLeft = (0 - pos.x) / safeScaleX;
-    const rawRight = (screen.width - pos.x) / safeScaleX;
-    const rawTop = (0 - pos.y) / safeScaleY;
-    const rawBottom = (screen.height - pos.y) / safeScaleY;
+    // Derive visible container-space bounds from viewport corners.
+    // This keeps bounds correct even when parent transforms (centering/pan) are applied.
+    const topLeft = container.toLocal({ x: 0, y: 0 });
+    const topRight = container.toLocal({ x: screen.width, y: 0 });
+    const bottomLeft = container.toLocal({ x: 0, y: screen.height });
+    const bottomRight = container.toLocal({ x: screen.width, y: screen.height });
 
-    const left = Math.min(rawLeft, rawRight);
-    const right = Math.max(rawLeft, rawRight);
-    const top = Math.min(rawTop, rawBottom);
-    const bottom = Math.max(rawTop, rawBottom);
+    const left = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const right = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const top = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    const bottom = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
 
     const padX = Math.max(spacingX * 2, 48 / Math.abs(safeScaleX));
     const padY = Math.max(spacingY * 2, 48 / Math.abs(safeScaleY));
@@ -279,29 +264,35 @@ export class GridManager extends TickerForest<GridManagerValue> {
     lineWidth: number
   ): void {
     graphics.clear();
-    if (spacingX <= 0 || spacingY <= 0) {
+    const drawVertical = spacingX > 0;
+    const drawHorizontal = spacingY > 0;
+    if (!drawVertical && !drawHorizontal) {
       return;
     }
 
     const bounds = this.#worldBounds(spacingX, spacingY);
-    const startX = Math.floor(bounds.left / spacingX) * spacingX;
-    const endX = Math.ceil(bounds.right / spacingX) * spacingX;
-    const startY = Math.floor(bounds.top / spacingY) * spacingY;
-    const endY = Math.ceil(bounds.bottom / spacingY) * spacingY;
 
     let segmentCount = 0;
     const maxSegments = 12000;
 
-    for (let x = startX; x <= endX && segmentCount < maxSegments; x += spacingX) {
-      graphics.moveTo(x, bounds.top);
-      graphics.lineTo(x, bounds.bottom);
-      segmentCount += 1;
+    if (drawVertical) {
+      const startX = Math.floor(bounds.left / spacingX) * spacingX;
+      const endX = Math.ceil(bounds.right / spacingX) * spacingX;
+      for (let x = startX; x <= endX && segmentCount < maxSegments; x += spacingX) {
+        graphics.moveTo(x, bounds.top);
+        graphics.lineTo(x, bounds.bottom);
+        segmentCount += 1;
+      }
     }
 
-    for (let y = startY; y <= endY && segmentCount < maxSegments; y += spacingY) {
-      graphics.moveTo(bounds.left, y);
-      graphics.lineTo(bounds.right, y);
-      segmentCount += 1;
+    if (drawHorizontal) {
+      const startY = Math.floor(bounds.top / spacingY) * spacingY;
+      const endY = Math.ceil(bounds.bottom / spacingY) * spacingY;
+      for (let y = startY; y <= endY && segmentCount < maxSegments; y += spacingY) {
+        graphics.moveTo(bounds.left, y);
+        graphics.lineTo(bounds.right, y);
+        segmentCount += 1;
+      }
     }
 
     if (segmentCount > 0) {
@@ -391,27 +382,28 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   #redrawGrid(): void {
     const { gridSpec } = this.value;
-    const zoom = Math.max(Math.abs(this.#zoomPanContainer.scale.x), 0.0001);
+    const zoom = Math.max(this.getScale().x, 0.0001);
     const lineWidth = 1 / zoom;
 
-    const minorSpacing = this.#resolveMinorSpacing(zoom);
+    const gridSpacing = this.#resolveGridSpacing(zoom);
     this.#drawGridLines(
-      this.#minorGraphics,
-      minorSpacing.x,
-      minorSpacing.y,
+      this.#gridGraphics,
+      gridSpacing.x,
+      gridSpacing.y,
       gridSpec.grid.color,
       gridSpec.grid.alpha,
       lineWidth
     );
 
     const majorSpacing = this.#resolveMajorSpacing(zoom);
-    if (majorSpacing && gridSpec.gridMajor) {
+    if (majorSpacing) {
+      const majorAlpha = Math.min(1, gridSpec.grid.alpha * GridManager.#MAJOR_ALPHA_MULTIPLIER);
       this.#drawGridLines(
         this.#majorGraphics,
         majorSpacing.x,
         majorSpacing.y,
-        gridSpec.gridMajor.color,
-        gridSpec.gridMajor.alpha,
+        gridSpec.grid.color,
+        majorAlpha,
         lineWidth
       );
     } else if (this.#_gridMajor) {
@@ -444,13 +436,12 @@ export class GridManager extends TickerForest<GridManagerValue> {
       if (gridSpec.grid) {
         draft.gridSpec.grid = { ...draft.gridSpec.grid, ...gridSpec.grid };
       }
-      if (gridSpec.gridMajor !== undefined) {
-        draft.gridSpec.gridMajor = gridSpec.gridMajor;
+      if (gridSpec.majorGridFrequency !== undefined) {
+        draft.gridSpec.majorGridFrequency = gridSpec.majorGridFrequency;
       }
       if (gridSpec.artboard !== undefined) {
         draft.gridSpec.artboard = gridSpec.artboard;
       }
-      draft.dirty = true;
     });
 
     this.#invalidate('spec-update');
@@ -467,10 +458,10 @@ export class GridManager extends TickerForest<GridManagerValue> {
       if (this.#cacheEnabled) {
         this.#_gridContainer.cacheAsTexture(false);
       }
-      this.#zoomPanContainer.removeChild(this.#_gridContainer);
+      this.container?.removeChild(this.#_gridContainer);
       this.#_gridContainer.destroy({ children: true });
       this.#_gridContainer = undefined;
-      this.#_gridMinor = undefined;
+      this.#_grid = undefined;
       this.#_gridMajor = undefined;
       this.#_artboard = undefined;
     }

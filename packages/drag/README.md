@@ -1,6 +1,27 @@
 # @wonderlandlabs-pixi-ux/drag
 
+> Deprecated in `1.2.x`: migrate to `@wonderlandlabs-pixi-ux/observe-drag`.
+
 Drag state controller for PixiJS in wonderlandlabs-pixi-ux.
+
+## Migration
+
+Use `dragObserverFactory` + `dragDecorator` from `@wonderlandlabs-pixi-ux/observe-drag`.
+
+```typescript
+import dragObserverFactory, { dragDecorator } from '@wonderlandlabs-pixi-ux/observe-drag';
+
+const observeDown = dragObserverFactory({ stage: app.stage });
+const subscription = observeDown(
+  target,
+  dragDecorator({
+    onMove(_event, _context, dragTarget) {
+      // custom side effects
+    },
+  }),
+  { dragTarget: container }
+);
+```
 
 ## Installation
 
@@ -98,4 +119,3 @@ interface DragStoreConfig {
 ## License
 
 MIT
-

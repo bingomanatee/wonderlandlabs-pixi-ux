@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 1.2.0 - 2026-03-07
+
+- Simplified grid spec API: replaced `gridMajor` spacing config with `majorGridFrequency`.
+- `majorGridFrequency` supports either:
+  - `number` (uniform X/Y frequency)
+  - `{x, y}` (per-axis frequency)
+- Major line spacing is now derived from base `grid` spacing (`grid * majorGridFrequency`).
+- Updated grid rendering internals to treat base grid as the primary layer and compute major lines from frequency.
+
 ## 1.1.3 - 2026-03-02
 
 - upgrade to pixi 8.16

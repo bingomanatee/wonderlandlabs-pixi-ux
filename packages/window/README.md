@@ -40,40 +40,14 @@ windows.addWindow('notes', {
 });
 ```
 
-## Resize Transform Passthrough
+## Resize Coordinate Model
 
-`window` forwards `rectTransform` to the underlying `@wonderlandlabs-pixi-ux/resizer` instance.
-Use this to apply snapping or coordinate transforms during resize drags.
+`window` uses `@wonderlandlabs-pixi-ux/resizer` in frame/world coordinates.
 
-```ts
-windows.addWindow('snapped', {
-  x: 120,
-  y: 100,
-  width: 420,
-  height: 280,
-  isResizeable: true,
-  resizeMode: 'EDGE_AND_CORNER',
-  rectTransform: ({ rect, phase, handle }) => {
-    const snap = (n: number) => Math.round(n / 16) * 16;
-    const min = 64;
-
-    // Keep drag preview responsive; snap on release.
-    if (phase === 'drag') return rect;
-
-    return {
-      x: snap(rect.x),
-      y: snap(rect.y),
-      width: Math.max(min, snap(rect.width)),
-      height: Math.max(min, snap(rect.height)),
-    };
-  },
-});
-```
-
-Callback params:
-- `rect`: current rectangle candidate (`Rectangle`)
-- `phase`: `'drag' | 'release'`
-- `handle`: active resize handle id, or `null`
+- Handles are expected to render in an untransformed front-layer handles container.
+- Resizer output is treated as global/frame-space rect data.
+- `WindowStore` converts between frame-space and window-local coordinates before mutating window state.
+- If your consumer layout is transformed, perform conversion in the consumer layer.
 
 ## Label Styling
 
@@ -177,10 +151,8 @@ If you implement a custom titlebar store, keep this setting on:
 
 ```ts
 dirtyOnScale: {
-  enabled: true,
   watchX: false,
   watchY: true,
-  relativeToRootParent: true,
 }
 ```
 
@@ -198,7 +170,7 @@ dirtyOnScale: {
 For runtime content changes (toolbar clicks, async results, external events), use this flow:
 
 1. Mutate store state (including custom fields) on the relevant `WindowStore` / `TitlebarStore`.
-2. Set dirty state (`isDirty = true`), usually by calling `markDirty()` on the store.
+2. Mark the store dirty by calling `dirty()` on the store.
 3. Use `windowContentRenderer` and/or `titlebarContentRenderer` to upsert `Graphics`/`Container`/`Text` nodes into
    the provided `contentContainer` during the refresh cycle.
 
@@ -221,7 +193,7 @@ Why this pattern is required:
 ### Titlebar Content Hook Pattern
 
 Use `addWindow(..., { titlebarContentRenderer })` as the hook for zoom-independent titlebar UI.
-Keep the renderer idempotent (upsert by label), then call `markDirty()` + `queueResolve()` whenever external
+Keep the renderer idempotent (upsert by label), then call `dirty()` whenever external
 state changes. Use `configureTitlebar` for one-time setup after the titlebar store is created.
 Use `modifyInitialTitlebarParams` for a startup-only functional parameter transform:
 `modifyInitialTitlebarParams: ({ state, config }) => ({ state, config })`.
@@ -471,8 +443,7 @@ windows.addWindow('notes', {
 
 // Later, if external data changes and titlebar content must refresh:
 const titlebarStore = windows.windowBranch('notes')?.titlebarStore;
-titlebarStore?.markDirty();
-titlebarStore?.queueResolve();
+titlebarStore?.dirty();
 ```
 
 ## Why guardContainer?

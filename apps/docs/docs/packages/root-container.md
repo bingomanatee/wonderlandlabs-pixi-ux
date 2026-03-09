@@ -72,10 +72,22 @@ Returns:
 
 Note: `createZoomPan` does not auto-mount. Add `zoomPan` to a parent manually.
 
-### `makeStageDraggable(app, container)`
+### `makeStageDraggable(app, container, options?)`
 
 Returns:
 - `destroy()`
+
+Uses `@wonderlandlabs-pixi-ux/observe-drag` under the hood, so only one active pointer drag stream owns stage moves at a time.
+
+Options:
+
+```ts
+{
+  dragTarget?: Container,
+  getDragTarget?: (event: FederatedPointerEvent) => Container | undefined,
+  targetPointTransform?: (point: { x: number, y: number }, event: FederatedPointerEvent) => { x: number, y: number }
+}
+```
 
 Emits `stage-drag` events on `app.stage`:
 

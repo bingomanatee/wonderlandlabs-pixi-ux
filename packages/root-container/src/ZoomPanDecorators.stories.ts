@@ -8,7 +8,6 @@ interface ZoomPanDecoratorsArgs {}
 
 const meta: Meta<ZoomPanDecoratorsArgs> = {
   title: 'Root Container/Zoom Pan Decorators',
-  tags: ['autodocs'],
   render: (args) => {
     const wrapper = document.createElement('div');
     wrapper.style.position = 'fixed';

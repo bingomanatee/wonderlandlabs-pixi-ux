@@ -145,6 +145,10 @@ export default function PackageValidatorRoute() {
       }
 
       try {
+        if (typeof window !== "undefined") {
+          const debugEnabled = new URLSearchParams(window.location.search).has("resizerDebug");
+          window.__PIXI_RESIZER_DEBUG__ = debugEnabled;
+        }
         const mod = await resolveSourceLoader(selected, selectedSourceMode)();
         const app = new Application();
         mountNode.innerHTML = "";
@@ -221,7 +225,7 @@ export default function PackageValidatorRoute() {
             },
             gridSpec: {
               grid: { x: 24, y: 24, color: 0x2f3f5f, alpha: 0.7 },
-              gridMajor: { x: 120, y: 120, color: 0x5d7bd6, alpha: 0.9 },
+              majorGridFrequency: 5,
               artboard: { x: -160, y: -100, width: 320, height: 200, color: 0xffffff, alpha: 0.6 },
             },
           });
