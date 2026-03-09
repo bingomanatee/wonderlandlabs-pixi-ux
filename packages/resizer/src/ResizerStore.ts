@@ -428,7 +428,10 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
      */
     private createHandles() {
         const observeDragApp = {stage: this.stage ?? this.#targetContainer};
-        const subscribeToDown = observeDrag<FederatedPointerEvent>(observeDragApp);
+        const subscribeToDown = observeDrag<FederatedPointerEvent>({
+            ...observeDragApp,
+            app: this.app,
+        });
         const positions = this.getHandlePositions();
 
         positions.forEach((position) => {

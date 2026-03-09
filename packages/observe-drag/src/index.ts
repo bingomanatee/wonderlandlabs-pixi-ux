@@ -6,3 +6,4 @@ export default dragObserverFactory;
 export {dragObserverFactory, observeDrag, dragDecorator, dragTarget, dragTargetDecorator};
 export * from './type.js';
 export * from './constants.js';
+export * from './helpers.js';

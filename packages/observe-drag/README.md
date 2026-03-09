@@ -1,6 +1,6 @@
 # @wonderlandlabs-pixi-ux/observe-drag
 
-`observe-drag` enforces a single active drag owner per Pixi stage by default.
+`observe-drag` enforces a single active drag owner via a module-level pointer lock by default.
 
 ## Behavior
 
@@ -9,7 +9,8 @@
 3. `pointerup`, `pointerupoutside`, or `pointercancel` ends the active drag and releases ownership.
 4. Competing `pointerdown` events while busy call `onBlocked`.
 5. A configurable inactivity watchdog auto-releases ownership if no matching `pointermove` is seen (`abortTime`, default `1000ms`; set `abortTime: 0` to disable).
-6. You can inject a shared lock (`activePointer$`) at factory creation to serialize drags across multiple factories/stages.
+6. You can inject your own lock (`activePointer$`) at factory creation to override the default module singleton lock.
+7. If an app with `render()` is provided, drag moves trigger a throttled render (default `30ms`, configurable via `renderThrottleMs`) and drag terminal events (`pointerup`, `pointerupoutside`, `pointercancel`) force a final render.
 
 ## Usage
 `dragDecorator` wraps your listeners and handles Pixi container movement with default assumptions:
@@ -23,7 +24,7 @@
 ```ts
 import dragObserverFactory, {dragDecorator} from '@wonderlandlabs-pixi-ux/observe-drag';
 
-const observeDown = dragObserverFactory({stage: app.stage});
+const observeDown = dragObserverFactory({stage: app.stage, app});
 const sub = observeDown(target, dragDecorator(), {dragTarget: myContainer});
 ```
 
@@ -92,7 +93,8 @@ const sub = observeDown(
 - If returned, `onStart` context can be any object and is passed into `onMove` and `onUp`.
 - Core observe-drag does not move targets by itself; use `dragDecorator()` for default target motion, or move the target in your own listeners.
 - Subscription options support `dragTarget` (static), `getDragTarget(downEvent, context)` (dynamic), and `abortTime` (watchdog timeout in ms; `0` disables it).
-- Factory options support `activePointer$` so you can share one lock across multiple factories if needed.
+- Factory options support `activePointer$` so you can provide your own lock instead of using the default module singleton.
+- Factory options also support `stage` (when `app` is not provided), optional `app` for drag render calls, and `renderThrottleMs` to tune render throttle (default `30`).
 - `dragDecorator()` provides default Pixi container dragging using parent-local coordinates, then delegates to your wrapped listeners.
 - `dragDecorator()` works with no parameters.
 - `dragTargetDecorator()` is deprecated and remains as a compatibility wrapper.

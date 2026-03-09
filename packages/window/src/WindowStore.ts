@@ -427,7 +427,10 @@ export class WindowStore extends TickerForest<WindowDef> {
         if (rootStore?.getDragObserver) {
             return rootStore.getDragObserver();
         }
-        return dragObserverFactory<FederatedPointerEvent>({stage: this.application!.stage});
+        return dragObserverFactory<FederatedPointerEvent>({
+            stage: this.application!.stage,
+            app: this.application,
+        });
     }
 
     #resolveDragPoint(event: FederatedPointerEvent): {x: number; y: number} {

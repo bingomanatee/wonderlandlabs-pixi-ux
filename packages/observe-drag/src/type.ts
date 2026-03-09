@@ -15,6 +15,7 @@ export interface PixiEventTargetLike<TEvent extends PixiEventLike = PixiEventLik
 
 export interface PixiApplicationLike<TEvent extends PixiEventLike = PixiEventLike> {
     stage: PixiEventTargetLike<TEvent>;
+    render?(): void;
 }
 
 export type DragOwner = number | null;
@@ -32,12 +33,24 @@ export type ResolveDragPointFn<
 
 export type ObserveDragPhase = 'onStart' | 'onMove' | 'onUp' | 'onBlocked' | 'internal';
 
-export interface ObserveDragFactoryOptions {
+export interface ObserveDragFactoryOptions<TEvent extends PixiEventLike = PixiEventLike> {
     /**
      * Optional shared pointer lock. Provide this to serialize drags across
      * multiple factories/stages; otherwise lock scope defaults to this factory instance.
      */
     activePointer$?: ActivePointerLike;
+    /**
+     * Optional explicit stage. Use this when you want to omit the app argument and pass only event target context.
+     */
+    stage?: PixiEventTargetLike<TEvent>;
+    /**
+     * Optional app used for stage inference and throttled render requests during active drag.
+     */
+    app?: PixiApplicationLike<TEvent>;
+    /**
+     * Optional render throttle in milliseconds. Default is 30ms.
+     */
+    renderThrottleMs?: number;
 }
 
 export interface ObserveDragListeners<

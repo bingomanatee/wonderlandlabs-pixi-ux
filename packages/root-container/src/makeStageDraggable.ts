@@ -19,7 +19,10 @@ export function makeStageDraggable(
 ): StageDraggableResult {
   const pointTransform = options.targetPointTransform;
 
-  const subscribeToDown = observeDrag<FederatedPointerEvent>({ stage: app.stage });
+  const subscribeToDown = observeDrag<FederatedPointerEvent>({
+    stage: app.stage,
+    app,
+  });
   const dragListeners = dragTargetDecorator<FederatedPointerEvent, undefined, PixiContainer>({
     transformPoint: pointTransform
       ? (point, event) => pointTransform(point, event)

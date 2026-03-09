@@ -74,7 +74,10 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         if (!this.app.stage.hitArea) {
             this.app.stage.hitArea = this.app.screen;
         }
-        this.#dragObserverFactory = dragObserverFactory<FederatedPointerEvent>({stage: this.app.stage});
+        this.#dragObserverFactory = dragObserverFactory<FederatedPointerEvent>({
+            stage: this.app.stage,
+            app: this.app,
+        });
         this.#initContainers(config);
         this.initNewWindows(this.value.windows);
 

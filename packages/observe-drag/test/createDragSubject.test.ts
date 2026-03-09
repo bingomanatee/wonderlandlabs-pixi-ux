@@ -26,11 +26,11 @@ type DragEventLogEntry =
     | ['blocked', string, number, number];
 
 describe('observeDrag', () => {
-    it('uses independent pointer locks per stage by default', () => {
+    it('uses a shared module pointer lock by default', () => {
         const appA = createMockPointerApp<TestPixiEvent>();
         const appB = createMockPointerApp<TestPixiEvent>();
-        const subA = observeDrag<TestPixiEvent>(appA);
-        const subB = observeDrag<TestPixiEvent>(appB);
+        const subA = observeDrag<TestPixiEvent>({app: appA});
+        const subB = observeDrag<TestPixiEvent>({app: appB});
 
         const targetA = createMockPixiEventTarget<TestPixiEvent>();
         const targetB = createMockPixiEventTarget<TestPixiEvent>();
@@ -57,15 +57,18 @@ describe('observeDrag', () => {
         targetA.emit(POINTER_EVT_DOWN, {pointerId: 1});
         appA.stage.emit(POINTER_EVT_MOVE, {pointerId: 1});
 
-        // Different stage: should not be blocked while appA still owns its stage.
+        // Different stage should still be blocked by the shared module lock.
+        targetB.emit(POINTER_EVT_DOWN, {pointerId: 2});
+        appB.stage.emit(POINTER_EVT_MOVE, {pointerId: 2});
+        expect(blockedB).toEqual([2]);
+        expect(movesB).toEqual([]);
+
+        appA.stage.emit(POINTER_EVT_UP, {pointerId: 1});
         targetB.emit(POINTER_EVT_DOWN, {pointerId: 2});
         appB.stage.emit(POINTER_EVT_MOVE, {pointerId: 2});
         appB.stage.emit(POINTER_EVT_UP, {pointerId: 2});
 
-        appA.stage.emit(POINTER_EVT_UP, {pointerId: 1});
-
         expect(movesA).toEqual([1]);
-        expect(blockedB).toEqual([]);
         expect(movesB).toEqual([2]);
 
         dragA.unsubscribe();
@@ -76,8 +79,8 @@ describe('observeDrag', () => {
         const sharedLock$ = new BehaviorSubject<DragOwner>(null);
         const appA = createMockPointerApp<TestPixiEvent>();
         const appB = createMockPointerApp<TestPixiEvent>();
-        const subA = observeDrag<TestPixiEvent>(appA, {activePointer$: sharedLock$});
-        const subB = observeDrag<TestPixiEvent>(appB, {activePointer$: sharedLock$});
+        const subA = observeDrag<TestPixiEvent>({app: appA, activePointer$: sharedLock$});
+        const subB = observeDrag<TestPixiEvent>({app: appB, activePointer$: sharedLock$});
 
         const targetA = createMockPixiEventTarget<TestPixiEvent>();
         const targetB = createMockPixiEventTarget<TestPixiEvent>();
@@ -123,7 +126,7 @@ describe('observeDrag', () => {
     it('locks to first pointerdown and calls onBlocked for contenders until released', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
 
         const targetA = createMockPixiEventTarget<TestPixiEvent>();
         const targetB = createMockPixiEventTarget<TestPixiEvent>();
@@ -224,7 +227,7 @@ describe('observeDrag', () => {
     it('releases active pointer on pointerupoutside and pointercancel', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
 
         const targetA = createMockPixiEventTarget<TestPixiEvent>();
         const targetB = createMockPixiEventTarget<TestPixiEvent>();
@@ -259,7 +262,7 @@ describe('observeDrag', () => {
     it('supports on/off-only stage and target event APIs', () => {
         const app = createMockOnOffPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
 
         const targetA = new MockPixiOnOffTarget<TestPixiEvent>();
         const targetB = new MockPixiOnOffTarget<TestPixiEvent>();
@@ -286,7 +289,7 @@ describe('observeDrag', () => {
     it('dragTargetDecorator works with no parameters', () => {
         const app = createMockPointerApp<TestPixiEventWithGlobal>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEventWithGlobal>(app);
+        const subscribeToDown = observeDrag<TestPixiEventWithGlobal>({app});
         const target = createMockPixiEventTarget<TestPixiEventWithGlobal>();
         const dragTarget = {
             position: {
@@ -318,7 +321,7 @@ describe('observeDrag', () => {
     it('passes direct dragTarget from subscription options to callbacks', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
         const target = createMockPixiEventTarget<TestPixiEvent>();
         const dragTarget = {id: 'target-A'};
         const seenTargetIds: string[] = [];
@@ -352,7 +355,7 @@ describe('observeDrag', () => {
     it('supports getDragTarget resolver functions from subscription options', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
         const target = createMockPixiEventTarget<TestPixiEvent>();
         const targetA = {id: 'A'};
         const targetB = {id: 'B'};
@@ -391,7 +394,7 @@ describe('observeDrag', () => {
     it('passes onStart context to onMove/onUp and routes listener throws to onError', () => {
         const app = createMockPointerApp<TestPixiEvent>();
         const {stage} = app;
-        const subscribeToDown = observeDrag<TestPixiEvent>(app);
+        const subscribeToDown = observeDrag<TestPixiEvent>({app});
 
         const target = createMockPixiEventTarget<TestPixiEvent>();
         const throwTarget = createMockPixiEventTarget<TestPixiEvent>();
@@ -467,7 +470,7 @@ describe('observeDrag', () => {
         try {
             const app = createMockPointerApp<TestPixiEvent>();
             const {stage} = app;
-            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const subscribeToDown = observeDrag<TestPixiEvent>({app});
             const targetA = createMockPixiEventTarget<TestPixiEvent>();
             const targetB = createMockPixiEventTarget<TestPixiEvent>();
             const movesB: number[] = [];
@@ -507,7 +510,7 @@ describe('observeDrag', () => {
         try {
             const app = createMockPointerApp<TestPixiEvent>();
             const {stage} = app;
-            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const subscribeToDown = observeDrag<TestPixiEvent>({app});
             const targetA = createMockPixiEventTarget<TestPixiEvent>();
             const targetB = createMockPixiEventTarget<TestPixiEvent>();
             const blockedB: number[] = [];
@@ -550,7 +553,7 @@ describe('observeDrag', () => {
         try {
             const app = createMockPointerApp<TestPixiEvent>();
             const {stage} = app;
-            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const subscribeToDown = observeDrag<TestPixiEvent>({app});
             const targetA = createMockPixiEventTarget<TestPixiEvent>();
             const targetB = createMockPixiEventTarget<TestPixiEvent>();
             const blockedB: number[] = [];
@@ -590,7 +593,7 @@ describe('observeDrag', () => {
         try {
             const app = createMockPointerApp<TestPixiEvent>();
             const {stage} = app;
-            const subscribeToDown = observeDrag<TestPixiEvent>(app);
+            const subscribeToDown = observeDrag<TestPixiEvent>({app});
             const targetA = createMockPixiEventTarget<TestPixiEvent>();
             const targetB = createMockPixiEventTarget<TestPixiEvent>();
             const blockedB: number[] = [];
@@ -624,5 +627,87 @@ describe('observeDrag', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it('throttles app.render to 30ms on move and forces render on up by default', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const render = vi.fn();
+            const appWithRender = {...app, render};
+            const subscribeToDown = observeDrag<TestPixiEvent>({app: appWithRender});
+            const target = createMockPixiEventTarget<TestPixiEvent>();
+            const sub = subscribeToDown(target, {});
+
+            target.emit(POINTER_EVT_DOWN, {pointerId: 121});
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 121});
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 121});
+            expect(render).toHaveBeenCalledTimes(1);
+
+            await vi.advanceTimersByTimeAsync(30);
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 121});
+            expect(render).toHaveBeenCalledTimes(2);
+
+            app.stage.emit(POINTER_EVT_UP, {pointerId: 121});
+            expect(render).toHaveBeenCalledTimes(3);
+
+            sub.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('supports custom render throttle in factory options', async () => {
+        vi.useFakeTimers();
+        try {
+            const app = createMockPointerApp<TestPixiEvent>();
+            const render = vi.fn();
+            const appWithRender = {...app, render};
+            const subscribeToDown = observeDrag<TestPixiEvent>({
+                app: appWithRender,
+                renderThrottleMs: 120,
+            });
+            const target = createMockPixiEventTarget<TestPixiEvent>();
+            const sub = subscribeToDown(target, {});
+
+            target.emit(POINTER_EVT_DOWN, {pointerId: 123});
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 123});
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 123});
+            expect(render).toHaveBeenCalledTimes(1);
+
+            await vi.advanceTimersByTimeAsync(100);
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 123});
+            expect(render).toHaveBeenCalledTimes(1);
+
+            await vi.advanceTimersByTimeAsync(20);
+            app.stage.emit(POINTER_EVT_MOVE, {pointerId: 123});
+            expect(render).toHaveBeenCalledTimes(2);
+
+            app.stage.emit(POINTER_EVT_UP, {pointerId: 123});
+            expect(render).toHaveBeenCalledTimes(3);
+
+            sub.unsubscribe();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('supports omitting app argument when stage is provided in factory options', () => {
+        const app = createMockPointerApp<TestPixiEvent>();
+        const subscribeToDown = observeDrag<TestPixiEvent>({stage: app.stage});
+        const target = createMockPixiEventTarget<TestPixiEvent>();
+        const seen: number[] = [];
+        const sub = subscribeToDown(target, {
+            onMove(event) {
+                seen.push(event.pointerId);
+            },
+        });
+
+        target.emit(POINTER_EVT_DOWN, {pointerId: 122});
+        app.stage.emit(POINTER_EVT_MOVE, {pointerId: 122});
+        app.stage.emit(POINTER_EVT_UP, {pointerId: 122});
+
+        expect(seen).toEqual([122]);
+        sub.unsubscribe();
     });
 });
