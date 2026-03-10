@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.2.2 - 2026-03-10
+
+- Version alignment release: bumped package version to  for monorepo consistency.
+
+
+
 ## 1.2.1 - 2026-03-09
 
 - Guarded scale-tracking ticker bindings to require `add`/`remove` APIs before subscribing, preventing test/runtime errors when minimal ticker mocks are used.

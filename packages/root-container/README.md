@@ -32,6 +32,7 @@ const zoom = makeStageZoomable(app, zoomPan, {
   minZoom: 0.25,
   maxZoom: 6,
   zoomSpeed: 0.1,
+  renderThrottleMs: 30,
 });
 
 zoom.setZoom(1.5);
@@ -91,8 +92,17 @@ Emits `stage-drag` events on `app.stage`:
 Options:
 
 ```ts
-{ minZoom?: number, maxZoom?: number, zoomSpeed?: number }
+{ minZoom?: number, maxZoom?: number, zoomSpeed?: number, renderThrottleMs?: number }
 ```
+
+`renderThrottleMs` controls how often wheel-driven zoom requests trigger `app.render()` (default `30ms`).
+`setZoom(...)` always forces an immediate `app.render()`.
+Set `renderThrottleMs: 0` to render on every wheel event.
+
+Rendering is app-scoped and shared via `@wonderlandlabs-pixi-ux/utils#getSharedRenderHelper(app, ...)`.
+That means drag/zoom observers on the same app use one shared throttle stream.
+The first shared helper retrieval/config for a given app wins, so set policy during app boot.
+Shared helper internals live for the app lifetime and auto-clean on `app.destroy(...)`.
 
 Returns:
 - `setZoom(zoom)`

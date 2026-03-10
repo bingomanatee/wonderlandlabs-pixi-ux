@@ -5161,7 +5161,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wonderlandlabs-pixi-ux/box@npm:1.2.0, @wonderlandlabs-pixi-ux/box@workspace:packages/box":
+"@wonderlandlabs-pixi-ux/box@npm:1.2.2, @wonderlandlabs-pixi-ux/box@workspace:packages/box":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/box@workspace:packages/box"
   dependencies:
@@ -5190,13 +5190,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wonderlandlabs-pixi-ux/button@npm:1.2.1, @wonderlandlabs-pixi-ux/button@workspace:packages/button":
+"@wonderlandlabs-pixi-ux/button@npm:1.2.2, @wonderlandlabs-pixi-ux/button@workspace:packages/button":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/button@workspace:packages/button"
   dependencies:
-    "@wonderlandlabs-pixi-ux/box": "npm:1.2.0"
-    "@wonderlandlabs-pixi-ux/style-tree": "npm:1.2.0"
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/box": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/style-tree": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.3.6"
@@ -5209,7 +5209,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/caption@workspace:packages/caption"
   dependencies:
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.3.6"
@@ -5239,7 +5239,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/drag@workspace:packages/drag"
   dependencies:
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
   peerDependencies:
@@ -5251,7 +5251,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/grid@workspace:packages/grid"
   dependencies:
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     pixi.js: "npm:8.16.0"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
@@ -5278,10 +5278,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wonderlandlabs-pixi-ux/observe-drag@npm:1.2.0, @wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag":
+"@wonderlandlabs-pixi-ux/observe-drag@npm:1.2.2, @wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/observe-drag@workspace:packages/observe-drag"
   dependencies:
+    "@wonderlandlabs-pixi-ux/utils": "npm:1.2.2"
     pixi.js: "npm:8.16.0"
     rxjs: "npm:^7.8.2"
     typescript: "npm:^5.5.4"
@@ -5317,12 +5318,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@wonderlandlabs-pixi-ux/resizer@npm:1.2.1, @wonderlandlabs-pixi-ux/resizer@workspace:packages/resizer":
+"@wonderlandlabs-pixi-ux/resizer@npm:1.2.2, @wonderlandlabs-pixi-ux/resizer@workspace:packages/resizer":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/resizer@workspace:packages/resizer"
   dependencies:
-    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.0"
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     pixi.js: "npm:8.16.0"
     rxjs: "npm:^7.8.2"
     typescript: "npm:^5.5.4"
@@ -5335,7 +5336,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/root-container@workspace:packages/root-container"
   dependencies:
-    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.0"
+    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/utils": "npm:1.2.2"
     pixi.js: "npm:8.16.0"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
@@ -5351,7 +5353,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wonderlandlabs-pixi-ux/style-tree@npm:1.2.0, @wonderlandlabs-pixi-ux/style-tree@workspace:packages/style-tree":
+"@wonderlandlabs-pixi-ux/style-tree@npm:1.2.2, @wonderlandlabs-pixi-ux/style-tree@workspace:packages/style-tree":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/style-tree@workspace:packages/style-tree"
   dependencies:
@@ -5372,7 +5374,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wonderlandlabs-pixi-ux/ticker-forest@npm:1.2.1, @wonderlandlabs-pixi-ux/ticker-forest@workspace:packages/ticker-forest":
+"@wonderlandlabs-pixi-ux/ticker-forest@npm:1.2.2, @wonderlandlabs-pixi-ux/ticker-forest@workspace:packages/ticker-forest":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/ticker-forest@workspace:packages/ticker-forest"
   dependencies:
@@ -5398,18 +5400,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@wonderlandlabs-pixi-ux/toolbar@npm:1.2.1, @wonderlandlabs-pixi-ux/toolbar@workspace:packages/toolbar":
+"@wonderlandlabs-pixi-ux/toolbar@npm:1.2.2, @wonderlandlabs-pixi-ux/toolbar@workspace:packages/toolbar":
   version: 0.0.0-use.local
   resolution: "@wonderlandlabs-pixi-ux/toolbar@workspace:packages/toolbar"
   dependencies:
-    "@wonderlandlabs-pixi-ux/button": "npm:1.2.1"
-    "@wonderlandlabs-pixi-ux/style-tree": "npm:1.2.0"
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/button": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/style-tree": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
     typescript: "npm:^5.5.4"
     vitest: "npm:^4.0.18"
     zod: "npm:^4.3.6"
   peerDependencies:
     pixi.js: 8.16.0
+  languageName: unknown
+  linkType: soft
+
+"@wonderlandlabs-pixi-ux/utils@npm:1.2.2, @wonderlandlabs-pixi-ux/utils@workspace:packages/utils":
+  version: 0.0.0-use.local
+  resolution: "@wonderlandlabs-pixi-ux/utils@workspace:packages/utils"
+  dependencies:
+    rxjs: "npm:^7.8.2"
+    typescript: "npm:^5.5.4"
+    vitest: "npm:^4.0.18"
   languageName: unknown
   linkType: soft
 
@@ -5436,10 +5448,10 @@ __metadata:
   resolution: "@wonderlandlabs-pixi-ux/window@workspace:packages/window"
   dependencies:
     "@types/lodash-es": "npm:^4.17.12"
-    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.0"
-    "@wonderlandlabs-pixi-ux/resizer": "npm:1.2.1"
-    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.1"
-    "@wonderlandlabs-pixi-ux/toolbar": "npm:1.2.1"
+    "@wonderlandlabs-pixi-ux/observe-drag": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/resizer": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/ticker-forest": "npm:1.2.2"
+    "@wonderlandlabs-pixi-ux/toolbar": "npm:1.2.2"
     "@wonderlandlabs/forestry4": "npm:^4.1.15"
     lodash-es: "npm:^4.17.22"
     rxjs: "npm:^7.8.2"

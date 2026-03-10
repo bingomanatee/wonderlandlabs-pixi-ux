@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.2.2 - 2026-03-10
+
+- Version alignment release: bumped package version to  for monorepo consistency.
+
+
+
 ## 1.1.8 - 2026-03-04
 
 - Added an optional `coordinateSpace` parameter to `startDragContainer(...)` so drag deltas are resolved in an explicit shared local space.

@@ -1,5 +1,6 @@
 import type { Application, Container as PixiContainer, FederatedWheelEvent } from 'pixi.js';
-import { Point } from 'pixi.js';
+import { RENDER_THROTTLE_MS } from '@wonderlandlabs-pixi-ux/observe-drag';
+import { getSharedRenderHelper } from '@wonderlandlabs-pixi-ux/utils';
 import type { ZoomOptions, StageZoomableResult, StageZoomEvent } from './types';
 
 /**
@@ -22,6 +23,10 @@ export function makeStageZoomable(
   const minZoom = options.minZoom ?? 0.1;
   const maxZoom = options.maxZoom ?? 10;
   const zoomSpeed = options.zoomSpeed ?? 0.1;
+  const renderThrottleMs = options.renderThrottleMs ?? RENDER_THROTTLE_MS;
+  const renderHelper = getSharedRenderHelper(app, {
+    throttleMs: renderThrottleMs,
+  });
   const maybeApp = app as unknown as {
     canvas?: HTMLCanvasElement;
     renderer?: { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement };
@@ -37,7 +42,7 @@ export function makeStageZoomable(
     event.stopPropagation();
 
     // Get mouse position in world coordinates before zoom
-    const mousePosition = new Point(event.global.x, event.global.y);
+    const mousePosition = { x: event.global.x, y: event.global.y };
     const worldPosBefore = container.toLocal(mousePosition);
 
     // Calculate new zoom level
@@ -64,6 +69,8 @@ export function makeStageZoomable(
         zoom: clampedScale,
         mousePosition: { x: event.global.x, y: event.global.y },
       } as StageZoomEvent);
+
+      renderHelper.request();
     });
   };
 
@@ -78,6 +85,7 @@ export function makeStageZoomable(
   const setZoom = (zoom: number) => {
     const clampedZoom = Math.max(minZoom, Math.min(maxZoom, zoom));
     container.scale.set(clampedZoom, clampedZoom);
+    renderHelper.now();
   };
 
   const getZoom = (): number => {
@@ -88,6 +96,7 @@ export function makeStageZoomable(
   const destroy = () => {
     app.stage.off('wheel', onWheel);
     nativeWheelTarget?.removeEventListener('wheel', onNativeWheel);
+    renderHelper.destroy();
   };
 
   return {

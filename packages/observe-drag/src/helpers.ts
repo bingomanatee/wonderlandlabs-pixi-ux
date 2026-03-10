@@ -1,4 +1,5 @@
-import {BehaviorSubject, debounceTime, Subject, Subscription, throttleTime} from 'rxjs';
+import {BehaviorSubject, debounceTime, Subject, Subscription} from 'rxjs';
+import {getSharedRenderHelper, type RenderHelper} from '@wonderlandlabs-pixi-ux/utils';
 import {
     DEBUG_SOURCE,
     DRAG_INACTIVITY_TIMEOUT_MS,
@@ -19,11 +20,8 @@ import type {
 } from './type';
 
 const moduleActivePointer$ = new BehaviorSubject<DragOwner>(null);
-const NOOP_RENDER_HELPER = {
-    request(): void {},
-    now(): void {},
-    destroy(): void {},
-};
+
+export type {RenderHelper};
 
 export function resolveActivePointer(
     configuredActivePointer$?: ActivePointerLike,
@@ -38,12 +36,6 @@ export interface ResolvedFactoryInputs<PtrEvent extends PixiEventLike = PixiEven
     stageTarget: PixiEventTargetLike<PtrEvent>;
     activePointer$: ActivePointerLike;
     renderHelperFactory: () => RenderHelper;
-}
-
-export interface RenderHelper {
-    request(): void;
-    now(): void;
-    destroy(): void;
 }
 
 export interface ParsedSubscriptionOptions<
@@ -84,30 +76,11 @@ function createRenderHelperFactory<PtrEvent extends PixiEventLike = PixiEventLik
     app?: PixiApplicationLike<PtrEvent>,
     renderThrottleMs: number = RENDER_THROTTLE_MS,
 ): () => RenderHelper {
-    if (!app?.render) {
-        return () => NOOP_RENDER_HELPER;
-    }
-
     return () => {
-        const renderPulse$ = new Subject<void>();
-        const renderSub = renderPulse$
-            .pipe(throttleTime(renderThrottleMs))
-            .subscribe(() => {
-                app.render?.();
-            });
-
-        return {
-            request(): void {
-                renderPulse$.next();
-            },
-            now(): void {
-                app.render?.();
-            },
-            destroy(): void {
-                renderSub.unsubscribe();
-                renderPulse$.complete();
-            },
-        };
+        return getSharedRenderHelper(app, {
+            throttleMs: renderThrottleMs,
+            trailing: false,
+        });
     };
 }
 

@@ -1,160 +1,55 @@
-# Pixi Utils - Yarn Berry Monorepo
+# Wonderlandlabs Pixi UX Monorepo
 
-A Yarn Berry (v4) monorepo with workspace packages for grid, observe-drag, window, toolbar, and related Pixi utilities.
+Reusable PixiJS UI/state packages for windows, drag/resize flows, layout, and rendering helpers.
+This repo publishes the `@wonderlandlabs-pixi-ux/*` package set and keeps versions aligned for coordinated releases.
 
-## Structure
+## Repository Layout
 
-```
+```text
 wonderlandlabs-pixi-ux/
-├── packages/
-│   ├── grid/          # Grid component with configurable rows/cols
-│   ├── window/        # Window system with drag/resize support
-│   ├── caption/       # Caption bubbles and thought balloons
-│   └── observe-drag/  # Drag observer utilities
+├── packages/                # publishable packages
+│   ├── observe-drag/
+│   ├── root-container/
+│   ├── resizer/
+│   ├── window/
+│   ├── utils/
+│   └── ...
 └── apps/
-    └── demo/          # Vite React demo application
+    ├── docs/                # Docusaurus docs/blog
+    └── package-validator/   # integration/validation app
 ```
 
-## Features
+## Package Focus
 
-- **Yarn Berry (v4.0.2)** with `node-modules` linker for traditional node_modules everywhere
-- **TypeScript** support across all packages
-- **Workspace dependencies** using `workspace:^` protocol
-- **Vite** for fast development and building
+- `@wonderlandlabs-pixi-ux/observe-drag`: serialized pointer drag ownership + drag decorators.
+- `@wonderlandlabs-pixi-ux/root-container`: centered root + zoom/pan decorators.
+- `@wonderlandlabs-pixi-ux/resizer`: interactive handle-based resize system.
+- `@wonderlandlabs-pixi-ux/window`: draggable/resizable windows with titlebar/content renderers.
+- `@wonderlandlabs-pixi-ux/ticker-forest`: ticker-synchronized resolve/dirty base class.
+- `@wonderlandlabs-pixi-ux/utils`: shared runtime helpers (including shared render-helper singleton/lifecycle behavior).
 
-## Getting Started
+See [CONTROLLERS.md](./CONTROLLERS.md) for controller conventions and usage patterns.
 
-### Prerequisites
+## Versioning and Release Policy
 
-- Node.js 18+ 
-- Corepack enabled (comes with Node.js 16.10+)
+- Global alignment releases should update:
+1. all `packages/*/package.json` versions
+2. all internal `@wonderlandlabs-pixi-ux/*` dependency pins
+3. the root [package.json](./package.json) version
+- For the shared render-helper model:
+1. first shared-helper retrieval for an app sets that app’s timing config
+2. the helper lives for the app lifetime and auto-cleans on `app.destroy(...)`
+3. later retrievals for the same app reuse that first helper/config
 
-### Installation
-
-```bash
-# Enable corepack if not already enabled
-corepack enable
-
-# Install dependencies
-yarn install
-```
-
-### Development
-
-```bash
-# Start the demo app in development mode
-yarn dev
-
-# Build all packages
-yarn build
-
-# Clean all build artifacts
-yarn clean
-```
-
-## Packages
-
-### @wonderlandlabs-pixi-ux/grid
-
-Grid component with configurable size and Forestry state controller.
-
-**Component:**
-```tsx
-import { Grid } from '@wonderlandlabs-pixi-ux/grid';
-
-<Grid rows={3} cols={3} gap={16}>
-  {/* children */}
-</Grid>
-```
-
-**Controller:**
-```tsx
-import { GridStore } from '@wonderlandlabs-pixi-ux/grid';
-
-const gridStore = new GridStore({ rows: 4, cols: 4, gap: 10 });
-gridStore.setRows(5);
-```
-
-### @wonderlandlabs-pixi-ux/observe-drag
-
-Serialized drag observer utilities for Pixi pointer workflows.
-
-```tsx
-import observeDrag, { dragDecorator } from '@wonderlandlabs-pixi-ux/observe-drag';
-
-const observeDown = observeDrag({ stage: app.stage });
-const sub = observeDown(target, dragDecorator(), { dragTarget: container });
-```
-
-## Demo App
-
-The demo app (`apps/demo`) showcases core package integrations:
-
-- Adjust grid size (rows/columns) with input controls
-- Responsive grid layout
-
-## Forestry Controllers
-
-All packages include Forestry4-based state controllers for reactive state management:
-
-- **GridStore** - Manage grid configuration with rows, columns, and cell calculations
-- **observe-drag** - Serialize drag ownership and lifecycle callbacks
-
-See [CONTROLLERS.md](./CONTROLLERS.md) for detailed documentation and examples.
-
-## TickerForest Scale Tracking
-
-`@wonderlandlabs-pixi-ux/ticker-forest` supports scale-aware dirty tracking and counter-scale helpers for zoom-stable UI rendering.
-
-- `getScale(): { x, y }` reads the container scale (root-relative by default)
-- `getInverseScale(): { x, y }` returns `1 / getScale()` per axis for counter-scaling
-- `dirtyOnScale` can automatically dirty a store when observed scale changes
-
-`dirtyOnScale` accepts:
-- `true` for defaults (`watchX`, `watchY`, `epsilon: 0.0001`, root-relative)
-- object config:
-  - `enabled?: boolean`
-  - `watchX?: boolean`
-  - `watchY?: boolean`
-  - `epsilon?: number`
-  - `relativeToRootParent?: boolean`
-
-Example:
-
-```ts
-new SomeStore(
-  { value: initialState },
-  {
-    ticker,
-    container,
-    dirtyOnScale: {
-      enabled: true,
-      watchX: true,
-      watchY: true,
-      epsilon: 0.0001,
-      relativeToRootParent: true,
-    },
-  }
-);
-```
-
-## Scripts
-
-- `yarn dev` - Start the demo app in development mode
-- `yarn build` - Build all packages and apps
-- `yarn clean` - Remove all dist folders
-- `yarn workspace <workspace-name> <command>` - Run commands in specific workspaces
-
-## Package Inter-Dependencies
-
-Internal package dependencies (workspace-to-workspace) are:
+## Internal Dependency Topology
 
 | Package | Internal dependencies |
 | --- | --- |
 | `@wonderlandlabs-pixi-ux/style-tree` | _none_ |
 | `@wonderlandlabs-pixi-ux/ticker-forest` | _none_ |
-| `@wonderlandlabs-pixi-ux/observe-drag` | _none_ |
-| `@wonderlandlabs-pixi-ux/root-container` | `@wonderlandlabs-pixi-ux/observe-drag` |
+| `@wonderlandlabs-pixi-ux/utils` | _none_ |
+| `@wonderlandlabs-pixi-ux/observe-drag` | `@wonderlandlabs-pixi-ux/utils` |
+| `@wonderlandlabs-pixi-ux/root-container` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/utils` |
 | `@wonderlandlabs-pixi-ux/box` | _none_ |
 | `@wonderlandlabs-pixi-ux/button` | `@wonderlandlabs-pixi-ux/box`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/caption` | `@wonderlandlabs-pixi-ux/ticker-forest` |
@@ -164,50 +59,54 @@ Internal package dependencies (workspace-to-workspace) are:
 | `@wonderlandlabs-pixi-ux/toolbar` | `@wonderlandlabs-pixi-ux/button`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/window` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/resizer`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/toolbar` |
 
-### Manual Publish Order
-
-If publishing manually, use this dependency-safe order:
+## Manual Publish Order
 
 1. `@wonderlandlabs-pixi-ux/style-tree`
 2. `@wonderlandlabs-pixi-ux/ticker-forest`
-3. `@wonderlandlabs-pixi-ux/observe-drag`
-4. `@wonderlandlabs-pixi-ux/box`
-5. `@wonderlandlabs-pixi-ux/drag` (deprecated standalone package; no longer required by `window`)
-6. `@wonderlandlabs-pixi-ux/root-container`
-7. `@wonderlandlabs-pixi-ux/button` --- this and below may have semver above the current monorepo's version
-8. `@wonderlandlabs-pixi-ux/caption`
-9. `@wonderlandlabs-pixi-ux/grid`
-10. `@wonderlandlabs-pixi-ux/resizer`
-11. `@wonderlandlabs-pixi-ux/toolbar`
-12. `@wonderlandlabs-pixi-ux/window`
+3. `@wonderlandlabs-pixi-ux/utils`
+4. `@wonderlandlabs-pixi-ux/observe-drag`
+5. `@wonderlandlabs-pixi-ux/box`
+6. `@wonderlandlabs-pixi-ux/drag` (deprecated)
+7. `@wonderlandlabs-pixi-ux/root-container`
+8. `@wonderlandlabs-pixi-ux/button`
+9. `@wonderlandlabs-pixi-ux/caption`
+10. `@wonderlandlabs-pixi-ux/grid`
+11. `@wonderlandlabs-pixi-ux/resizer`
+12. `@wonderlandlabs-pixi-ux/toolbar`
+13. `@wonderlandlabs-pixi-ux/window`
 
-as we much build and link each package in order, manual build, publish for each is reccommended. 
-i.e., 
+## Workspace Tooling (Yarn)
 
-1. set all packages to the next version
-2. insure all imports use the same semver
-3. build each package, then publish it
+### Prerequisites
 
-### semver update policy
+- Node.js `>=20`
+- Corepack enabled
 
-Any time the first five packages change, the entire monorepo needs to be republished with a semver
-higher than the highest current package, as they have dependencies in other packages that are 
-too complex to safely synchronize. However minor changes to the other packages may slip in 
-during rapid development as their interfaces are tweaked. Thus, the version of the bottom half don't necessarily
-relate to anything other than indicating they depend on the packages above. 
+### Install
 
-## Configuration
+```bash
+corepack enable
+yarn install
+```
 
-### Yarn Berry
+### Common Commands
 
-The project uses Yarn Berry with the following configuration (`.yarnrc.yml`):
+```bash
+yarn build
+yarn clean
+yarn test
+yarn docs:dev
+yarn package-validator:dev
+```
+
+### Yarn Configuration
+
+From `.yarnrc.yml`:
 
 ```yaml
 nodeLinker: node-modules
 enableGlobalCache: false
 ```
-
-This ensures traditional `node_modules` folders are created in each workspace.
 
 ## License
 

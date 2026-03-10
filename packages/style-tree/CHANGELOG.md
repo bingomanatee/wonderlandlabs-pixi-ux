@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.2.2 - 2026-03-10
+
+- Version alignment release: bumped package version to  for monorepo consistency.
+
+
+
 ## 1.1.1 - 2026-02-27
 
 - Instituted a deeper style-key pattern using dot-separated noun parts, with interCaps compatibility in style-tree.

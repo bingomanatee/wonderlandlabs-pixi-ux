@@ -95,6 +95,9 @@ const sub = observeDown(
 - Subscription options support `dragTarget` (static), `getDragTarget(downEvent, context)` (dynamic), and `abortTime` (watchdog timeout in ms; `0` disables it).
 - Factory options support `activePointer$` so you can provide your own lock instead of using the default module singleton.
 - Factory options also support `stage` (when `app` is not provided), optional `app` for drag render calls, and `renderThrottleMs` to tune render throttle (default `30`).
+- Drag render throttling uses an app-scoped shared helper cache (`WeakMap`), so multiple drag/zoom consumers on the same app share one throttle stream.
+- The first shared helper retrieval/config for a given app wins; later retrievals use that same timing profile.
+- Shared helper internals live for the app lifetime and auto-clean on `app.destroy(...)`.
 - `dragDecorator()` provides default Pixi container dragging using parent-local coordinates, then delegates to your wrapped listeners.
 - `dragDecorator()` works with no parameters.
 - `dragTargetDecorator()` is deprecated and remains as a compatibility wrapper.

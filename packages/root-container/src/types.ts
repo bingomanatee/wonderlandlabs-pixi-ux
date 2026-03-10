@@ -33,6 +33,7 @@ export interface ZoomOptions {
   minZoom?: number;
   maxZoom?: number;
   zoomSpeed?: number;
+  renderThrottleMs?: number;
 }
 
 export interface StageZoomableResult {

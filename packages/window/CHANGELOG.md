@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.2.2 - 2026-03-10
+
+- Version alignment release: bumped package version to  for monorepo consistency.
+
+
+
 ## 1.1.13 - 2026-03-06
 
 - Breaking: replaced titlebar render hooks with `titlebarContentRenderer` using a single object parameter:
