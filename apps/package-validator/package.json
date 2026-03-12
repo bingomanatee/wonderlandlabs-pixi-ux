@@ -10,12 +10,10 @@
     "validate:release": "node ./src/validate-release.mjs"
   },
   "dependencies": {
-    "@published/drag": "npm:@wonderlandlabs-pixi-ux/drag@1.2.2",
     "@published/grid": "npm:@wonderlandlabs-pixi-ux/grid@1.2.2",
     "@published/resizer": "npm:@wonderlandlabs-pixi-ux/resizer@1.2.2",
     "@published/root-container": "npm:@wonderlandlabs-pixi-ux/root-container@1.2.2",
     "@published/window": "npm:@wonderlandlabs-pixi-ux/window@1.2.2",
-    "@wonderlandlabs-pixi-ux/drag": "1.2.2",
     "@wonderlandlabs-pixi-ux/grid": "1.2.3",
     "@wonderlandlabs-pixi-ux/resizer": "1.2.3",
     "@wonderlandlabs-pixi-ux/root-container": "1.2.3",

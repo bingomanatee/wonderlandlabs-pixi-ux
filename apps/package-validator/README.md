@@ -28,7 +28,6 @@ From the repo root:
 
 - `root-container`
 - `grid`
-- `drag`
 - `resizer`
 - `resizer-snap`
 - `window-snap`
@@ -37,7 +36,7 @@ From the repo root:
 
 - `/root-container/published` loads npm latest via alias (`@published/root-container -> @wonderlandlabs-pixi-ux/root-container@latest`)
 - `/root-container/workspace` loads workspace package (`@wonderlandlabs-pixi-ux/root-container`)
-- Same pattern for `/grid/*`, `/resizer/*`, `/resizer-snap/*`, `/window-snap/*`, and `/drag/*`
+- Same pattern for `/grid/*`, `/resizer/*`, `/resizer-snap/*`, and `/window-snap/*`
 
 ## Release workflow
 

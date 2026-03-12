@@ -6,7 +6,7 @@ import { defineConfig } from 'vite';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '../..');
-const PUBLISHED_ALIAS_TARGETS = ['drag', 'resizer', 'grid', 'root-container', 'window'];
+const PUBLISHED_ALIAS_TARGETS = ['resizer', 'grid', 'root-container', 'window'];
 
 function rewritePublishedWorkspaceImports() {
   const importPattern = new RegExp(`@wonderlandlabs-pixi-ux/(${PUBLISHED_ALIAS_TARGETS.join('|')})`, 'g');
@@ -38,13 +38,11 @@ export default defineConfig({
     exclude: [
       '@wonderlandlabs-pixi-ux/root-container',
       '@wonderlandlabs-pixi-ux/grid',
-      '@wonderlandlabs-pixi-ux/drag',
       '@wonderlandlabs-pixi-ux/resizer',
       '@wonderlandlabs-pixi-ux/window',
       '@published/root-container',
       '@published/grid',
       '@published/resizer',
-      '@published/drag',
       '@published/window',
     ],
   },

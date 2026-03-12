@@ -107,7 +107,6 @@ export default function PackageValidatorRoute() {
     y: 0,
     error: null,
   });
-  const [dragStep, setDragStep] = useState(20);
 
   const resolvedRoute = resolveRoute(params.packageId, params.sourceMode);
   const selected = useMemo(
@@ -116,7 +115,6 @@ export default function PackageValidatorRoute() {
   );
   const selectedSourceMode = resolvedRoute.sourceMode;
   const selectedPackageId = selected.id;
-  const isDragRoute = selectedPackageId === "drag";
 
   useEffect(() => {
     if (params.packageId !== resolvedRoute.packageId || params.sourceMode !== resolvedRoute.sourceMode) {
@@ -257,85 +255,6 @@ export default function PackageValidatorRoute() {
             },
             onDestroy() {
               manager.cleanup();
-              app.destroy(true);
-              if (mountNode) {
-                mountNode.innerHTML = "";
-              }
-            },
-          });
-          return;
-        }
-
-        if (selectedPackageId === "drag") {
-          app.stage.eventMode = "static";
-          app.stage.hitArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
-
-          const square = new Graphics().rect(-35, -35, 70, 70).fill(0x1d4ed8).stroke({ width: 2, color: 0xffffff, alpha: 0.8 });
-          square.eventMode = "static";
-          square.cursor = "grab";
-          square.position.set(app.screen.width / 2, app.screen.height / 2);
-          app.stage.addChild(square);
-
-          let pointerX = 0;
-          let pointerY = 0;
-          const observe = createDemoObserver(setDemo, () => ({
-            zoom: 1,
-            x: Math.round(square.position.x),
-            y: Math.round(square.position.y),
-          }));
-          const store = new mod.DragStore({
-            app,
-            callbacks: {
-              onDrag(state) {
-                square.position.set(state.initialItemX + state.deltaX, state.initialItemY + state.deltaY);
-                observe();
-              },
-              onDragEnd() {
-                observe();
-              },
-            },
-          });
-
-          const onPointerDown = (event) => {
-            event.stopPropagation();
-            square.cursor = "grabbing";
-            store.startDragContainer("demo-item", event, square);
-          };
-          square.on("pointerdown", onPointerDown);
-          const onPointerRelease = () => {
-            square.cursor = "grab";
-          };
-          app.stage.on("pointerup", onPointerRelease);
-          app.stage.on("pointerupoutside", onPointerRelease);
-
-          observe();
-
-          rootDemoApiRef.current = createDemoController({
-            observe,
-            onSetZoom() {},
-            onPanBy(dx, dy) {
-              if (!store.value.isDragging) {
-                store.startDrag("demo-item", pointerX, pointerY, square.position.x, square.position.y);
-              }
-              pointerX += dx;
-              pointerY += dy;
-              store.updateDrag(pointerX, pointerY);
-              const position = store.getCurrentItemPosition();
-              if (position) {
-                square.position.set(position.x, position.y);
-              }
-            },
-            onResetView() {
-              store.cancelDrag();
-              pointerX = 0;
-              pointerY = 0;
-              square.position.set(app.screen.width / 2, app.screen.height / 2);
-            },
-            onDestroy() {
-              square.off("pointerdown", onPointerDown);
-              app.stage.off("pointerup", onPointerRelease);
-              app.stage.off("pointerupoutside", onPointerRelease);
-              store.destroy();
               app.destroy(true);
               if (mountNode) {
                 mountNode.innerHTML = "";
@@ -848,21 +767,17 @@ export default function PackageValidatorRoute() {
             <div className="control-split">
               <div className="zoom-controls">
                 <label className="zoom-label" htmlFor="zoom-slider">
-                  {isDragRoute ? `Step: ${dragStep}px` : `Zoom: ${demo.zoom.toFixed(2)}x`}
+                  {`Zoom: ${demo.zoom.toFixed(2)}x`}
                 </label>
                 <input
                   id="zoom-slider"
                   type="range"
-                  min={isDragRoute ? "5" : "0.25"}
-                  max={isDragRoute ? "60" : "2.5"}
-                  step={isDragRoute ? "1" : "0.01"}
-                  value={isDragRoute ? dragStep : demo.zoom}
+                  min="0.25"
+                  max="2.5"
+                  step="0.01"
+                  value={demo.zoom}
                   onChange={(event) => {
                     const nextValue = Number(event.target.value);
-                    if (isDragRoute) {
-                      setDragStep(nextValue);
-                      return;
-                    }
                     rootDemoApiRef.current?.setZoom(nextValue);
                   }}
                   disabled={demo.status !== "ready"}
@@ -874,7 +789,7 @@ export default function PackageValidatorRoute() {
                     <button
                       type="button"
                       className="icon-button pan-up"
-                      onClick={() => rootDemoApiRef.current?.panBy(0, -(isDragRoute ? dragStep : 20))}
+                      onClick={() => rootDemoApiRef.current?.panBy(0, -20)}
                       disabled={demo.status !== "ready"}
                       aria-label="Pan up"
                       title="Pan up"
@@ -884,7 +799,7 @@ export default function PackageValidatorRoute() {
                     <button
                       type="button"
                       className="icon-button pan-left"
-                      onClick={() => rootDemoApiRef.current?.panBy(-(isDragRoute ? dragStep : 20), 0)}
+                      onClick={() => rootDemoApiRef.current?.panBy(-20, 0)}
                       disabled={demo.status !== "ready"}
                       aria-label="Pan left"
                       title="Pan left"
@@ -894,7 +809,7 @@ export default function PackageValidatorRoute() {
                     <button
                       type="button"
                       className="icon-button pan-right"
-                      onClick={() => rootDemoApiRef.current?.panBy(isDragRoute ? dragStep : 20, 0)}
+                      onClick={() => rootDemoApiRef.current?.panBy(20, 0)}
                       disabled={demo.status !== "ready"}
                       aria-label="Pan right"
                       title="Pan right"
@@ -904,7 +819,7 @@ export default function PackageValidatorRoute() {
                     <button
                       type="button"
                       className="icon-button pan-down"
-                      onClick={() => rootDemoApiRef.current?.panBy(0, isDragRoute ? dragStep : 20)}
+                      onClick={() => rootDemoApiRef.current?.panBy(0, 20)}
                       disabled={demo.status !== "ready"}
                       aria-label="Pan down"
                       title="Pan down"

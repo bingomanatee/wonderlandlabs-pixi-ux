@@ -30,62 +30,6 @@ async function withPixiCanvas(mountNode, run) {
   }
 }
 
-async function runDragTest(mod, ctx) {
-  await withPixiCanvas(ctx.mountNode, async (app) => {
-    app.stage.eventMode = 'static';
-    app.stage.hitArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
-
-    const frame = new Container();
-    frame.position.set(app.screen.width / 2, app.screen.height / 2);
-    app.stage.addChild(frame);
-
-    const scaleCarrier = new Container();
-    scaleCarrier.scale.set(1.5);
-    frame.addChild(scaleCarrier);
-
-    const square = new Graphics().rect(-20, -20, 40, 40).fill(0x1d4ed8);
-    square.eventMode = 'static';
-    square.position.set(0, 0);
-    scaleCarrier.addChild(square);
-
-    const store = new mod.DragStore({
-      app,
-      callbacks: {
-        onDrag(state) {
-          square.position.set(state.initialItemX + state.deltaX, state.initialItemY + state.deltaY);
-        },
-      },
-    });
-
-    const onPointerDown = (event) => {
-      store.startDragContainer('item-1', event, square);
-    };
-    square.on('pointerdown', onPointerDown);
-
-    const waitForFrame = () => new Promise((resolve) => setTimeout(resolve, 25));
-    const eventAt = (x, y) => ({
-      global: { x, y },
-      stopPropagation() {},
-    });
-
-    const start = square.getGlobalPosition();
-    square.emit('pointerdown', eventAt(start.x, start.y));
-    app.stage.emit('pointermove', eventAt(start.x + 30, start.y + 15));
-    await waitForFrame();
-
-    assert(Math.round(square.position.x) === 20, 'scaled drag did not apply expected local-space x delta');
-    assert(Math.round(square.position.y) === 10, 'scaled drag did not apply expected local-space y delta');
-
-    app.stage.emit('pointerup', eventAt(start.x + 30, start.y + 15));
-    await waitForFrame();
-
-    store.endDrag();
-    square.off('pointerdown', onPointerDown);
-    store.destroy();
-  });
-  ctx.pass('validated drag store pointer flow under scaled parent coordinates');
-}
-
 async function runGridTest(mod, ctx) {
   await withPixiCanvas(ctx.mountNode, async (app) => {
     const zoomPan = new Container();
@@ -525,16 +469,6 @@ export const PACKAGE_DEFINITIONS = [
     heartbeat: runResizerSnapTest,
     publishedLoader: () => import('@published/resizer'),
     workspaceLoader: () => import('@wonderlandlabs-pixi-ux/resizer'),
-  }),
-  createPackageDefinition({
-    id: 'drag',
-    title: 'Drag',
-    workspaceImport: '@wonderlandlabs-pixi-ux/drag',
-    publishedImport: '@published/drag',
-    description: 'Drag state tracking with ticker synchronization.',
-    heartbeat: runDragTest,
-    publishedLoader: () => import('@published/drag'),
-    workspaceLoader: () => import('@wonderlandlabs-pixi-ux/drag'),
   }),
   createPackageDefinition({
     id: 'window-snap',

@@ -16,7 +16,7 @@
     "package-validator:dev": "yarn workspace @wonderlandlabs-pixi-ux/package-validator dev",
     "package-validator:build": "yarn workspace @wonderlandlabs-pixi-ux/package-validator build",
     "package-validator:preview": "yarn workspace @wonderlandlabs-pixi-ux/package-validator preview",
-    "build:validator-targets": "yarn workspace @wonderlandlabs-pixi-ux/root-container build && yarn workspace @wonderlandlabs-pixi-ux/grid build && yarn workspace @wonderlandlabs-pixi-ux/resizer build && yarn workspace @wonderlandlabs-pixi-ux/drag build",
+    "build:validator-targets": "yarn workspace @wonderlandlabs-pixi-ux/root-container build && yarn workspace @wonderlandlabs-pixi-ux/grid build && yarn workspace @wonderlandlabs-pixi-ux/resizer build && yarn workspace @wonderlandlabs-pixi-ux/window build",
     "validate:release": "yarn workspace @wonderlandlabs-pixi-ux/package-validator validate:release",
     "validate:release:built": "yarn build:validator-targets && yarn validate:release",
     "build": "yarn workspaces foreach -A run build",
