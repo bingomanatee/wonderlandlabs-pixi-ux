@@ -16,7 +16,8 @@ wonderlandlabs-pixi-ux/
 │   └── ...
 └── apps/
     ├── docs/                # Docusaurus docs/blog
-    └── package-validator/   # integration/validation app
+    ├── package-validator/   # integration/validation app
+    └── reveal/              # Reveal.js presentation app
 ```
 
 ## Package Focus
@@ -96,6 +97,7 @@ yarn build
 yarn clean
 yarn test
 yarn docs:dev
+yarn reveal:dev
 yarn package-validator:dev
 ```
 

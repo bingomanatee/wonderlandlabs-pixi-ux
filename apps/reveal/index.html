@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timeboard Presentation</title>
+    <link rel="stylesheet" href="/vendor/reveal.js/dist/reveal.css" />
+    <link rel="stylesheet" href="/vendor/reveal.js/dist/theme/white.css" id="theme" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="deck-frame">
+        <div class="reveal">
+          <div class="slides" id="slides-root"></div>
+        </div>
+        <div id="deck-count" class="deck-count" aria-hidden="true"></div>
+        <button
+          type="button"
+          id="restart-button"
+          class="restart-button"
+          aria-label="Start over"
+          title="Start over"
+        >
+          ↻
+        </button>
+      </main>
+
+      <footer class="bottombar">
+        <div class="bottombar-meta">
+          <div class="bottombar-heading">
+            <p class="bottombar-label">wonderlandlabs-pixi-ux</p>
+            <p class="bottombar-title">Timeboard Deck</p>
+          </div>
+          <p class="shortcut-hint">
+            `S` speaker notes. `Ctrl`/`Cmd` + `Shift` + `F` search.
+          </p>
+        </div>
+        <div class="controls">
+          <button type="button" id="notes-button" class="ghost-button">
+            Speaker notes
+          </button>
+          <button type="button" id="search-button" class="ghost-button ghost-button-secondary">
+            Search
+          </button>
+          <button type="button" id="fullscreen-button" class="ghost-button">
+            Fullscreen
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/vendor/reveal.js/dist/reveal.js"></script>
+    <script src="/vendor/reveal.js/dist/plugin/notes.js"></script>
+    <script src="/vendor/reveal.js/dist/plugin/search.js"></script>
+    <script src="/vendor/reveal.js/dist/plugin/zoom.js"></script>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

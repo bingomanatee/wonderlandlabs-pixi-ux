@@ -1,0 +1,123 @@
+ten: &component_deck
+  - title: "@wonderlandlabs-pixi-ux"
+    variant: section
+    subtitle: "https://wonderlandlabs-pixi-ux.netlify.app/intro"
+    body: "A module to add a layer of utility over the PIXI graphics framework."
+    bullets: 
+     - "https://github.com/wonderlandlabs-pixi-ux/wonderlandlabs-pixi-ux"
+
+  - title: "UX packages"
+    variant: section
+    bullets:
+      - "Box"
+      - "Grid"
+      - "Root Container"
+      - "Window"
+      - "Button"
+      - "Toolbar"
+      - "Caption"
+  - title: Box
+    subtitle: "@wonderlandlabs-pixi-ux/box"
+    body: "Tree-first box layout model and visual DSL based on Flexbox."
+    bullets:
+      - "Uses `BoxTree` to model flex-like rows, columns, padding, anchors, and alignment"
+      - "Allows for absolute and percentage/fractional sizing based on parent dimensions"
+      - "Represents UI as data, not direct imperative drawing code"
+      - "Allows for absolute positioned content"
+      - "Display agnostic; designed for PIXI, usable elsewhere (SVG? HTML?)"
+      - "content fields allow image loading or text panel creation"
+  - title: Grid
+    subtitle: "@wonderlandlabs-pixi-ux/grid"
+    body: "reference grid with adjustible horizontal/vertical lines"
+    bullets:
+      - "Draws workspace grids in a zoomable Pixi scene"
+      - "Designed to work with the root zoom/pan container"
+      - "Exposes grid line, artboard, and cache configuration types"
+      - "Minor lines collapse to prevent overly dense mesh"
+      - "Fully stylable color, spacing, and major line frequency"
+  - title: Root Container
+    subtitle: "@wonderlandlabs-pixi-ux/root-container"
+    body: "Centered root plus zoom/pan utilities for stage-level interaction."
+    bullets:
+      - Allows pointer drag to reposition entire display
+      - Mouse wheel or UX can zoom content to enlarge or reduce display
+  - title: Window
+    subtitle: "@wonderlandlabs-pixi-ux/window"
+    body: "Draggable, resizable Pixi windows."
+    bullets:
+      - "Persistent or hover-triggered titlebars per window"
+      - "Supports drag, resize, selection, close behavior, and titlebar composition"
+      - "Enforces window layer order"
+      - "Single window selection and color indicator"
+      - "Can be styled as a group or per window using the style-tree package"
+      - "Custom render functions for titlebars and content areas"
+  - title: Button
+    subtitle: "@wonderlandlabs-pixi-ux/button"
+    body: "Composable clickable button element"
+    bullets:
+      - "Provides a reusable button primitive for toolbar and window controls"
+      - "Combines layout, label/icon structure, and stateful style resolution"
+      - "allows per-button interaction styling and scripting"
+  - title: Toolbar
+    subtitle: "@wonderlandlabs-pixi-ux/toolbar"
+    body: "Collect multiple buttons for a control panel"
+    bullets:
+      - "Builds horizontal or vertical button groups from config"
+      - "Allows specific spacing of content for ease of display"
+      - "Can create floating or fixed controls for content or whole-page actions"
+  - title: Caption
+    subtitle: "@wonderlandlabs-pixi-ux/caption"
+    body: "Speech, thought, and rectangular caption bubbles for Pixi scenes."
+    bullets:
+      - "Supports rectangle and oval shapes plus optional speaker pointers"
+      - "Separates text styling from bubble background and stroke styling"
+      - "Useful for dialogue, annotations, and callouts inside a scene graph"
+  - title: "Behavior Modules"
+    variant: section
+    body: "Adds dynamic behavior to containers"
+    bullets:
+      - "Observe Drag"
+      - "Resizer"
+  - title: Observe Drag
+    subtitle: "@wonderlandlabs-pixi-ux/observe-drag"
+    body: "Pointer drag coordination with one active drag owner at a time."
+    bullets:
+      - "enables element relocation through pointer interaction"
+      - "`dragDecorator` and related helpers for Pixi container movement"
+      - "ensures a single drag executes fully before others are enabled"
+  - title: Resizer
+    subtitle: "@wonderlandlabs-pixi-ux/resizer"
+    body: "Resize handles and resize state for Pixi containers."
+    bullets:
+      - "Supports edge and corner handles plus min-size constraints"
+      - "Allows size constraint to preserve height/width aspect ratio"
+  - title: Support Modules
+    variant: section
+    body: "These packages are used to build up the previous packages"
+    bullets:
+      - "Style Tree"
+      - "Ticker Forest"
+      - "Utils"
+  - title: Style Tree
+    subtitle: "@wonderlandlabs-pixi-ux/style-tree"
+    body: "Hierarchical style matching using noun paths and state arrays."
+    bullets:
+      - "Matches selectors like `navigation.button.label.font.size` to target design elements"
+      - "Supports wildcards, base-state matching, and specificity ranking"
+      - "Lets component stores resolve styles without hardcoding visual tokens"
+      - "Uses variants for state like hover, disabled and visited for dynamic interaction"
+  - title: Ticker Forest
+    subtitle: "@wonderlandlabs-pixi-ux/ticker-forest"
+    body: "Base class for syncing Forestry state changes with Pixi ticker updates."
+    bullets:
+      - "queues change for re-rendering by marking content as dirty"
+      - "dirty nodes are marked for re-rendering through the resolve method"
+      - "Avoids Pixi side effects from updates outside ticker-driven render timing"
+  - title: Utils
+    subtitle: "@wonderlandlabs-pixi-ux/utils"
+    body: "Shared runtime helpers used across the package set."
+    bullets:
+      - "Allows for throttled re-rendering triggered by dirty TickerForests or other conditions"
+      - "Assists computing x and y scale against global/root scale from multiple nested containers"
+
+five: *component_deck
