@@ -17,6 +17,21 @@ require_command node
 require_command npm
 require_command yarn
 
+ensure_npm_auth() {
+  if [ -z "${NPM_TOKEN:-}" ]; then
+    echo "NPM_TOKEN is not exported in the environment." >&2
+    echo "The repo .npmrc expects //registry.npmjs.org/:_authToken=\${NPM_TOKEN}" >&2
+    echo "Export NPM_TOKEN before running release-publish." >&2
+    exit 1
+  fi
+
+  if ! npm whoami >/dev/null 2>&1; then
+    echo "npm authentication failed in the current script environment." >&2
+    echo "Verify that NPM_TOKEN is valid and exported before running release-publish." >&2
+    exit 1
+  fi
+}
+
 ensure_no_untracked_files() {
   local untracked
   untracked="$(git -C "$ROOT_DIR" ls-files --others --exclude-standard)"
@@ -159,6 +174,7 @@ NODE
 ensure_no_untracked_files
 ensure_no_unstaged_changes
 ensure_no_staged_changes
+ensure_npm_auth
 
 TARGET_VERSION="$(discover_target_version)"
 TAG_NAME="v$TARGET_VERSION"
