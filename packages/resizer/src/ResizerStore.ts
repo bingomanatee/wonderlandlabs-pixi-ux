@@ -99,9 +99,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         // Create handles
         this.createHandles();
         this.kickoff();
-        this.subscribe((value) => {
-            console.log('resizer value: ', JSON.stringify(value));
-        })
     }
 
     #initHitArea() {
@@ -119,7 +116,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
     protected resolve(): void {
         // Update handle positions
         this.updateHandles();
-        console.log('repositioned handles')
         this.drawRect?.(this.asRect, this.#targetContainer);
     }
 
@@ -155,7 +151,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             this.dragStartRect
         );
 
-        console.log('new rect:', JSON.stringify(newRect))
         this.setRect(newRect);
         this.updateHandles();
     }
@@ -357,7 +352,6 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
         this.handles.forEach((handle, position) => {
             const localPos = this.getHandleLocalPosition(position);
             if (localPos.x !== handle.position.x || localPos.y !== handle.position.y) {
-                console.log('shifting ', handle.position, 'to', localPos);
                 handle.x = localPos.x;
                 handle.y = localPos.y;
             }
