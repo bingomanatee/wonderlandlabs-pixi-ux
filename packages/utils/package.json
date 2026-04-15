@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs-pixi-ux/utils",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Shared utilities for wonderlandlabs-pixi-ux packages",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
