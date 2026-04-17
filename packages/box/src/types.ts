@@ -76,6 +76,12 @@ export const BoxAlign = z.object({
 });
 export type BoxAlignType = z.infer<typeof BoxAlign>;
 
+export const BoxContent = z.object({
+  type: z.enum(['url', 'text']),
+  value: z.string(),
+});
+export type BoxContentType = z.infer<typeof BoxContent>;
+
 export const BoxPoint = z.object({
   x: BoxSize,
   y: BoxSize,
@@ -106,27 +112,36 @@ export const RectPartial = RectTemplate.partial({
 
 export type RectPartialType = z.infer<typeof RectPartial>;
 
-export const BoxCell: z.ZodType<{
-  dim: RectPartialType; // the "configured" width; generally static 
-  location?: RectStaticType; // the absolute / 'dynamic' rectangle 
-  absolute: boolean;
-  name: string;
-  variant?: string;
-  align: z.infer<typeof BoxAlign>;
-  children?: any[];
-}> = z.lazy(() =>
-  z.object({
-    dim: RectPartial,
-    location: RectStatic.optional(),
-    absolute: z.boolean(),
-    variant: z.string().optional(),
-    name: z.string(),
-    align: BoxAlign,
-    children: z.array(z.lazy(() => BoxCell)).optional(),
-  }),
-);
+export const BoxCellData = z.object({
+  dim: RectPartial,
+  location: RectStatic.optional(),
+  absolute: z.boolean(),
+  variant: z.string().optional(),
+  states: z.array(z.string()).optional(),
+  content: BoxContent.optional(),
+  name: z.string(),
+  align: BoxAlign,
+});
 
-export type BoxCellType = z.infer<typeof BoxCell>;
+export type BoxCellDataType = z.infer<typeof BoxCellData>;
+
+export type BoxCellNodeType = BoxCellDataType & {
+  children?: BoxCellNodeType[];
+};
+
+// Backward-compatible aliases while the package migrates to the data/node naming split.
+export const BoxCell = BoxCellData;
+export type BoxCellType = BoxCellNodeType;
+
+export type BoxStyleQueryLike = {
+  nouns: string[];
+  states: string[];
+};
+
+export type BoxStyleManagerLike = {
+  match: (query: BoxStyleQueryLike) => unknown;
+  matchHierarchy?: (query: BoxStyleQueryLike) => unknown;
+};
 
 export const Axes = z.enum([AXIS_Y, AXIS_X]);
 export type AxesType = z.infer<typeof Axes>;

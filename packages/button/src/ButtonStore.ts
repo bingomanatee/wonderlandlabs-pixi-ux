@@ -1,8 +1,11 @@
 import {
-    BOX_RENDER_CONTENT_ORDER,
-    BOX_UX_LAYER,
-    BoxTree,
-    BoxUxPixi,
+    BoxStore,
+    DIR_HORIZ,
+    DIR_VERT,
+    POS_CENTER,
+    POS_START,
+    type BoxCellType,
+    type BoxContentType,
 } from '@wonderlandlabs-pixi-ux/box';
 import { TickerForest, type TickerForestConfig } from '@wonderlandlabs-pixi-ux/ticker-forest';
 import type { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
@@ -10,6 +13,7 @@ import {
     Application,
     CanvasTextMetrics,
     Container,
+    Graphics,
     Text,
     TextStyle,
     type ContainerOptions,
@@ -24,16 +28,38 @@ type ButtonState = Record<string, never>;
 
 type TickerSource = Application | { ticker: Ticker };
 
+type ButtonChildView = {
+    name: string;
+    rect: { x: number; y: number; width: number; height: number };
+    content?: BoxContentType;
+};
+
 type IconRef = {
-    tree: BoxTree;
+    key: 'icon' | 'rightIcon';
     sprite?: Sprite;
     container?: Container;
+    host?: Container;
     role: 'left' | 'right';
 };
 
 type LabelRef = {
-    tree: BoxTree;
+    key: 'label';
+    host: Container;
     textDisplay: Text;
+};
+
+type LayoutNodeSpec = {
+    key: string;
+    name: string;
+    width: number;
+    height: number;
+    content?: BoxContentType;
+};
+
+type ButtonLayoutView = {
+    contentRect: { x: number; y: number; width: number; height: number };
+    semanticChildren: ButtonChildView[];
+    absoluteChildren: ButtonChildView[];
 };
 
 function isApplication(value: TickerSource): value is Application {
@@ -47,14 +73,6 @@ function toTickerConfig(source: TickerSource): TickerForestConfig {
     return { ticker: source.ticker };
 }
 
-/**
- * ButtonStore - BoxTree-based button layout with Pixi rendering.
- *
- * Layout model:
- * - A root BoxTree node represents button bounds.
- * - Child BoxTree nodes represent icon/label slots in content space.
- * - Padding is applied at render placement time (child tree positions remain padding-free).
- */
 export class ButtonStore extends TickerForest<ButtonState> {
     readonly id: string;
 
@@ -63,12 +81,18 @@ export class ButtonStore extends TickerForest<ButtonState> {
     #mode: ButtonMode;
     #isHovered = false;
     #isDisabled: boolean;
+    #minWidth?: number;
+    #minHeight?: number;
 
-    #tree: BoxTree;
+    #box: BoxStore;
+    #rootLayer: Container;
+    #background: Graphics;
+    #contentLayer: Container;
 
     #leftIcon?: IconRef;
     #rightIcon?: IconRef;
     #label?: LabelRef;
+    #childViews: ButtonChildView[] = [];
 
     constructor(
         config: ButtonConfig,
@@ -78,9 +102,10 @@ export class ButtonStore extends TickerForest<ButtonState> {
     ) {
         const buttonContainer = new Container({
             label: `button-${config.id}`,
+            sortableChildren: true,
             ...rootProps,
         });
-        super({ value: {} }, {...toTickerConfig(tickerSource), container: buttonContainer});
+        super({ value: {} }, { ...toTickerConfig(tickerSource), container: buttonContainer });
 
         this.id = config.id;
         this.#styleTree = styleTree;
@@ -88,36 +113,23 @@ export class ButtonStore extends TickerForest<ButtonState> {
         this.#mode = ButtonStore.#resolveMode(config);
         this.#isDisabled = config.isDisabled ?? false;
 
-        this.#tree = new BoxTree({
-            id: config.id,
-            styleName: 'button',
-            order: config.order ?? 0,
-            area: {
-                x: 0,
-                y: 0,
-                width: { mode: 'px', value: 0 },
-                height: { mode: 'px', value: 0 },
-                px: 's',
-                py: 's',
-            },
-            align: {
-                x: 's',
-                y: 's',
-                direction: this.#mode === 'iconVertical' ? 'column' : 'row',
-            },
+        this.#box = new BoxStore({
+            value: this.#buildBoxCell(0, 0, []),
         });
+        this.#box.styles = styleTree;
 
-        this.#tree.assignUx((box) => new BoxUxPixi(box));
-        this.#tree.styles = {
-            match: ({ nouns, states }) => this.#matchBoxStyle(nouns, states),
-        };
-
-        this.container.zIndex = this.#tree.order;
-        const rootUx = this.#tree.ux as BoxUxPixi | undefined;
-        if (!rootUx) {
-            throw new Error(`${this.id}: root BoxTree UX was not initialized`);
-        }
-        this.container.addChild(rootUx.container);
+        this.#rootLayer = new Container({
+            label: `${config.id}-box-root`,
+            sortableChildren: true,
+        });
+        this.#background = new Graphics();
+        this.#background.label = `${config.id}-background`;
+        this.#contentLayer = new Container({
+            label: `${config.id}-content`,
+            sortableChildren: true,
+        });
+        this.#rootLayer.addChild(this.#background, this.#contentLayer);
+        this.container.addChild(this.#rootLayer);
 
         this.#buildChildren();
         this.#setupInteractivity();
@@ -153,11 +165,11 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     get rect(): { x: number; y: number; width: number; height: number } {
-        return this.#tree.rect;
+        return this.#box.rect;
     }
 
-    get children(): readonly BoxTree[] {
-        return this.#tree.children;
+    get children(): readonly ButtonChildView[] {
+        return this.#childViews;
     }
 
     get isHovered(): boolean {
@@ -173,7 +185,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     get order(): number {
-        return this.#tree.order;
+        return this.container.zIndex;
     }
 
     static #asNonEmptyString(value: unknown): string | undefined {
@@ -200,114 +212,65 @@ export class ButtonStore extends TickerForest<ButtonState> {
         return this.#extractSpriteUrl(firstChild);
     }
 
-    #resolveIconContentUrl(role: 'left' | 'right', sprite?: Sprite, container?: Container): string | undefined {
-        const explicit = role === 'right'
-            ? this.#config.rightIconUrl
-            : this.#config.iconUrl;
-
-        return ButtonStore.#asNonEmptyString(explicit)
-            ?? this.#extractSpriteUrl(sprite)
-            ?? this.#extractContainerUrl(container);
-    }
-
-    #attachNodeContent(tree: BoxTree, host: Container): void {
-        const ux = tree.ux;
-        if (!(ux instanceof BoxUxPixi)) {
-            throw new Error(`${tree.identityPath}: expected BoxUxPixi to attach content`);
-        }
-        host.zIndex = BOX_RENDER_CONTENT_ORDER.CONTENT;
-        ux.contentMap.set(BOX_UX_LAYER.CONTENT, host);
-    }
-
-    #addTreeChild(key: string, order: number): BoxTree {
-        return this.#tree.addChild(key, {
-            id: `${this.id}-${key}`,
-            order,
-            area: {
-                x: 0,
-                y: 0,
-                width: { mode: 'px', value: 0 },
-                height: { mode: 'px', value: 0 },
-                px: 's',
-                py: 's',
-            },
-            align: {
-                x: 's',
-                y: 's',
-                direction: 'column',
-            },
-        });
-    }
-
-    #createIconRef(role: 'left' | 'right', order: number): IconRef {
-        const key = role === 'left' ? 'icon-left' : 'icon-right';
-        const sprite = role === 'right' ? this.#config.rightSprite : this.#config.sprite;
-        const container = role === 'right' ? this.#config.rightIcon : this.#config.icon;
-        const tree = this.#addTreeChild(key, order);
-        const iconUrl = this.#resolveIconContentUrl(role, sprite, container);
-        const hasExplicitContent = !!sprite || !!container;
-        if (iconUrl && !hasExplicitContent) {
-            tree.setContent({ type: 'url', value: iconUrl });
-        }
-
-        let host: Container | undefined;
-        if (hasExplicitContent) {
-            host = new Container({ label: `${this.id}-${key}-host` });
-            if (sprite) {
-                if ('anchor' in sprite && sprite.anchor) {
-                    sprite.anchor.set(0);
-                }
-                host.addChild(sprite);
-            } else if (container) {
-                host.addChild(container);
-            }
-            this.#attachNodeContent(tree, host);
-        }
-        return { tree, sprite, container, role };
-    }
-
-    #createLabelRef(order: number): LabelRef {
-        const tree = this.#addTreeChild('label', order);
-        const host = new Container({ label: `${this.id}-label-host` });
-        const textDisplay = new Text({
-            text: this.#config.label ?? '',
-            style: new TextStyle({
-                fontSize: 13,
-                fill: 0xffffff,
-                align: 'center',
-                fontFamily: this.#config.bitmapFont ?? 'Arial',
-            }),
-        });
-
-        host.addChild(textDisplay);
-        this.#attachNodeContent(tree, host);
-
-        return { tree, textDisplay };
-    }
-
     #buildChildren(): void {
-        let order = 0;
-
         if (this.#wantsLeftIcon) {
-            this.#leftIcon = this.#createIconRef('left', order);
-            order += 1;
+            const sprite = this.#config.sprite;
+            const container = this.#config.icon;
+            let host: Container | undefined;
+            if (sprite || container) {
+                host = new Container({ label: `${this.id}-icon-host` });
+                if (sprite) {
+                    if ('anchor' in sprite && sprite.anchor) {
+                        sprite.anchor.set(0);
+                    }
+                    host.addChild(sprite);
+                } else if (container) {
+                    host.addChild(container);
+                }
+                this.#contentLayer.addChild(host);
+            }
+            this.#leftIcon = { key: 'icon', sprite, container, host, role: 'left' };
         }
 
         if (this.#wantsLabel) {
-            this.#label = this.#createLabelRef(order);
-            order += 1;
+            const host = new Container({ label: `${this.id}-label-host` });
+            const textDisplay = new Text({
+                text: this.#config.label ?? '',
+                style: new TextStyle({
+                    fontSize: 13,
+                    fill: 0xffffff,
+                    align: 'center',
+                    fontFamily: this.#config.bitmapFont ?? 'Arial',
+                }),
+            });
+            host.addChild(textDisplay);
+            this.#contentLayer.addChild(host);
+            this.#label = { key: 'label', host, textDisplay };
         }
 
         if (this.#wantsRightIcon) {
-            this.#rightIcon = this.#createIconRef('right', order);
+            const sprite = this.#config.rightSprite;
+            const container = this.#config.rightIcon;
+            let host: Container | undefined;
+            if (sprite || container) {
+                host = new Container({ label: `${this.id}-right-icon-host` });
+                if (sprite) {
+                    if ('anchor' in sprite && sprite.anchor) {
+                        sprite.anchor.set(0);
+                    }
+                    host.addChild(sprite);
+                } else if (container) {
+                    host.addChild(container);
+                }
+                this.#contentLayer.addChild(host);
+            }
+            this.#rightIcon = { key: 'rightIcon', sprite, container, host, role: 'right' };
         }
     }
 
     #setupInteractivity(): void {
         this.container.eventMode = this.#isDisabled ? 'none' : 'static';
         this.container.cursor = this.#isDisabled ? 'default' : 'pointer';
-
-        this.#syncModeVerbs();
         this.container.on('pointerenter', this.#onPointerEnter);
         this.container.on('pointerleave', this.#onPointerLeave);
         this.container.on('pointerover', this.#onPointerEnter);
@@ -333,87 +296,64 @@ export class ButtonStore extends TickerForest<ButtonState> {
         }
     };
 
-    #getCurrentStates(): string[] {
-        return [...this.#tree.resolvedVerb];
+    #styleStates(): string[] {
+        return this.#isDisabled ? ['disabled'] : (this.#isHovered ? ['hover'] : []);
     }
 
-    #syncModeVerbs(): void {
-        if (this.#isDisabled) {
-            this.#tree.setModeVerb(['disabled']);
-            return;
+    #modeNouns(): string[] {
+        switch (this.#mode) {
+            case 'text':
+                return ['text'];
+            case 'inline':
+                return ['inline'];
+            case 'iconVertical':
+                return ['icon', 'vertical'];
+            case 'icon':
+            default:
+                return [];
         }
-        this.#tree.setModeVerb(this.#isHovered ? ['hover'] : []);
     }
 
-    #getStyle(...propertyPath: string[]): unknown {
-        return this.#getStyleForStates(this.#getCurrentStates(), ...propertyPath);
-    }
-
-    #getStyleForStates(states: readonly string[], ...propertyPath: string[]): unknown {
-        const variant = this.#config.variant;
-
-        let modePrefix: string[] = [];
-        if (this.#mode === 'text') {
-            modePrefix = ['text'];
-        } else if (this.#mode === 'inline') {
-            modePrefix = ['inline'];
-        } else if (this.#mode === 'iconVertical') {
-            modePrefix = ['iconVertical'];
-        }
-
-        if (variant) {
-            const variantMatch = this.#styleTree.match({
-                nouns: ['button', variant, ...modePrefix, ...propertyPath],
-                states: [...states],
+    #resolveStyle<T = unknown>(propertyPath: string[], extraNouns: string[] = []): T | undefined {
+        if (this.#box) {
+            return this.#box.resolveStyle<T>(propertyPath, {
+                states: this.#styleStates(),
+                extraNouns,
             });
-            if (variantMatch !== undefined) {
-                return variantMatch;
+        }
+
+        const nouns = ['button', ...extraNouns, ...propertyPath];
+        const states = this.#styleStates();
+        const leaf = nouns[nouns.length - 1];
+        const variant = this.#config.variant;
+        const withVariant = variant
+            ? ['button', variant, ...extraNouns, ...propertyPath]
+            : undefined;
+        const queries = [
+            ...(withVariant ? [{ nouns: withVariant, states }] : []),
+            { nouns, states },
+            ...(leaf ? [{ nouns: [leaf], states }] : []),
+        ];
+
+        for (const query of queries) {
+            const result = this.#styleTree.matchHierarchy
+                ? this.#styleTree.matchHierarchy(query)
+                : this.#styleTree.match(query);
+            if (result !== undefined) {
+                return result as T;
             }
         }
 
-        return this.#styleTree.match({
-            nouns: ['button', ...modePrefix, ...propertyPath],
-            states: [...states],
-        });
+        return undefined;
     }
 
-    #matchBoxStyle(nouns: string[], states: string[]): unknown {
-        if (nouns.length !== 2 || nouns[0] !== 'button') {
-            return undefined;
-        }
-        const prop = nouns[nouns.length - 1];
-        if (!prop) {
-            return undefined;
+    #getStyle<T = unknown>(...propertyPath: string[]): T | undefined {
+        const modeValue = this.#resolveStyle<T>(propertyPath, this.#modeNouns());
+        if (modeValue !== undefined) {
+            return modeValue;
         }
 
-        const isDisabled = states.includes('disabled');
-        const fillColor = this.#getStyleForStates(states, 'fill', 'color') as RgbColor | undefined;
-        const fillAlpha = this.#getStyleForStates(states, 'fill', 'alpha') as number | undefined;
-        const strokeColor = this.#getStyleForStates(states, 'stroke', 'color') as RgbColor | undefined;
-        const strokeAlpha = this.#getStyleForStates(states, 'stroke', 'alpha') as number | undefined;
-        const strokeWidth = (this.#getStyleForStates(states, 'stroke', 'size') as number | undefined)
-            ?? (this.#getStyleForStates(states, 'stroke', 'width') as number | undefined);
-
-        const resolvedFillColor = fillColor
-            ?? (this.#mode === 'text' || this.#mode === 'inline'
-                ? { r: 0.33, g: 0.67, b: 0.6 }
-                : undefined);
-        const resolvedFillAlphaBase = fillAlpha ?? (resolvedFillColor ? 1 : undefined);
-        const resolvedFillAlpha = resolvedFillAlphaBase === undefined
-            ? undefined
-            : (isDisabled ? resolvedFillAlphaBase * 0.5 : resolvedFillAlphaBase);
-
-        const resolvedStrokeColor = strokeColor ?? { r: 0.5, g: 0.5, b: 0.5 };
-        const resolvedStrokeAlphaBase = strokeAlpha ?? 1;
-        const resolvedStrokeAlpha = isDisabled ? resolvedStrokeAlphaBase * 0.5 : resolvedStrokeAlphaBase;
-        const resolvedStrokeWidth = strokeWidth ?? this.#defaultStrokeWidth();
-
-        if (prop === 'bgColor') return resolvedFillColor;
-        if (prop === 'bgAlpha') return resolvedFillAlpha;
-        if (prop === 'bgStrokeColor') return resolvedStrokeColor;
-        if (prop === 'bgStrokeAlpha') return resolvedStrokeAlpha;
-        if (prop === 'bgStrokeSize') return resolvedStrokeWidth;
-        return undefined;
+        return this.#resolveStyle<T>(propertyPath);
     }
 
     #defaultPaddingX(): number {
@@ -442,62 +382,46 @@ export class ButtonStore extends TickerForest<ButtonState> {
         return this.#mode === 'text' || this.#mode === 'inline' ? 0 : 1;
     }
 
+    #borderRadius(): number {
+        return this.#getStyle<number>('border', 'radius') ?? 6;
+    }
+
     #iconStyle(iconRef: IconRef): { width: number; height: number; alpha: number; tint?: RgbColor } {
         const defaults = this.#defaultIconSize();
-        const isRight = iconRef.role === 'right';
+        const sizePrefix = iconRef.role === 'right' ? ['right', 'icon'] : ['icon'];
 
-        const width = isRight
-            ? ((this.#getStyle('rightIcon', 'size', 'x') as number | undefined)
-                ?? (this.#getStyle('icon', 'size', 'x') as number | undefined)
-                ?? defaults.x)
-            : ((this.#getStyle('icon', 'size', 'x') as number | undefined) ?? defaults.x);
-
-        const height = isRight
-            ? ((this.#getStyle('rightIcon', 'size', 'y') as number | undefined)
-                ?? (this.#getStyle('icon', 'size', 'y') as number | undefined)
-                ?? defaults.y)
-            : ((this.#getStyle('icon', 'size', 'y') as number | undefined) ?? defaults.y);
-
-        const alpha = isRight
-            ? ((this.#getStyle('rightIcon', 'alpha') as number | undefined)
-                ?? (this.#getStyle('icon', 'alpha') as number | undefined)
-                ?? 1)
-            : ((this.#getStyle('icon', 'alpha') as number | undefined) ?? 1);
-
-        const tint = isRight
-            ? ((this.#getStyle('rightIcon', 'tint') as RgbColor | undefined)
-                ?? (this.#getStyle('icon', 'tint') as RgbColor | undefined))
-            : (this.#getStyle('icon', 'tint') as RgbColor | undefined);
+        const width = this.#getStyle<number>(...sizePrefix, 'size', 'x') ?? defaults.x;
+        const height = this.#getStyle<number>(...sizePrefix, 'size', 'y') ?? defaults.y;
+        const alpha = this.#getStyle<number>(...sizePrefix, 'alpha') ?? 1;
+        const tint = this.#getStyle<RgbColor>(...sizePrefix, 'tint');
 
         return { width, height, alpha, tint };
     }
 
     #labelStyle(): { textStyle: TextStyleOptions; alpha: number } {
-        const fontSize = (this.#getStyle('label', 'font', 'size') as number | undefined)
-            ?? (this.#getStyle('label', 'fontSize') as number | undefined)
+        const fontSize = this.#getStyle<number>('label', 'font', 'size')
+            ?? this.#getStyle<number>('label', 'fontSize')
             ?? 13;
-        const color = (this.#getStyle('label', 'font', 'color') as RgbColor | undefined)
-            ?? (this.#getStyle('label', 'color') as RgbColor | undefined)
+        const color = this.#getStyle<RgbColor>('label', 'font', 'color')
+            ?? this.#getStyle<RgbColor>('label', 'color')
             ?? this.#defaultLabelColor();
-        const alpha = (this.#getStyle('label', 'font', 'alpha') as number | undefined)
-            ?? (this.#getStyle('label', 'alpha') as number | undefined)
+        const alpha = this.#getStyle<number>('label', 'font', 'alpha')
+            ?? this.#getStyle<number>('label', 'alpha')
             ?? this.#defaultLabelAlpha();
-        const visible = (this.#getStyle('label', 'font', 'visible') as boolean | undefined)
-            ?? (this.#getStyle('label', 'visible') as boolean | undefined)
+        const visible = this.#getStyle<boolean>('label', 'font', 'visible')
+            ?? this.#getStyle<boolean>('label', 'visible')
             ?? true;
-        const family = (this.#getStyle('label', 'font', 'family') as string | undefined)
+        const family = this.#getStyle<string>('label', 'font', 'family')
             ?? this.#config.bitmapFont
             ?? 'Arial';
 
-        const textStyle: TextStyleOptions = {
-            fontSize,
-            fill: rgbToHex(color),
-            align: 'center',
-            fontFamily: family,
-        };
-
         return {
-            textStyle,
+            textStyle: {
+                fontSize,
+                fill: rgbToHex(color),
+                align: 'center',
+                fontFamily: family,
+            },
             alpha: this.#isDisabled ? (visible ? alpha * 0.5 : 0) : (visible ? alpha : 0),
         };
     }
@@ -505,13 +429,9 @@ export class ButtonStore extends TickerForest<ButtonState> {
     #measureLabel(textStyle: TextStyleOptions): { width: number; height: number } {
         const text = this.#config.label ?? '';
         const fallbackFontSize = typeof textStyle.fontSize === 'number' ? textStyle.fontSize : 13;
-        const fallbackWidth = Math.max(0, text.length * fallbackFontSize * 0.6);
-        const fallbackHeight = Math.max(0, fallbackFontSize * 1.2);
+        let measuredWidth = Math.max(0, text.length * fallbackFontSize * 0.6);
+        let measuredHeight = Math.max(0, fallbackFontSize * 1.2);
 
-        let measuredWidth = fallbackWidth;
-        let measuredHeight = fallbackHeight;
-
-        // Prefer live Pixi text bounds when available so vertical centering follows rendered extent.
         if (this.#label) {
             try {
                 this.#label.textDisplay.text = text;
@@ -524,7 +444,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
                     measuredHeight = bounds.height;
                 }
             } catch {
-                // Ignore and fallback to CanvasTextMetrics/fallback values.
+                // noop fallback
             }
         }
 
@@ -537,7 +457,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
                 measuredHeight = measured.height;
             }
         } catch {
-            // In non-browser contexts measurement can fail; fallback remains valid.
+            // noop fallback
         }
 
         return {
@@ -546,91 +466,225 @@ export class ButtonStore extends TickerForest<ButtonState> {
         };
     }
 
-    #syncLayout(): void {
-        const direction = this.#mode === 'iconVertical' ? 'column' : 'row';
-        const isRow = direction === 'row';
+    #backgroundStyle(): { fill?: RgbColor; fillAlpha?: number; stroke?: RgbColor; strokeAlpha: number; strokeWidth: number } {
+        const fill = this.#getStyle<RgbColor>('fill', 'color')
+            ?? ((this.#mode === 'text' || this.#mode === 'inline') ? { r: 0.33, g: 0.67, b: 0.6 } : undefined);
+        const fillAlphaBase = this.#getStyle<number>('fill', 'alpha') ?? (fill ? 1 : undefined);
+        const stroke = this.#getStyle<RgbColor>('stroke', 'color') ?? { r: 0.5, g: 0.5, b: 0.5 };
+        const strokeAlphaBase = this.#getStyle<number>('stroke', 'alpha') ?? 1;
+        const strokeWidth = this.#getStyle<number>('stroke', 'size')
+            ?? this.#getStyle<number>('stroke', 'width')
+            ?? this.#defaultStrokeWidth();
 
-        const resolvedGap = (this.#getStyle('icon', 'gap') as number | undefined)
-            ?? (this.#getStyle('iconGap') as number | undefined);
-        const gap = this.#mode === 'iconVertical'
-            ? (resolvedGap ?? 4)
-            : (this.#mode === 'inline' ? (resolvedGap ?? 8) : 0);
+        return {
+            fill,
+            fillAlpha: fillAlphaBase === undefined ? undefined : (this.#isDisabled ? fillAlphaBase * 0.5 : fillAlphaBase),
+            stroke,
+            strokeAlpha: this.#isDisabled ? strokeAlphaBase * 0.5 : strokeAlphaBase,
+            strokeWidth,
+        };
+    }
 
-        const paddingX = (this.#getStyle('padding', 'x') as number | undefined) ?? this.#defaultPaddingX();
-        const paddingY = (this.#getStyle('padding', 'y') as number | undefined) ?? this.#defaultPaddingY();
-
-        this.#tree.setDirection(isRow ? 'row' : 'column');
-
-        const nodes: Array<{ tree: BoxTree; width: number; height: number }> = [];
+    #nodeSpecs(): LayoutNodeSpec[] {
+        const specs: LayoutNodeSpec[] = [];
 
         if (this.#leftIcon) {
-            const iconStyle = this.#iconStyle(this.#leftIcon);
-            nodes.push({
-                tree: this.#leftIcon.tree,
-                width: iconStyle.width,
-                height: iconStyle.height,
+            const style = this.#iconStyle(this.#leftIcon);
+            specs.push({
+                key: 'icon',
+                name: 'icon',
+                width: style.width,
+                height: style.height,
+                content: this.#resolveIconContent(this.#leftIcon),
             });
         }
 
         if (this.#label) {
             const { textStyle } = this.#labelStyle();
             const measured = this.#measureLabel(textStyle);
-            nodes.push({
-                tree: this.#label.tree,
+            specs.push({
+                key: 'label',
+                name: 'label',
                 width: measured.width,
                 height: measured.height,
             });
         }
 
         if (this.#rightIcon) {
-            const iconStyle = this.#iconStyle(this.#rightIcon);
-            nodes.push({
-                tree: this.#rightIcon.tree,
-                width: iconStyle.width,
-                height: iconStyle.height,
+            const style = this.#iconStyle(this.#rightIcon);
+            specs.push({
+                key: 'rightIcon',
+                name: 'rightIcon',
+                width: style.width,
+                height: style.height,
+                content: this.#resolveIconContent(this.#rightIcon),
             });
         }
 
-        const contentWidth = isRow
-            ? nodes.reduce((sum, node) => sum + node.width, 0) + Math.max(0, nodes.length - 1) * gap
-            : nodes.reduce((max, node) => Math.max(max, node.width), 0);
+        return specs;
+    }
 
-        const contentHeight = isRow
-            ? nodes.reduce((max, node) => Math.max(max, node.height), 0)
-            : nodes.reduce((sum, node) => sum + node.height, 0) + Math.max(0, nodes.length - 1) * gap;
+    #resolveIconContent(iconRef: IconRef): BoxContentType | undefined {
+        if (iconRef.sprite || iconRef.container) {
+            return undefined;
+        }
 
-        for (const [index, node] of nodes.entries()) {
-            const gapOffset = index * gap;
-            const x = isRow ? gapOffset : 0;
-            let y = isRow ? 0 : gapOffset;
-            if (isRow && this.#mode === 'inline') {
-                y = Math.max(0, (contentHeight - node.height) / 2);
+        const explicit = iconRef.role === 'right'
+            ? this.#config.rightIconUrl
+            : this.#config.iconUrl;
+        const url = ButtonStore.#asNonEmptyString(explicit);
+        return url ? { type: 'url', value: url } : undefined;
+    }
+
+    #gap(): number {
+        const resolvedGap = this.#getStyle<number>('icon', 'gap')
+            ?? this.#getStyle<number>('right', 'icon', 'gap')
+            ?? this.#getStyle<number>('iconGap');
+        if (this.#mode === 'iconVertical') {
+            return resolvedGap ?? 4;
+        }
+        if (this.#mode === 'inline') {
+            return resolvedGap ?? 8;
+        }
+        return 0;
+    }
+
+    #buildBoxCell(contentWidth: number, contentHeight: number, nodeSpecs: LayoutNodeSpec[]): BoxCellType {
+        const paddingX = this.#getStyle<number>('padding', 'x') ?? this.#defaultPaddingX();
+        const paddingY = this.#getStyle<number>('padding', 'y') ?? this.#defaultPaddingY();
+        const x = this.#box?.value.dim.x ?? 0;
+        const y = this.#box?.value.dim.y ?? 0;
+        const rootWidth = Math.max(contentWidth + paddingX * 2, this.#minWidth ?? 0);
+        const rootHeight = Math.max(contentHeight + paddingY * 2, this.#minHeight ?? 0);
+        const isColumn = this.#mode === 'iconVertical';
+        const contentChildren: BoxCellType[] = [];
+        const gap = this.#gap();
+
+        nodeSpecs.forEach((node, index) => {
+            contentChildren.push({
+                name: node.name,
+                absolute: false,
+                dim: { w: node.width, h: node.height },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                content: node.content,
+            });
+            if (gap > 0 && index < nodeSpecs.length - 1) {
+                contentChildren.push({
+                    name: `gap-${index}`,
+                    absolute: false,
+                    dim: isColumn ? { w: 0, h: gap } : { w: gap, h: 0 },
+                    align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                });
             }
+        });
 
-            node.tree.setPosition(x, y);
-            node.tree.setWidthPx(node.width);
-            node.tree.setHeightPx(node.height);
+        return {
+            name: 'button',
+            absolute: true,
+            variant: this.#config.variant,
+            states: this.#styleStates(),
+            dim: { x, y, w: rootWidth, h: rootHeight },
+            align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+            children: [{
+                name: this.#mode === 'icon' ? 'content' : this.#mode,
+                absolute: false,
+                dim: { w: contentWidth, h: contentHeight },
+                align: isColumn
+                    ? { direction: DIR_VERT, xPosition: POS_CENTER, yPosition: POS_START }
+                    : { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                children: contentChildren,
+            }],
+        };
+    }
+
+    #layoutView(): ButtonLayoutView {
+        const contentBox = this.#box.value.children?.[0];
+        const contentLocation = contentBox?.location;
+        const semanticChildren = contentBox?.children?.filter((child: BoxCellType) => !child.name.startsWith('gap-')) ?? [];
+        const contentOriginX = contentLocation?.x ?? 0;
+        const contentOriginY = contentLocation?.y ?? 0;
+
+        return {
+            contentRect: {
+                x: contentOriginX,
+                y: contentOriginY,
+                width: contentLocation?.w ?? 0,
+                height: contentLocation?.h ?? 0,
+            },
+            semanticChildren: semanticChildren.map((child: BoxCellType) => ({
+                name: child.name,
+                rect: {
+                    x: (child.location?.x ?? 0) - contentOriginX,
+                    y: (child.location?.y ?? 0) - contentOriginY,
+                    width: child.location?.w ?? 0,
+                    height: child.location?.h ?? 0,
+                },
+                content: child.content,
+            })),
+            absoluteChildren: semanticChildren.map((child: BoxCellType) => ({
+                name: child.name,
+                rect: {
+                    x: child.location?.x ?? 0,
+                    y: child.location?.y ?? 0,
+                    width: child.location?.w ?? 0,
+                    height: child.location?.h ?? 0,
+                },
+                content: child.content,
+            })),
+        };
+    }
+
+    #syncLayout(): void {
+        const nodeSpecs = this.#nodeSpecs();
+        const isRow = this.#mode !== 'iconVertical';
+        const gap = this.#gap();
+        const contentWidth = isRow
+            ? nodeSpecs.reduce((sum, node) => sum + node.width, 0) + Math.max(0, nodeSpecs.length - 1) * gap
+            : nodeSpecs.reduce((max, node) => Math.max(max, node.width), 0);
+        const contentHeight = isRow
+            ? nodeSpecs.reduce((max, node) => Math.max(max, node.height), 0)
+            : nodeSpecs.reduce((sum, node) => sum + node.height, 0) + Math.max(0, nodeSpecs.length - 1) * gap;
+
+        this.#box.mutate((draft: BoxCellType) => {
+            Object.assign(draft, this.#buildBoxCell(contentWidth, contentHeight, nodeSpecs));
+        });
+        this.#box.update();
+
+        const rootRect = this.#box.rect;
+        this.container.position.set(rootRect.x, rootRect.y);
+        this.container.zIndex = this.#config.order ?? 0;
+
+        const backgroundStyle = this.#backgroundStyle();
+        const borderRadius = this.#borderRadius();
+        this.#background.clear();
+        if (backgroundStyle.fill && backgroundStyle.fillAlpha !== undefined && backgroundStyle.fillAlpha > 0) {
+            this.#background.roundRect(0, 0, rootRect.width, rootRect.height, borderRadius);
+            this.#background.fill({ color: rgbToHex(backgroundStyle.fill), alpha: backgroundStyle.fillAlpha });
+        }
+        if (backgroundStyle.strokeWidth > 0) {
+            this.#background.roundRect(0, 0, rootRect.width, rootRect.height, borderRadius);
+            this.#background.stroke({
+                color: rgbToHex(backgroundStyle.stroke ?? { r: 0.5, g: 0.5, b: 0.5 }),
+                alpha: backgroundStyle.strokeAlpha,
+                width: backgroundStyle.strokeWidth,
+            });
         }
 
-        const naturalWidth = contentWidth + (paddingX * 2);
-        const naturalHeight = contentHeight + (paddingY * 2);
-        this.#tree.setWidthPx(naturalWidth);
-        this.#tree.setHeightPx(naturalHeight);
-
-        const resolvedWidth = this.#tree.width;
-        const resolvedHeight = this.#tree.height;
-
-        const contentOffsetX = paddingX + Math.max(0, (resolvedWidth - naturalWidth) / 2);
-        const contentOffsetY = paddingY + Math.max(0, (resolvedHeight - naturalHeight) / 2);
-        const rootUx = this.#tree.ux;
-        if (!(rootUx instanceof BoxUxPixi)) {
-            throw new Error(`${this.id}: expected BoxUxPixi during layout sync`);
-        }
-        rootUx.childContainer.position.set(contentOffsetX, contentOffsetY);
+        const layout = this.#layoutView();
+        this.#childViews = layout.semanticChildren;
     }
 
     #syncIconNode(iconRef: IconRef): void {
+        const view = this.#layoutView().absoluteChildren.find((child: ButtonChildView) => child.name === iconRef.key);
+        if (!view) return;
+
         const style = this.#iconStyle(iconRef);
+        const localX = view.rect.x - this.#box.rect.x;
+        const localY = view.rect.y - this.#box.rect.y;
+
+        if (iconRef.host) {
+            iconRef.host.position.set(localX, localY);
+        }
 
         if (iconRef.sprite) {
             iconRef.sprite.width = style.width;
@@ -652,17 +706,21 @@ export class ButtonStore extends TickerForest<ButtonState> {
     #syncLabelNode(): void {
         if (!this.#label) return;
 
+        const view = this.#layoutView().absoluteChildren.find((child: ButtonChildView) => child.name === 'label');
+        if (!view) return;
+
         const { textStyle, alpha } = this.#labelStyle();
         this.#label.textDisplay.text = this.#config.label ?? '';
         this.#label.textDisplay.style = new TextStyle(textStyle);
         this.#label.textDisplay.alpha = alpha;
+        this.#label.host.position.set(
+            view.rect.x - this.#box.rect.x,
+            view.rect.y - this.#box.rect.y,
+        );
     }
 
     protected override resolve(): void {
         this.#syncLayout();
-        this.container.zIndex = this.#tree.order;
-        this.#tree.render();
-
         if (this.#leftIcon) {
             this.#syncIconNode(this.#leftIcon);
         }
@@ -676,7 +734,6 @@ export class ButtonStore extends TickerForest<ButtonState> {
         const nextHovered = this.#isDisabled ? false : isHovered;
         if (this.#isHovered === nextHovered) return;
         this.#isHovered = nextHovered;
-        this.#syncModeVerbs();
         this.dirty();
     }
 
@@ -688,23 +745,32 @@ export class ButtonStore extends TickerForest<ButtonState> {
         }
         this.container.eventMode = isDisabled ? 'none' : 'static';
         this.container.cursor = isDisabled ? 'default' : 'pointer';
-        this.#syncModeVerbs();
         this.dirty();
     }
 
     setPosition(x: number, y: number): void {
-        if (this.#tree.value.area.x === x && this.#tree.value.area.y === y) {
+        const dim = this.#box.value.dim;
+        if (dim.x === x && dim.y === y) {
             return;
         }
-        this.#tree.setPosition(x, y);
+        this.#box.mutate((draft: BoxCellType) => {
+            draft.dim = {
+                ...draft.dim,
+                x,
+                y,
+            };
+        });
         this.dirty();
     }
 
     setOrder(order: number): void {
-        if (this.#tree.order === order) {
+        if ((this.#config.order ?? 0) === order) {
             return;
         }
-        this.#tree.setOrder(order);
+        this.#config = {
+            ...this.#config,
+            order,
+        };
         this.dirty();
     }
 
@@ -721,35 +787,13 @@ export class ButtonStore extends TickerForest<ButtonState> {
 
         const nextMinWidth = normalize(minWidth);
         const nextMinHeight = normalize(minHeight);
-        const current = this.#tree.value.constrain;
-        const currentMinWidth = current?.x?.min;
-        const currentMinHeight = current?.y?.min;
 
-        if (currentMinWidth === nextMinWidth && currentMinHeight === nextMinHeight) {
+        if (this.#minWidth === nextMinWidth && this.#minHeight === nextMinHeight) {
             return false;
         }
 
-        this.#tree.mutate((draft) => {
-            const xConstrain = draft.constrain?.x ? { ...draft.constrain.x } : {};
-            const yConstrain = draft.constrain?.y ? { ...draft.constrain.y } : {};
-
-            xConstrain.min = nextMinWidth;
-            yConstrain.min = nextMinHeight;
-
-            const hasX = xConstrain.min !== undefined || xConstrain.max !== undefined;
-            const hasY = yConstrain.min !== undefined || yConstrain.max !== undefined;
-
-            if (!hasX && !hasY) {
-                draft.constrain = undefined;
-                return;
-            }
-
-            draft.constrain = {
-                ...(hasX ? { x: xConstrain } : {}),
-                ...(hasY ? { y: yConstrain } : {}),
-            };
-        });
-
+        this.#minWidth = nextMinWidth;
+        this.#minHeight = nextMinHeight;
         this.dirty();
         return true;
     }
@@ -759,7 +803,7 @@ export class ButtonStore extends TickerForest<ButtonState> {
     }
 
     getPreferredSize(): { width: number; height: number } {
-        const { width, height } = this.#tree.rect;
+        const { width, height } = this.#box.rect;
         return { width, height };
     }
 

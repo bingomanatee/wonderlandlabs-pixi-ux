@@ -60,7 +60,7 @@ function getStyleNumber(
 }
 
 describe('ButtonStore interactions', () => {
-  it('uses the default BoxTree UX container stack for rendering', () => {
+  it('uses the button root layer container stack for rendering', () => {
     const { host, flushTicker } = createMockTickerHost();
     const styleTree = createStyleTree();
     const button = new ButtonStore(

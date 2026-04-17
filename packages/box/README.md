@@ -29,12 +29,28 @@ The current layout pass is:
 1. Resolve the main-axis spans for the children.
 2. Complete unresolved fractional spans.
 3. Place children from the parent alignment and the resolved spans.
+4. Recurse into child boxes using the computed location rectangles.
 
-`ComputeAxis` currently handles the green path for:
+`ComputeAxis` currently handles:
 
 - absolute pixel dimensions
 - percentage dimensions
+- fractional dimensions on the main axis by weighted remainder distribution
+- fractional dimensions on the cross axis by resolving to the largest resolved peer span
+- cross-axis `fill`
 - parent-owned start / center / end alignment
+
+## Styles
+
+`BoxStore` also exposes style context for renderers:
+
+- `styles`
+- `variant`
+- `styleStates`
+- `styleNouns`
+- `resolveStyle(...)`
+
+See [`README.STYLES.md`](/Users/bingomanatee/Documents/repos/wonderlandlabs-pixi-ux/packages/box/README.STYLES.md) for the renderer-facing contract.
 
 ## Status
 

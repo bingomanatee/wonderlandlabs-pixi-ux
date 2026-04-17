@@ -63,7 +63,7 @@ function getStyleNumber(
 }
 
 describe('ButtonStore sizing', () => {
-    it('avoids managed BoxTree content when explicit icon/label display objects are present', () => {
+    it('avoids box content fallback when explicit icon/label display objects are present', () => {
         const textMetricsSpy = vi
             .spyOn(CanvasTextMetrics, 'measureText')
             .mockImplementation((text: string, style: { fontSize?: number }) => {
@@ -102,7 +102,7 @@ describe('ButtonStore sizing', () => {
         textMetricsSpy.mockRestore();
     });
 
-    it('uses BoxTree url content fallback when no explicit icon display object is provided', () => {
+    it('uses box url content fallback when no explicit icon display object is provided', () => {
         const {host, flushTicker} = createMockTickerHost();
         const styleTree = createStyleTree();
         const button = new ButtonStore(

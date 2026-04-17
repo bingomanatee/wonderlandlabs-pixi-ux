@@ -1,6 +1,6 @@
 # @wonderlandlabs-pixi-ux/button
 
-Composable button store built on `@wonderlandlabs-pixi-ux/box` and styled through `@wonderlandlabs-pixi-ux/style-tree`.
+Composable Pixi button store built on nested `BoxStore` layout from `@wonderlandlabs-pixi-ux/box` and styled through `@wonderlandlabs-pixi-ux/style-tree`.
 
 ## Installation
 
@@ -53,6 +53,17 @@ app.stage.addChild(button.container);
 button.kickoff();
 ```
 
+## Layout Model
+
+`ButtonStore` now builds a small nested box tree internally:
+
+- root `button` box
+- one mode/content box (`text`, `inline`, `iconVertical`, or `content`)
+- semantic children such as `icon`, `label`, and `rightIcon`
+- explicit gap cells when spacing is needed
+
+That means button layout is parent-driven and no longer relies on ad hoc child position offsets.
+
 ## Button Config
 
 ```ts
@@ -94,6 +105,14 @@ Common keys:
 
 Variant lookup inserts `variant` after `button` (for example `button.primary.inline.fill.color`).
 
+The built-in Pixi renderer currently reads:
+
+- fill color and alpha
+- stroke color, size, and alpha
+- border radius
+- icon size, alpha, and tint
+- label font size, family, color, and alpha
+
 ## Main API
 
 - `setHovered(isHovered)`
@@ -103,3 +122,8 @@ Variant lookup inserts `variant` after `button` (for example `button.primary.inl
 - `mode`
 - `getConfig()`
 - `getPreferredSize()`
+
+## Notes
+
+- `children` exposes semantic content boxes with rects relative to the content run, which is useful for tests and inspection.
+- Explicit Pixi display objects win over `content` fallbacks. URL content is only used when no concrete icon display object is supplied.

@@ -1,11 +1,16 @@
 import {Forest} from '@wonderlandlabs/forestry4';
-import type {BoxCellType, RectPXType} from './types.js';
+import type {BoxCellType, BoxStyleManagerLike, RectPXType} from './types.js';
 import {rectToAbsolute} from "./helpers.js";
 import {ComputeAxis} from './ComputeAxis.js';
 
 export class BoxStore extends Forest<BoxCellType> {
+    #styles?: BoxStyleManagerLike;
+
     update() {
-        this.alignChildren();
+        const next = layoutCell(this.value);
+        this.mutate((draft) => {
+            Object.assign(draft, next);
+        });
     }
 
     get location(): RectPXType {
@@ -13,57 +18,96 @@ export class BoxStore extends Forest<BoxCellType> {
         return rectToAbsolute(dim ?? location);
     }
 
-    alignChildren() {
-        const {children, align} = this.value;
-        if (!Array.isArray(children) || children.length === 0) {
-            return;
+    get rect(): { x: number; y: number; width: number; height: number } {
+        const {x, y, w, h} = this.location;
+        return {x, y, width: w, height: h};
+    }
+
+    get styles(): BoxStyleManagerLike | undefined {
+        const parentStore = this.$parent instanceof BoxStore ? this.$parent : undefined;
+        return this.#styles ?? parentStore?.styles;
+    }
+
+    set styles(styles: BoxStyleManagerLike | undefined) {
+        this.#styles = styles;
+    }
+
+    get styleStates(): string[] {
+        const parentStore = this.$parent instanceof BoxStore ? this.$parent : undefined;
+        return [...(parentStore?.styleStates ?? []), ...(this.value.states ?? [])];
+    }
+
+    get variant(): string | undefined {
+        const parentStore = this.$parent instanceof BoxStore ? this.$parent : undefined;
+        return this.value.variant ?? parentStore?.variant;
+    }
+
+    get styleNouns(): string[] {
+        const parentStore = this.$parent instanceof BoxStore ? this.$parent : undefined;
+        return [...(parentStore?.styleNouns ?? []), this.value.name];
+    }
+
+    resolveStyle<T = unknown>(
+        propertyPath: string[] = [],
+        options: { states?: string[]; extraNouns?: string[] } = {},
+    ): T | undefined {
+        const styles = this.styles;
+        if (!styles) {
+            return undefined;
         }
 
-        const myContainer = this.location;
-        if (!myContainer) {
-            throw new Error('cannot align children: store location not set')
-        }
+        const baseNouns = [...this.styleNouns, ...(options.extraNouns ?? []), ...propertyPath];
+        const states = options.states ?? this.styleStates;
+        const variant = this.variant;
+        const leaf = baseNouns[baseNouns.length - 1];
+        const withVariant = variant && baseNouns.length > 0
+            ? [baseNouns[0], variant, ...baseNouns.slice(1)]
+            : undefined;
 
-        const childLocations: RectPXType[] = new ComputeAxis(
-            align,
-            myContainer,
-            children.map((child) => child.dim),
-        ).compute();
+        const queries = [
+            ...(withVariant ? [{ nouns: withVariant, states }] : []),
+            { nouns: baseNouns, states },
+            ...(leaf ? [{ nouns: [leaf], states }] : []),
+        ];
 
-        this.mutate((draft) => {
-            if (!Array.isArray(draft.children)) {
-                return;
+        for (const query of queries) {
+            const result = styles.matchHierarchy
+                ? styles.matchHierarchy(query)
+                : styles.match(query);
+            if (result !== undefined) {
+                return result as T;
             }
-            draft.children = draft.children.map((child: BoxCellType, index: number) => {
-               const newChild = {
-                    ...child,
-                    location: childLocations[index],
-                }
-                if (Array.isArray(newChild.children) && newChild.children.length > 0) {
-                    updateChildren(newChild);
-                }
-                return newChild;
-            });
-        });
+        }
+
+        return undefined;
     }
 }
 
-function updateChildren(cell: BoxCellType) {
-    const {location: myContainer, children, align} = cell;
-    if (!Array.isArray(children) || children.length === 0 || !myContainer) return;
+function layoutCell(cell: BoxCellType, parentRect?: RectPXType): BoxCellType {
+    const ownLocation = cell.location
+        ? rectToAbsolute(cell.location)
+        : rectToAbsolute(cell.dim, cell.absolute ? undefined : parentRect);
+    const {children, align} = cell;
+
+    if (!Array.isArray(children) || children.length === 0) {
+        return {
+            ...cell,
+            location: ownLocation,
+        };
+    }
+
     const childLocations: RectPXType[] = new ComputeAxis(
         align,
-        myContainer,
+        ownLocation,
         children.map((child) => child.dim),
     ).compute();
-    cell.children = children.map((child: BoxCellType, index: number) => {
-       const newChild = {
+
+    return {
+        ...cell,
+        location: ownLocation,
+        children: children.map((child: BoxCellType, index: number) => layoutCell({
             ...child,
             location: childLocations[index],
-        }
-        if (Array.isArray(newChild.children) && newChild.children.length > 0) {
-            updateChildren(newChild);
-        }
-        return newChild;
-    })
+        }, childLocations[index])),
+    };
 }
