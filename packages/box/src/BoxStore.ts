@@ -34,7 +34,7 @@ export class BoxStore extends Forest<BVStoreType> {
             if (!draft.children) {
                 return;
             }
-            draft.children = draft.children.map((child, index) => ({
+            draft.children = draft.children.map((child: BVStoreType, index: number) => ({
                 ...child,
                 location: childLocations[index],
             }));

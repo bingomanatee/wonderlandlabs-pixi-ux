@@ -9,6 +9,7 @@ import {
   POS_CENTER_S,
   POS_END,
   POS_END_S,
+  POS_FILL,
   POS_KEY_X,
   POS_KEY_Y,
   POS_LEFT,
@@ -65,6 +66,7 @@ export const Position = z.enum([
   POS_CENTER,
   POS_CENTER_S,
   POS_TOP,
+  POS_FILL,
 ]);
 
 export const BoxAlign = z.object({
@@ -72,6 +74,7 @@ export const BoxAlign = z.object({
   [POS_KEY_X]: Position.optional(),
   [POS_KEY_Y]: Position.optional(),
 });
+export type BoxAlignType = z.infer<typeof BoxAlign>;
 
 export const BoxPoint = z.object({
   x: BoxSize,

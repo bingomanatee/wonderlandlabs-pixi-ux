@@ -2,6 +2,8 @@ import type {BoxSizeType, BoxSizeObjType, RectPartialType, DirectionType, RectPX
 import {BoxSizeObj} from "./types.js";
 import {SIZE_PX, SIZE_PCT, SIZE_FRACTION, DIR_VERT_S, DIR_HORIZ_S, dirMap} from './constants.js';
 
+type RectPartialKey = keyof RectPartialType;
+
 function percentToNumber(value: number, location: RectPXType, direction: DirectionType, base?: number) {
     const dir = dirMap.get(direction);
     let parentSize = 0;
@@ -74,27 +76,24 @@ export function sizeToNumber({input, parentContainer, direction, skipFractional}
     }
 }
 
-const keys: string[] = 'x,y,w,h'.split(',');
-const posKeys: string[] = 'x,y'.split(',');
-
-const keyDirections = [DIR_HORIZ_S, DIR_VERT_S, DIR_HORIZ_S, DIR_VERT_S];
+const keys: RectPartialKey[] = ['x', 'y', 'w', 'h'];
+const posKeys: RectPartialKey[] = ['x', 'y'];
+const keyDirections: DirectionType[] = [DIR_HORIZ_S, DIR_VERT_S, DIR_HORIZ_S, DIR_VERT_S];
 
 export function rectToAbsolute(r: RectPartialType, parentRect?: RectPXType): RectPXType {
-    return keys.reduce((o: Record<string, unknown>, dim: string, index: number) => {
+    return keys.reduce((o: Record<string, unknown>, dim: RectPartialKey, index: number) => {
         const dir = keyDirections[index];
         const input = r[dim];
         if (input === undefined) {
             return {...o, [dim]: 0};
         }
         const computed = sizeToNumber({input, parentContainer: parentRect, direction: dir})
-
-        // @ts-ignore
         return {...o, [dim]: computed}
     }, {}) as RectPXType;
 }
 
 export function rectHasFractionalSizes(r: RectPartialType, ignorePosition = false) {
-    return keys.some((key) => {
+    return keys.some((key: RectPartialKey) => {
         const value = r[key];
         if (value === undefined) return false;
         if (ignorePosition && posKeys.includes(key)) return false;

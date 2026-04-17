@@ -5,12 +5,12 @@ import {
   DIR_VERT,
   POS_CENTER,
   POS_END,
+  POS_FILL,
   POS_START,
+  SIZE_FRACTION,
   SIZE_PCT,
 } from '../src/constants.js';
 import type { BoxAlign, RectPXType, RectPartialType } from '../src/types.js';
-import { renderComputeAxisHtml } from './renderComputeAxisHtml.js';
-import { renderComputeAxisSvg } from './renderComputeAxisSvg.js';
 
 const parent: RectPXType = { x: 10, y: 20, w: 300, h: 120 };
 
@@ -20,9 +20,8 @@ function expectScenario(
   dims: RectPartialType[],
   expected: RectPXType[],
 ): void {
+  void name;
   const locations = new ComputeAxis(align, parent, dims).compute();
-  const svgPath = renderComputeAxisSvg({ name, parent, align, dims, locations });
-  renderComputeAxisHtml({ name, svgPath, parent, align, dims, locations });
   expect(locations).toEqual(expected);
 }
 
@@ -84,6 +83,85 @@ describe('ComputeAxis', () => {
       [
       { x: 130, y: 20, w: 60, h: 20 },
       { x: 110, y: 40, w: 100, h: 30 },
+      ],
+    );
+  });
+
+  it('uses the largest resolved peer span for cross-axis fractional sizes', () => {
+    expectScenario(
+      'uses the largest resolved peer span for cross-axis fractional sizes',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 50, h: 20 },
+        { w: 60, h: { value: 1, unit: SIZE_FRACTION } },
+        { w: 70, h: 30 },
+      ],
+      [
+        { x: 10, y: 20, w: 50, h: 20 },
+        { x: 60, y: 20, w: 60, h: 30 },
+        { x: 120, y: 20, w: 70, h: 30 },
+      ],
+    );
+  });
+
+  it('distributes main-axis fractional spans by weight from the remainder', () => {
+    expectScenario(
+      'distributes main-axis fractional spans by weight from the remainder',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 60, h: 20 },
+        { w: { value: 1, unit: SIZE_FRACTION }, h: 20 },
+        { w: { value: 2, unit: SIZE_FRACTION }, h: 20 },
+      ],
+      [
+        { x: 10, y: 20, w: 60, h: 20 },
+        { x: 70, y: 20, w: 80, h: 20 },
+        { x: 150, y: 20, w: 160, h: 20 },
+      ],
+    );
+  });
+
+  it('fills the parent cross span when cross-axis alignment is fill', () => {
+    expectScenario(
+      'fills the parent cross span when cross-axis alignment is fill',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_FILL },
+      [
+        { w: 50, h: 20 },
+        { w: 100, h: { value: 1, unit: SIZE_FRACTION } },
+      ],
+      [
+        { x: 10, y: 20, w: 50, h: 120 },
+        { x: 60, y: 20, w: 100, h: 120 },
+      ],
+    );
+  });
+
+  it('treats main-axis fill as centered when there are no fractional spans', () => {
+    expectScenario(
+      'treats main-axis fill as centered when there are no fractional spans',
+      { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_START },
+      [
+        { w: 50, h: 20 },
+        { w: 100, h: 20 },
+      ],
+      [
+        { x: 85, y: 20, w: 50, h: 20 },
+        { x: 135, y: 20, w: 100, h: 20 },
+      ],
+    );
+  });
+
+  it('treats main-axis fill as start-aligned when fractional spans are present', () => {
+    expectScenario(
+      'treats main-axis fill as start-aligned when fractional spans are present',
+      { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_START },
+      [
+        { w: 60, h: 20 },
+        { w: { value: 1, unit: SIZE_FRACTION }, h: 20 },
+      ],
+      [
+        { x: 10, y: 20, w: 60, h: 20 },
+        { x: 70, y: 20, w: 240, h: 20 },
       ],
     );
   });

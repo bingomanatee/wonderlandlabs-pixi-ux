@@ -1,5 +1,5 @@
 import {
-    type BoxAlign,
+    type BoxAlignType,
     type BoxSizeObjType,
     type DimensionDirectionType,
     type DirectionType,
@@ -25,7 +25,7 @@ import {
 import {sizeToNumber, toComplexSize} from './helpers.js';
 
 function normalizeDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
-    return dirMap.get(direction) ?? DIR_VERT_S;
+    return (dirMap.get(direction) ?? DIR_VERT_S) as typeof DIR_HORIZ_S | typeof DIR_VERT_S;
 }
 
 function crossDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
@@ -68,11 +68,13 @@ export class ComputeAxis {
     xPositions: number[];
     yPositions: number[];
     mainAxisResolvedSpanTotal: number;
+    effectiveMainAlignment: string;
+    effectiveCrossAlignment: string;
 
     readonly #flowDirection: typeof DIR_HORIZ_S | typeof DIR_VERT_S;
 
     constructor(
-        readonly align: BoxAlign['_type'],
+        readonly align: BoxAlignType,
         readonly parent: RectPXType,
         readonly dims: RectPartialType[],
     ) {
@@ -82,9 +84,12 @@ export class ComputeAxis {
         this.xPositions = new Array(dims.length).fill(0);
         this.yPositions = new Array(dims.length).fill(0);
         this.mainAxisResolvedSpanTotal = 0;
+        this.effectiveMainAlignment = POS_START_S;
+        this.effectiveCrossAlignment = POS_START_S;
     }
 
     compute(): RectPXType[] {
+        this.#resolveEffectiveAlignments();
         this.#resolveAxisSizes(this.align.direction);
         this.#completeFractionalSizes();
         this.#placeChildren();
@@ -97,6 +102,24 @@ export class ComputeAxis {
             w: computedWidths[index],
             h: computedHeights[index],
         }));
+    }
+
+    #resolveEffectiveAlignments(): void {
+        const crossDirectionValue = crossDirection(this.#flowDirection);
+        const rawMainAlignment = this.align[alignKey(this.#flowDirection)];
+        const rawCrossAlignment = this.align[alignKey(crossDirectionValue)];
+        const normalizedMainAlignment = rawMainAlignment ? posMap.get(rawMainAlignment) ?? rawMainAlignment : POS_START_S;
+        const normalizedCrossAlignment = rawCrossAlignment ? posMap.get(rawCrossAlignment) ?? rawCrossAlignment : POS_START_S;
+        const mainAxisHasFractionalSpans = this.#readAxisSpans(this.#flowDirection).some((span) => typeof span !== 'number');
+
+        this.effectiveCrossAlignment = normalizedCrossAlignment;
+
+        if (normalizedMainAlignment !== POS_FILL) {
+            this.effectiveMainAlignment = normalizedMainAlignment;
+            return;
+        }
+
+        this.effectiveMainAlignment = mainAxisHasFractionalSpans ? POS_START_S : POS_CENTER_S;
     }
 
     #readAxisSpans(direction: DirectionType): Array<number | BoxSizeObjType> {
@@ -127,8 +150,26 @@ export class ComputeAxis {
         const configuredAxisSpans = normalizedDirection === this.#flowDirection
             ? (normalizedDirection === DIR_HORIZ_S ? this.widths : this.heights)
             : this.#readAxisSpans(direction);
+        const normalizedAxisAlignment = normalizedDirection === this.#flowDirection
+            ? this.effectiveMainAlignment
+            : this.effectiveCrossAlignment;
+        const resolvedAxisSpans = configuredAxisSpans
+            .filter((span): span is number => typeof span === 'number');
 
-        return configuredAxisSpans.map((span) => typeof span === 'number' ? span : 0);
+        if (normalizedDirection === this.#flowDirection) {
+            return configuredAxisSpans.map((span) => typeof span === 'number' ? span : 0);
+        }
+
+        if (normalizedAxisAlignment === POS_FILL) {
+            return configuredAxisSpans.map(() => parentSize(direction, this.parent));
+        }
+
+        if (resolvedAxisSpans.length === 0) {
+            return configuredAxisSpans.map(() => 0);
+        }
+
+        const largestResolvedSpan = Math.max(...resolvedAxisSpans);
+        return configuredAxisSpans.map((span) => typeof span === 'number' ? span : largestResolvedSpan);
     }
 
     #resolveAxisSizes(direction: DirectionType): void {
@@ -156,38 +197,54 @@ export class ComputeAxis {
 
     #completeFractionalSizes(): void {
         const axisSpans = this.#flowDirection === DIR_HORIZ_S ? this.widths : this.heights;
-        const unresolvedAxisSpanIndices: number[] = [];
+        const startingRemainder = this.mainAxisRemainder;
+        const fractionalAxisSpanIndices: number[] = [];
+        let totalFractionalWeight = 0;
 
         axisSpans.forEach((span, index) => {
-            if (typeof span !== 'number') {
-                unresolvedAxisSpanIndices.push(index);
+            if (typeof span === 'number') {
+                return;
             }
+            fractionalAxisSpanIndices.push(index);
+            totalFractionalWeight += span.value;
         });
 
-        // TODO: distribute mainAxisRemainder across unresolved fractional axis spans.
-        void unresolvedAxisSpanIndices;
+        if (fractionalAxisSpanIndices.length === 0) {
+            return;
+        }
+
+        fractionalAxisSpanIndices.forEach((index) => {
+            const span = axisSpans[index];
+            if (typeof span === 'number') {
+                return;
+            }
+            axisSpans[index] = startingRemainder === 0 || totalFractionalWeight === 0
+                ? 0
+                : startingRemainder * (span.value / totalFractionalWeight);
+        });
+
+        this.mainAxisResolvedSpanTotal = axisSpans.reduce<number>(
+            (sum, span) => sum + (typeof span === 'number' ? span : 0),
+            0,
+        );
     }
 
     #placeChildren(): void {
         const widths = this.#resolvedAxisSpans(DIR_HORIZ_S);
         const heights = this.#resolvedAxisSpans(DIR_VERT_S);
         const mainDirection = this.#flowDirection;
-        const crossDirectionValue = crossDirection(mainDirection);
-        const mainAlignment = this.align[alignKey(mainDirection)];
-        const crossAlignment = this.align[alignKey(crossDirectionValue)];
-        const normalizedMainAlignment = posMap.get(mainAlignment) ??  POS_START_S;
 
-        switch (normalizedMainAlignment) {
+        switch (this.effectiveMainAlignment) {
             case POS_CENTER_S:
-                this.#placeChildrenCenter(widths, heights, mainDirection, crossAlignment);
+                this.#placeChildrenCenter(widths, heights, mainDirection, this.effectiveCrossAlignment);
                 return;
             case POS_END_S:
-                this.#placeChildrenRight(widths, heights, mainDirection, crossAlignment);
+                this.#placeChildrenRight(widths, heights, mainDirection, this.effectiveCrossAlignment);
                 return;
             case POS_FILL:
             case POS_START_S:
             default:
-                this.#placeChildrenLeft(widths, heights, mainDirection, crossAlignment);
+                this.#placeChildrenLeft(widths, heights, mainDirection, this.effectiveCrossAlignment);
         }
     }
 
@@ -252,8 +309,13 @@ export class ComputeAxis {
         return (cursor: number, _dim: RectPartialType, index: number): number => {
             const width = widths[index];
             const height = heights[index];
-            const crossX = alignOffset(crossAlignment, Math.max(this.parent.w - width, 0));
-            const crossY = alignOffset(crossAlignment, Math.max(this.parent.h - height, 0));
+            const normalizedCrossAlignment = crossAlignment ? posMap.get(crossAlignment) ?? crossAlignment : POS_START_S;
+            const crossX = normalizedCrossAlignment === POS_FILL
+                ? 0
+                : alignOffset(crossAlignment, Math.max(this.parent.w - width, 0));
+            const crossY = normalizedCrossAlignment === POS_FILL
+                ? 0
+                : alignOffset(crossAlignment, Math.max(this.parent.h - height, 0));
 
             if (mainDirection === DIR_HORIZ_S) {
                 xPositions[index] = cursor;
