@@ -15,7 +15,7 @@ export class BoxStore extends Forest<BoxCellType> {
 
     alignChildren() {
         const {children, align} = this.value;
-        if (!children?.length) {
+        if (!Array.isArray(children) || children.length === 0) {
             return;
         }
 
@@ -31,7 +31,7 @@ export class BoxStore extends Forest<BoxCellType> {
         ).compute();
 
         this.mutate((draft) => {
-            if (!draft.children) {
+            if (!Array.isArray(draft.children)) {
                 return;
             }
             draft.children = draft.children.map((child: BoxCellType, index: number) => {
@@ -39,7 +39,7 @@ export class BoxStore extends Forest<BoxCellType> {
                     ...child,
                     location: childLocations[index],
                 }
-                if (newChild.children) {
+                if (Array.isArray(newChild.children) && newChild.children.length > 0) {
                     updateChildren(newChild);
                 }
                 return newChild;
@@ -50,18 +50,18 @@ export class BoxStore extends Forest<BoxCellType> {
 
 function updateChildren(cell: BoxCellType) {
     const {location: myContainer, children, align} = cell;
-    if (!children || !myContainer) return;
+    if (!Array.isArray(children) || children.length === 0 || !myContainer) return;
     const childLocations: RectPXType[] = new ComputeAxis(
         align,
-        myContainer!,
-        children!.map((child) => child.dim),
+        myContainer,
+        children.map((child) => child.dim),
     ).compute();
-    cell.children = children!.map((child: BoxCellType, index: number) => {
+    cell.children = children.map((child: BoxCellType, index: number) => {
        const newChild = {
             ...child,
             location: childLocations[index],
         }
-        if (newChild.children) {
+        if (Array.isArray(newChild.children) && newChild.children.length > 0) {
             updateChildren(newChild);
         }
         return newChild;
