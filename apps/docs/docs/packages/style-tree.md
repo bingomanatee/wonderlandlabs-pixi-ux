@@ -64,6 +64,59 @@ tree.set('windowLabelFontSize', [], 10);
 tree.get('window.label.font.size', []); // 10
 ```
 
+## `setMany()`
+
+Use `setMany()` when you want to expand an object into multiple style keys under a shared noun path.
+This is especially handy for grouped values like `background`, `border`, `font`, and `fill`.
+
+```typescript
+import { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
+
+const tree = new StyleTree();
+
+tree.setMany('button', [], {
+  background: {
+    color: '#ffffff',
+    alpha: 1,
+  },
+  border: {
+    color: '#222222',
+    alpha: 0.8,
+  },
+});
+
+tree.get('button.background.color', []); // '#ffffff'
+tree.get('button.border.alpha', []); // 0.8
+```
+
+By default, `setMany()` recurses through nested plain objects and explodes them into deeper paths.
+
+```typescript
+tree.setMany('button', [], {
+  font: {
+    family: 'Helvetica',
+    size: 12,
+  },
+});
+
+tree.get('button.font.family', []); // 'Helvetica'
+tree.get('button.font.size', []); // 12
+```
+
+If you pass `false` as the fourth argument, only the first level is expanded and nested objects are stored as-is.
+
+```typescript
+tree.setMany('button', [], {
+  font: {
+    family: 'Helvetica',
+    size: 12,
+  },
+}, false);
+
+tree.get('button.font', []); // { family: 'Helvetica', size: 12 }
+tree.get('button.font.size', []); // undefined
+```
+
 ## Matching Rules
 
 Score: `(matching nouns * 100) + matching states`
@@ -84,6 +137,7 @@ Constructor:
 
 Methods:
 - `set(nouns: string, states: string[], value: unknown): void`
+- `setMany(nouns: string, states: string[], values: Record<string, unknown>, recurse?: boolean): void`
 - `get(nouns: string, states: string[]): unknown`
 - `has(nouns: string, states: string[]): boolean`
 - `match(query: { nouns: string[]; states: string[] }): unknown`
@@ -161,6 +215,7 @@ setConvention(tree, 'window.label', [], {
 
 `fromJSON()` converts nested JSON into tree entries.
 Plain keys build noun paths; `$` keys create state variants.
+If you want object expansion from data files rather than method calls, `fromJSON()` and `digestJSON()` are still the best fit.
 
 ### Example
 

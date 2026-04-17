@@ -49,3 +49,16 @@ export const POS_KEY_Y = 'yPosition';
 
 export const DIM_HORIZ_S = 'w';
 export const DIM_VERT_S = 'h';
+
+export const INSET_SCOPE_ALL = 'all';
+export const INSET_SCOPE_HORIZ = 'h';
+export const INSET_SCOPE_VERT = 'v';
+export const INSET_SCOPE_TOP = 'top';
+export const INSET_SCOPE_RIGHT = 'right';
+export const INSET_SCOPE_BOTTOM = 'bottom';
+export const INSET_SCOPE_LEFT = 'left';
+
+export const INSET_PART_TOP = 'top';
+export const INSET_PART_RIGHT = 'right';
+export const INSET_PART_BOTTOM = 'bottom';
+export const INSET_PART_LEFT = 'left';

@@ -1,9 +1,12 @@
 import {
     type BoxAlignType,
+    type BoxInsetEntryType,
+    type BoxInsetType,
     type BoxSizeObjType,
+    type BoxSizeType,
     type DirectionType,
     type RectPartialType,
-    type RectPXType,
+    type RectStaticType,
 } from './types.js';
 import {
     DIR_HORIZ_S,
@@ -24,7 +27,8 @@ import {
     sizeDirection,
     sizeToNumber,
     sizeValue,
-    toComplexSize
+    toComplexSize,
+    insetRect,
 } from './helpers.js';
 
 export class ComputeAxis {
@@ -35,15 +39,25 @@ export class ComputeAxis {
     mainAxisResolvedSpanTotal: number;
     effectiveMainAlignment: string;
     effectiveCrossAlignment: string;
+    readonly #contentParent: RectStaticType;
+    readonly #gapSize: number;
 
     readonly #flowDirection: typeof DIR_HORIZ_S | typeof DIR_VERT_S;
 
     constructor(
         readonly align: BoxAlignType,
-        readonly parent: RectPXType,
+        readonly parent: RectStaticType,
         readonly dims: RectPartialType[],
+        readonly options: { insets?: BoxInsetEntryType[]; gap?: BoxSizeType } = {},
     ) {
         this.#flowDirection = normalizeDirection(align.direction);
+        this.#contentParent = insetRect(parent, options.insets);
+        this.#gapSize = sizeToNumber({
+            input: options.gap,
+            parentContainer: this.#contentParent,
+            direction: this.#flowDirection,
+            skipFractional: true,
+        }) ?? 0;
         this.widths = new Array(dims.length).fill(0);
         this.heights = new Array(dims.length).fill(0);
         this.xPositions = new Array(dims.length).fill(0);
@@ -53,7 +67,7 @@ export class ComputeAxis {
         this.effectiveCrossAlignment = POS_START_S;
     }
 
-    compute(): RectPXType[] {
+    compute(): RectStaticType[] {
         this.#resolveEffectiveAlignments();
         this.#resolveAxisSizes(this.align.direction);
         this.#completeFractionalSizes();
@@ -62,8 +76,8 @@ export class ComputeAxis {
         const computedHeights = this.#resolvedAxisSpans(DIR_VERT_S);
 
         return this.dims.map((_dim, index) => ({
-            x: this.parent.x + this.xPositions[index],
-            y: this.parent.y + this.yPositions[index],
+            x: this.#contentParent.x + this.xPositions[index],
+            y: this.#contentParent.y + this.yPositions[index],
             w: computedWidths[index],
             h: computedHeights[index],
         }));
@@ -91,7 +105,7 @@ export class ComputeAxis {
         const dir = sizeDirection(direction);
         const stn = {
             input: 0,
-            parentContainer: this.parent,
+            parentContainer: this.#contentParent,
             direction,
             skipFractional: true,
         };
@@ -107,7 +121,8 @@ export class ComputeAxis {
     }
 
     get mainAxisRemainder(): number {
-        return Math.max(parentSize(this.#flowDirection, this.parent) - this.mainAxisResolvedSpanTotal, 0);
+        const totalGap = Math.max(this.dims.length - 1, 0) * this.#gapSize;
+        return Math.max(parentSize(this.#flowDirection, this.#contentParent) - this.mainAxisResolvedSpanTotal - totalGap, 0);
     }
 
     #resolvedAxisSpans(direction: DirectionType): number[] {
@@ -126,7 +141,7 @@ export class ComputeAxis {
         }
 
         if (normalizedAxisAlignment === POS_FILL) {
-            return configuredAxisSpans.map(() => parentSize(direction, this.parent));
+            return configuredAxisSpans.map(() => parentSize(direction, this.#contentParent));
         }
 
         if (resolvedAxisSpans.length === 0) {
@@ -277,20 +292,21 @@ export class ComputeAxis {
             const normalizedCrossAlignment = crossAlignment ? posMap.get(crossAlignment) ?? crossAlignment : POS_START_S;
             const crossX = normalizedCrossAlignment === POS_FILL
                 ? 0
-                : alignOffset(crossAlignment, Math.max(this.parent.w - width, 0));
+                : alignOffset(crossAlignment, Math.max(this.#contentParent.w - width, 0));
             const crossY = normalizedCrossAlignment === POS_FILL
                 ? 0
-                : alignOffset(crossAlignment, Math.max(this.parent.h - height, 0));
+                : alignOffset(crossAlignment, Math.max(this.#contentParent.h - height, 0));
+            const nextGap = index < this.dims.length - 1 ? this.#gapSize : 0;
 
             if (mainDirection === DIR_HORIZ_S) {
                 xPositions[index] = cursor;
                 yPositions[index] = crossY;
-                return cursor + width;
+                return cursor + width + nextGap;
             }
 
             xPositions[index] = crossX;
             yPositions[index] = cursor;
-            return cursor + height;
+            return cursor + height + nextGap;
         };
     }
 }

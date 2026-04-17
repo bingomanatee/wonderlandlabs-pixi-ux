@@ -1,7 +1,8 @@
 import {Forest} from '@wonderlandlabs/forestry4';
-import type {BoxCellType, BoxStyleManagerLike, RectPXType} from './types.js';
-import {rectToAbsolute} from "./helpers.js";
+import type {BoxCellType, BoxStyleManagerLike, RectStaticType} from './types.js';
+import {insetRect, rectToAbsolute} from "./helpers.js";
 import {ComputeAxis} from './ComputeAxis.js';
+import {resolveStyleValue} from './styleHelpers.js';
 
 export class BoxStore extends Forest<BoxCellType> {
     #styles?: BoxStyleManagerLike;
@@ -13,7 +14,7 @@ export class BoxStore extends Forest<BoxCellType> {
         });
     }
 
-    get location(): RectPXType {
+    get location(): RectStaticType {
         const {dim, location} = this.value;
         return rectToAbsolute(dim ?? location);
     }
@@ -21,6 +22,10 @@ export class BoxStore extends Forest<BoxCellType> {
     get rect(): { x: number; y: number; width: number; height: number } {
         const {x, y, w, h} = this.location;
         return {x, y, width: w, height: h};
+    }
+
+    get contentRect(): RectStaticType {
+        return insetRect(this.location, this.value.insets ?? []);
     }
 
     get styles(): BoxStyleManagerLike | undefined {
@@ -51,39 +56,15 @@ export class BoxStore extends Forest<BoxCellType> {
         propertyPath: string[] = [],
         options: { states?: string[]; extraNouns?: string[] } = {},
     ): T | undefined {
-        const styles = this.styles;
-        if (!styles) {
-            return undefined;
-        }
-
-        const baseNouns = [...this.styleNouns, ...(options.extraNouns ?? []), ...propertyPath];
-        const states = options.states ?? this.styleStates;
-        const variant = this.variant;
-        const leaf = baseNouns[baseNouns.length - 1];
-        const withVariant = variant && baseNouns.length > 0
-            ? [baseNouns[0], variant, ...baseNouns.slice(1)]
-            : undefined;
-
-        const queries = [
-            ...(withVariant ? [{ nouns: withVariant, states }] : []),
-            { nouns: baseNouns, states },
-            ...(leaf ? [{ nouns: [leaf], states }] : []),
-        ];
-
-        for (const query of queries) {
-            const result = styles.matchHierarchy
-                ? styles.matchHierarchy(query)
-                : styles.match(query);
-            if (result !== undefined) {
-                return result as T;
-            }
-        }
-
-        return undefined;
+        return resolveStyleValue<T>(this.styles, {
+            nouns: this.styleNouns,
+            states: this.styleStates,
+            variant: this.variant,
+        }, propertyPath, options);
     }
 }
 
-function layoutCell(cell: BoxCellType, parentRect?: RectPXType): BoxCellType {
+function layoutCell(cell: BoxCellType, parentRect?: RectStaticType): BoxCellType {
     const ownLocation = cell.location
         ? rectToAbsolute(cell.location)
         : rectToAbsolute(cell.dim, cell.absolute ? undefined : parentRect);
@@ -96,10 +77,14 @@ function layoutCell(cell: BoxCellType, parentRect?: RectPXType): BoxCellType {
         };
     }
 
-    const childLocations: RectPXType[] = new ComputeAxis(
+    const childLocations: RectStaticType[] = new ComputeAxis(
         align,
         ownLocation,
         children.map((child) => child.dim),
+        {
+            insets: cell.insets,
+            gap: cell.gap,
+        },
     ).compute();
 
     return {

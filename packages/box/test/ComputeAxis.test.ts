@@ -3,6 +3,10 @@ import { ComputeAxis } from '../src/ComputeAxis.js';
 import {
   DIR_HORIZ,
   DIR_VERT,
+  INSET_SCOPE_ALL,
+  INSET_SCOPE_HORIZ,
+  INSET_SCOPE_TOP,
+  INSET_SCOPE_VERT,
   POS_CENTER,
   POS_END,
   POS_FILL,
@@ -10,18 +14,19 @@ import {
   SIZE_FRACTION,
   SIZE_PCT,
 } from '../src/constants.js';
-import type { BoxAlign, RectPXType, RectPartialType } from '../src/types.js';
+import type { BoxAlignType, RectStaticType, RectPartialType } from '../src/types.js';
 
-const parent: RectPXType = { x: 10, y: 20, w: 300, h: 120 };
+const parent: RectStaticType = { x: 10, y: 20, w: 300, h: 120 };
 
 function expectScenario(
   name: string,
-  align: BoxAlign['_type'],
+  align: BoxAlignType,
   dims: RectPartialType[],
-  expected: RectPXType[],
+  expected: RectStaticType[],
+  options?: ConstructorParameters<typeof ComputeAxis>[3],
 ): void {
   void name;
-  const locations = new ComputeAxis(align, parent, dims).compute();
+  const locations = new ComputeAxis(align, parent, dims, options).compute();
   expect(locations).toEqual(expected);
 }
 
@@ -163,6 +168,115 @@ describe('ComputeAxis', () => {
         { x: 10, y: 20, w: 60, h: 20 },
         { x: 70, y: 20, w: 240, h: 20 },
       ],
+    );
+  });
+
+  it('insets the parent rect by padding before laying out children', () => {
+    expectScenario(
+      'insets the parent rect by padding before laying out children',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 50, h: 20 },
+        { w: 100, h: 30 },
+      ],
+      [
+        { x: 20, y: 30, w: 50, h: 20 },
+        { x: 70, y: 30, w: 100, h: 30 },
+      ],
+      {
+        insets: [{
+          role: 'padding',
+          inset: [
+            { scope: INSET_SCOPE_HORIZ, value: 10 },
+            { scope: INSET_SCOPE_VERT, value: 10 },
+          ],
+        }],
+      },
+    );
+  });
+
+  it('chains inset arrays in order before laying out children', () => {
+    expectScenario(
+      'chains inset arrays in order before laying out children',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 50, h: 20 },
+        { w: 100, h: 30 },
+      ],
+      [
+        { x: 24, y: 33, w: 50, h: 20 },
+        { x: 74, y: 33, w: 100, h: 30 },
+      ],
+      {
+        insets: [
+          {
+            role: 'border',
+            inset: [
+              { scope: INSET_SCOPE_ALL, value: 4 },
+              { scope: INSET_SCOPE_TOP, value: 8 },
+            ],
+          },
+          {
+            role: 'padding',
+            inset: [
+              { scope: INSET_SCOPE_HORIZ, value: 10 },
+              { scope: INSET_SCOPE_VERT, value: 5 },
+            ],
+          },
+        ],
+      },
+    );
+  });
+
+  it('applies gap on the main axis inside the padded content rect', () => {
+    expectScenario(
+      'applies gap on the main axis inside the padded content rect',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 50, h: 20 },
+        { w: 100, h: 30 },
+      ],
+      [
+        { x: 20, y: 30, w: 50, h: 20 },
+        { x: 80, y: 30, w: 100, h: 30 },
+      ],
+      {
+        insets: [{
+          role: 'padding',
+          inset: [
+            { scope: INSET_SCOPE_HORIZ, value: 10 },
+            { scope: INSET_SCOPE_VERT, value: 10 },
+          ],
+        }],
+        gap: 10,
+      },
+    );
+  });
+
+  it('distributes fractional remainder after padding and gaps are consumed', () => {
+    expectScenario(
+      'distributes fractional remainder after padding and gaps are consumed',
+      { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+      [
+        { w: 60, h: 20 },
+        { w: { value: 1, unit: SIZE_FRACTION }, h: 20 },
+        { w: { value: 2, unit: SIZE_FRACTION }, h: 20 },
+      ],
+      [
+        { x: 20, y: 30, w: 60, h: 20 },
+        { x: 90, y: 30, w: 66.66666666666666, h: 20 },
+        { x: 166.66666666666666, y: 30, w: 133.33333333333331, h: 20 },
+      ],
+      {
+        insets: [{
+          role: 'padding',
+          inset: [
+            { scope: INSET_SCOPE_HORIZ, value: 10 },
+            { scope: INSET_SCOPE_VERT, value: 10 },
+          ],
+        }],
+        gap: 10,
+      },
     );
   });
 });

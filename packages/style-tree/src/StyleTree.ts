@@ -77,6 +77,31 @@ export class StyleTree {
   }
 
   /**
+   * Expand an object into one or more style keys under a base noun path.
+   * Examples:
+   * - setMany('button', [], { color: 'red', size: 12 })
+   *   => button.color, button.size
+   * - setMany('button', [], { font: { size: 12 } })
+   *   => button.font.size (with recurse=true)
+   *   => button.font = { size: 12 } (with recurse=false)
+   */
+  setMany(
+    nouns: string,
+    states: string[],
+    values: Record<string, any>,
+    recurse = true,
+  ): void {
+    for (const [key, value] of Object.entries(values)) {
+      const nextPath = nouns ? `${nouns}.${key}` : key;
+      if (recurse && isPlainObject(value)) {
+        this.setMany(nextPath, states, value, true);
+        continue;
+      }
+      this.set(nextPath, states, value);
+    }
+  }
+
+  /**
    * Get a style value by exact key match
    * @param nouns - Noun path as string (e.g., "navigation.button.icon")
    * @param states - States as array (e.g., ["hover"], [] for no states)
@@ -284,4 +309,10 @@ export class StyleTree {
 
     return matches;
   }
+}
+
+function isPlainObject(value: unknown): value is Record<string, any> {
+  return typeof value === 'object'
+    && value !== null
+    && !Array.isArray(value);
 }

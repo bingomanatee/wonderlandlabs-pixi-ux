@@ -8,8 +8,8 @@
     "apps/*"
   ],
   "scripts": {
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
+    "storybook": "node ./scripts/check-storybook-files.mjs && storybook dev -p 6006",
+    "build-storybook": "node ./scripts/check-storybook-files.mjs && storybook build",
     "docs:dev": "yarn workspace @wonderlandlabs-pixi-ux/docs dev",
     "docs:start": "yarn workspace @wonderlandlabs-pixi-ux/docs start",
     "docs:build": "yarn workspace @wonderlandlabs-pixi-ux/docs build",

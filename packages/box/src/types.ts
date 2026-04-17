@@ -4,6 +4,17 @@ import {
   DIR_HORIZ_S,
   DIR_VERT,
   DIR_VERT_S,
+  INSET_PART_BOTTOM,
+  INSET_PART_LEFT,
+  INSET_PART_RIGHT,
+  INSET_PART_TOP,
+  INSET_SCOPE_ALL,
+  INSET_SCOPE_BOTTOM,
+  INSET_SCOPE_HORIZ,
+  INSET_SCOPE_LEFT,
+  INSET_SCOPE_RIGHT,
+  INSET_SCOPE_TOP,
+  INSET_SCOPE_VERT,
   POS_BOTTOM,
   POS_CENTER,
   POS_CENTER_S,
@@ -40,12 +51,24 @@ export const BoxSizeObj = z.object({
 });
 export type BoxSizeObjType = z.infer<typeof BoxSizeObj>;
 
+export const BoxSizeNoFractObj = BoxSizeObj.omit({ unit: true }).extend({
+  unit: z.enum([SIZE_PX, SIZE_PCT]).optional(),
+});
+export type BoxSizeNoFractObjType = z.infer<typeof BoxSizeNoFractObj>;
+
 export const BoxSize = z.union([
   BoxSizeObj,
   z.number(),
 ]);
 
 export type BoxSizeType = z.infer<typeof BoxSize>;
+
+export const BoxSizeNoFract = z.union([
+  BoxSizeNoFractObj,
+  z.number(),
+]);
+
+export type BoxSizeNoFractType = z.infer<typeof BoxSizeNoFract>;
 
 export const Direction = z.enum([
   DIR_HORIZ,
@@ -82,10 +105,39 @@ export const BoxContent = z.object({
 });
 export type BoxContentType = z.infer<typeof BoxContent>;
 
-export const BoxPoint = z.object({
-  x: BoxSize,
-  y: BoxSize,
+export const InsetPart = z.enum([
+  INSET_PART_TOP,
+  INSET_PART_RIGHT,
+  INSET_PART_BOTTOM,
+  INSET_PART_LEFT,
+]);
+export type InsetPartType = z.infer<typeof InsetPart>;
+
+export const InsetScope = z.enum([
+  INSET_SCOPE_ALL,
+  INSET_SCOPE_HORIZ,
+  INSET_SCOPE_VERT,
+  INSET_SCOPE_TOP,
+  INSET_SCOPE_RIGHT,
+  INSET_SCOPE_BOTTOM,
+  INSET_SCOPE_LEFT,
+]);
+export type InsetScopeType = z.infer<typeof InsetScope>;
+
+export const BoxInsetDef = z.object({
+  scope: InsetScope,
+  value: BoxSize,
 });
+export type BoxInsetDefType = z.infer<typeof BoxInsetDef>;
+
+export const BoxInset = z.array(BoxInsetDef);
+export type BoxInsetType = z.infer<typeof BoxInset>;
+
+export const BoxInsetEntry = z.object({
+  role: z.string(),
+  inset: BoxInset,
+});
+export type BoxInsetEntryType = z.infer<typeof BoxInsetEntry>;
 
 export const RectTemplate = z.object({
   x: BoxSize,
@@ -102,7 +154,6 @@ export const RectStatic = z.object({
 });
 
 export type RectStaticType = z.infer<typeof RectStatic>;
-export type RectPXType = RectStaticType;
 export type RectType = z.infer<typeof RectTemplate>;
 
 export const RectPartial = RectTemplate.partial({
@@ -121,6 +172,8 @@ export const BoxCellData = z.object({
   content: BoxContent.optional(),
   name: z.string(),
   align: BoxAlign,
+  insets: z.array(BoxInsetEntry).optional(),
+  gap: BoxSizeNoFract.optional(),
 });
 
 export type BoxCellDataType = z.infer<typeof BoxCellData>;
@@ -141,6 +194,12 @@ export type BoxStyleQueryLike = {
 export type BoxStyleManagerLike = {
   match: (query: BoxStyleQueryLike) => unknown;
   matchHierarchy?: (query: BoxStyleQueryLike) => unknown;
+};
+
+export type BoxLayerType = {
+  role: string;
+  rect: RectStaticType;
+  insets: RectStaticType;
 };
 
 export const Axes = z.enum([AXIS_Y, AXIS_X]);

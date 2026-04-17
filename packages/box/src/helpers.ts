@@ -1,10 +1,13 @@
 import type {
+    BoxCellType,
+    BoxLayerType,
+    BoxInsetEntryType,
     BoxSizeObjType,
     BoxSizeType,
     DimensionDirectionType,
     DirectionType,
     RectPartialType,
-    RectPXType
+    RectStaticType
 } from "./types.js";
 import {
     DIM_HORIZ_S,
@@ -23,10 +26,11 @@ import {
     SIZE_PCT,
     SIZE_PX
 } from './constants.js';
+import { InsetDigest } from './InsetDigest.js';
 
 type RectPartialKey = keyof RectPartialType;
 
-function percentToNumber(value: number, location: RectPXType, direction: DirectionType, base?: number) {
+function percentToNumber(value: number, location: RectStaticType, direction: DirectionType, base?: number) {
     const dir = dirMap.get(direction);
     let parentSize = 0;
 
@@ -52,7 +56,7 @@ function percentToNumber(value: number, location: RectPXType, direction: Directi
 
 type SizeToNumberInput = {
     input?: BoxSizeType;
-    parentContainer?: RectPXType;
+    parentContainer?: RectStaticType;
     direction?: DirectionType;
     skipFractional?: boolean;
 }
@@ -102,7 +106,7 @@ const keys: RectPartialKey[] = ['x', 'y', 'w', 'h'];
 const posKeys: RectPartialKey[] = ['x', 'y'];
 const keyDirections: DirectionType[] = [DIR_HORIZ_S, DIR_VERT_S, DIR_HORIZ_S, DIR_VERT_S];
 
-export function rectToAbsolute(r: RectPartialType, parentRect?: RectPXType): RectPXType {
+export function rectToAbsolute(r: RectPartialType, parentRect?: RectStaticType): RectStaticType {
     return keys.reduce((o: Record<string, unknown>, dim: RectPartialKey, index: number) => {
         const dir = keyDirections[index];
         const input = r[dim];
@@ -111,7 +115,56 @@ export function rectToAbsolute(r: RectPartialType, parentRect?: RectPXType): Rec
         }
         const computed = sizeToNumber({input, parentContainer: parentRect, direction: dir})
         return {...o, [dim]: computed}
-    }, {}) as RectPXType;
+    }, {}) as RectStaticType;
+}
+
+export function insetRect(
+    parentRect: RectStaticType,
+    insetters: Array<BoxInsetEntryType | undefined> = [],
+): RectStaticType {
+    return insetters.reduce((nextRect: RectStaticType, insetter) => {
+        return new InsetDigest(insetter?.inset, nextRect).apply(nextRect);
+    }, parentRect);
+}
+
+export function rectLayers(
+    parentRect: RectStaticType,
+    insetters: Array<BoxInsetEntryType | undefined> = [],
+): BoxLayerType[] {
+    const layers: BoxLayerType[] = [{
+        role: 'outer',
+        rect: parentRect,
+        insets: parentRect,
+    }];
+
+    const contentRect = insetters.reduce((nextRect: RectStaticType, insetter) => {
+        if (!insetter) {
+            return nextRect;
+        }
+
+        const insetRect = new InsetDigest(insetter.inset, nextRect).apply(nextRect);
+        layers.push({
+            role: insetter.role,
+            rect: nextRect,
+            insets: insetRect,
+        });
+        return insetRect;
+    }, parentRect);
+
+    layers.push({
+        role: 'content',
+        rect: contentRect,
+        insets: contentRect,
+    });
+
+    return layers;
+}
+
+export function cellLayers(cell: Pick<BoxCellType, 'location' | 'insets'>): BoxLayerType[] {
+    if (!cell.location) {
+        return [];
+    }
+    return rectLayers(cell.location, cell.insets ?? []);
 }
 
 export function rectHasFractionalSizes(r: RectPartialType, ignorePosition = false) {
@@ -135,7 +188,7 @@ export function alignKey(direction: DirectionType): typeof POS_KEY_X | typeof PO
     return normalizeDirection(direction) === DIR_HORIZ_S ? POS_KEY_X : POS_KEY_Y;
 }
 
-export function parentSize(direction: DirectionType, parent: RectPXType): number {
+export function parentSize(direction: DirectionType, parent: RectStaticType): number {
     return normalizeDirection(direction) === DIR_HORIZ_S ? parent.w : parent.h;
 }
 

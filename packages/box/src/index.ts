@@ -1,5 +1,8 @@
 export { BoxStore } from './BoxStore.js';
 export { ComputeAxis } from './ComputeAxis.js';
+export { InsetDigest } from './InsetDigest.js';
+export { boxTreeToSVG, computedBoxesToSVG } from './toSVG.js';
 export * from './constants.js';
 export * from './helpers.js';
+export * from './styleHelpers.js';
 export * from './types.js';
