@@ -6,15 +6,23 @@ type AxisValue = (typeof AXIS)[keyof typeof AXIS];
 export type ResolveMeasurementOptions = {
   axis?: AxisValue;
   parentPixels?: number;
+  freePixels?: number;
 };
 
 export function resolveMeasurement(
   measurement: Measurement,
   options: ResolveMeasurementOptions = {},
 ): number {
-  const { axis, parentPixels } = options;
+  const { axis, parentPixels, freePixels } = options;
   if (measurement.mode === 'px') {
     return measurement.value;
+  }
+  if (measurement.mode === '*') {
+    if (freePixels === undefined) {
+      const label = axis ?? 'axis';
+      throw new Error(`* size requires free ${label} space`);
+    }
+    return Math.max(freePixels, 0) * measurement.value;
   }
   if (parentPixels === undefined) {
     const label = axis ?? 'axis';

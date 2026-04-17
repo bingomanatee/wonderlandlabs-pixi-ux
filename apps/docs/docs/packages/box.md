@@ -74,6 +74,12 @@ layout.toggleGlobalVerb('disabled');
 layout.getChild('icon')?.toggleModeVerb('selected');
 ```
 
+:::warning Children Ordering
+`children` config can currently be provided as either a `Map` or a plain object. If child order matters, prefer `Map`.
+
+Plain object input is normalized with `Object.entries(...)`, so normal string keys keep creation order, but numeric-like keys such as `"0"`, `"1"`, `"2"` follow JavaScript object key ordering rules before conversion. `Map` preserves insertion order exactly.
+:::
+
 ## Ux Assignment
 
 `BoxTree` defaults to the built-in Pixi UX map. Override with `assignUx(ux, applyToChildren?)`:

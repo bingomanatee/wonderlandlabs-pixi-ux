@@ -18,3 +18,4 @@
 - Add a `rotation` parameter to `box`.
 - Add a `rotationPoint` parameter to `box`.
 - Define how `rotationPoint` interacts with positioning, bounds, and existing layout assumptions before implementation.
+- Revisit `BoxTree.children` input types. Consider dropping plain object support in favor of ordered inputs only (`Map` or tuple arrays) so child iteration order is always explicit and not subject to JS object key ordering rules for numeric-like keys.

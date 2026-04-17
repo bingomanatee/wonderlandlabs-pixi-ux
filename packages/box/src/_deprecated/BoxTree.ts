@@ -1,37 +1,30 @@
-import { Forest, type StoreParams } from '@wonderlandlabs/forestry4';
-import { z } from 'zod';
-import type { Application, Ticker } from 'pixi.js';
-import { distinctUntilChanged, map, skip, type Subscription } from 'rxjs';
-import { AxisConstraintSchema, PxValueSchema, type PxValue } from './types.js';
-import { applyAxisConstraints, resolveConstraintValuePx, resolveMeasurement } from './sizeUtils.js';
-import { pathToString } from './pathUtils.js';
-import { BoxUxPixi } from './BoxUx.js';
-import type { BoxTreeUxStyleManagerLike } from './types.ux.js';
+import {Forest, type StoreParams} from '@wonderlandlabs/forestry4';
+import type {Application, Ticker} from 'pixi.js';
+import {distinctUntilChanged, map, skip, type Subscription} from 'rxjs';
+import {applyAxisConstraints, resolveConstraintValuePx, resolveMeasurement} from './sizeUtils.js';
+import {pathToString} from './pathUtils.js';
+import {BoxUxPixi} from './BoxUx.js';
+import type {BoxTreeUxStyleManagerLike} from './types.ux.js';
 import {
-  AlignInputSchema,
-  AreaPivotInputSchema,
-  BoxContentSchema,
-  BoxAlignSchema,
-  BoxAreaSchema,
-  BoxTreeNodeConfigSchema,
-  BoxTreeNodeStateSchema,
-  BoxTreeStateSchema,
-  type AlignInput,
   type AlignKeyword,
-  type AreaPivotInput,
   type AreaPivotKeyword,
   type Axis,
   type AxisConstrain,
   type BoxContent,
+  BoxContentSchema,
   type BoxTreeConfig,
   type BoxTreeState,
+  BoxTreeStateSchema,
   type Direction,
+  type BoxSize,
   type ResolvedArea,
   type ResolvedRect,
   type StyleName,
 } from './types.boxtree.js';
+import {createBoxTreeState, normalizeVerbList, withWildcardBranchParams} from "./BoxTree.helpers";
 
 export * from './types.boxtree.js';
+export { createBoxTreeState } from './BoxTree.helpers.js';
 
 type StyleQueryLike = {
   nouns: string[];
@@ -69,199 +62,34 @@ export type BoxRenderMapFn = BoxUxMapFn;
 export type BoxRenderer = BoxUx;
 const DEFAULT_BOX_UX_MAP_FN: BoxUxMapFn = (box) => new BoxUxPixi(box);
 
-function zodMessage(error: unknown): string {
-  if (error instanceof z.ZodError) {
-    return error.issues.map((issue) => issue.message).join('; ');
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'invalid value';
+type PreparedRuntimeConfig = {
+  params: StoreParams<BoxTreeState>;
+  resolvedUx?: BoxUxMapFn;
+  applyToChildren: boolean;
+};
+
+function isBoxTreeStoreParams(value: unknown): value is StoreParams<BoxTreeState> {
+  if (!value || typeof value !== 'object') return false;
+  if (!Object.prototype.hasOwnProperty.call(value, 'value')) return false;
+  const obj = value as Record<string, unknown>;
+  return 'path' in obj || 'parent' in obj || 'schema' in obj || 'branchParams' in obj;
 }
 
-function normalizeConstraintValue(
-  value: unknown,
-  axis: Axis,
-  identity: string,
-  kind: 'min' | 'max',
-): PxValue | undefined {
-  if (!value) {
-    return undefined;
-  }
-  try {
-    return PxValueSchema.parse(value);
-  } catch (error) {
-    throw new Error(`${identity}.${axis}.${kind}: ${zodMessage(error)}`);
-  }
-}
-
-function normalizeVerbList(
-  value: readonly string[] | undefined,
-  identity: string,
-  field: 'modeVerb' | 'globalVerb',
-): string[] {
-  if (!value) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of value) {
-    if (typeof raw !== 'string') {
-      throw new Error(`${identity}.${field}: verbs must be strings`);
-    }
-    const next = raw.trim();
-    if (!next.length) {
-      throw new Error(`${identity}.${field}: verbs must be non-empty strings`);
-    }
-    if (seen.has(next)) {
-      continue;
-    }
-    seen.add(next);
-    out.push(next);
-  }
-  return out;
-}
-
-function normalizeAxisConstrain(
-  input: { min?: unknown; max?: unknown } | undefined,
-  axis: Axis,
-  identity: string,
-): AxisConstrain | undefined {
-  const min = normalizeConstraintValue(input?.min, axis, identity, 'min');
-  const max = normalizeConstraintValue(input?.max, axis, identity, 'max');
-  if (!min && !max) {
-    return undefined;
-  }
-  return AxisConstraintSchema.parse({ min, max });
-}
-
-function normalizeAlignValue(value: AlignInput | undefined, axis: Axis, identity: string): AlignKeyword {
-  let next: AlignInput;
-  try {
-    next = AlignInputSchema.parse(value ?? 's');
-  } catch {
-    throw new Error(`${identity}.${axis}: unsupported align "${String(value)}"`);
-  }
-
-  switch (next) {
-    case '<':
-      return 's';
-    case '|':
-      return 'c';
-    case '>':
-      return 'e';
-    case '<>':
-      return 'f';
-    default:
-      return next;
-  }
-}
-
-function normalizePivotValue(value: AreaPivotInput | undefined, axis: Axis, identity: string): AreaPivotKeyword {
-  let next: AreaPivotInput;
-  try {
-    next = AreaPivotInputSchema.parse(value ?? 's');
-  } catch {
-    throw new Error(`${identity}.area.p${axis}: unsupported pivot "${String(value)}"`);
-  }
-
-  switch (next) {
-    case '<':
-      return 's';
-    case '|':
-      return 'c';
-    case '>':
-      return 'e';
-    default:
-      return next;
-  }
-}
-
-function mappifyChildren(
-  children: BoxTreeConfig['children'],
-  identity: string,
-): Map<string, BoxTreeConfig> | undefined {
-  if (!children) {
-    return undefined;
-  }
-  if (children instanceof Map) {
-    return new Map(children);
-  }
-  if (typeof children === 'object' && !Array.isArray(children)) {
-    return new Map(Object.entries(children as Record<string, BoxTreeConfig>));
-  }
-  throw new Error(`${identity}.children: expected Map or Record`);
-}
-
-export function createBoxTreeState(config: BoxTreeConfig = {}, inferredId?: string): BoxTreeState {
-  const parsedConfig = BoxTreeNodeConfigSchema.parse(config);
-  const identity = parsedConfig.id ?? inferredId ?? 'root';
-  const styleName = parsedConfig.styleName ?? inferredId ?? parsedConfig.id ?? 'root';
-  const isRoot = inferredId === undefined;
-  const modeVerb = normalizeVerbList(parsedConfig.modeVerb, identity, 'modeVerb');
-  const globalVerb = normalizeVerbList(parsedConfig.globalVerb, identity, 'globalVerb');
-
-  if (isRoot) {
-    const hasExplicitX = parsedConfig.area?.x !== undefined;
-    const hasExplicitY = parsedConfig.area?.y !== undefined;
-    if (!hasExplicitX || !hasExplicitY) {
-      throw new Error(`${identity}.area: root requires explicit x and y`);
-    }
-  }
-
-  const nextArea = BoxAreaSchema.parse({
-    ...(parsedConfig.area ?? {}),
-    px: normalizePivotValue(parsedConfig.area?.px, 'x', identity),
-    py: normalizePivotValue(parsedConfig.area?.py, 'y', identity),
-  });
-
-  const nextAlign = BoxAlignSchema.parse({
-    x: normalizeAlignValue(parsedConfig.align?.x, 'x', identity),
-    y: normalizeAlignValue(parsedConfig.align?.y, 'y', identity),
-    direction: parsedConfig.align?.direction,
-  });
-
-  const nextConstrainX = normalizeAxisConstrain(parsedConfig.constrain?.x, 'x', identity);
-  const nextConstrainY = normalizeAxisConstrain(parsedConfig.constrain?.y, 'y', identity);
-  const nextConstrain = nextConstrainX || nextConstrainY ? { x: nextConstrainX, y: nextConstrainY } : undefined;
-
-  const preparedChildren = mappifyChildren(config.children, identity);
-  const children = preparedChildren && preparedChildren.size
-    ? new Map([...preparedChildren.entries()].map(([key, childConfig]) => [key, createBoxTreeState(childConfig, key)]))
-    : undefined;
-
-  const nodeState = BoxTreeNodeStateSchema.parse({
-    area: nextArea,
-    align: nextAlign,
-    content: parsedConfig.content,
-    styleName,
-    modeVerb,
-    globalVerb,
-    order: parsedConfig.order,
-    isVisible: parsedConfig.isVisible,
-    absolute: parsedConfig.absolute,
-    constrain: nextConstrain,
-    style: parsedConfig.style,
-    id: parsedConfig.id ?? inferredId,
-  });
-
-  return BoxTreeStateSchema.parse({
-    ...nodeState,
-    children,
-  });
-}
-
-function withWildcardBranchParams(params: StoreParams<BoxTreeState>): StoreParams<BoxTreeState> {
-  const nextBranchParams = new Map(params.branchParams ?? []);
-
-  if (!nextBranchParams.has('*')) {
-    nextBranchParams.set('*', { subclass: BoxTree });
-  }
-
+function prepareRuntimeConfig(config: BoxTreeRuntimeConfig = {}): PreparedRuntimeConfig {
+  const {
+    ux,
+    uxMapFn,
+    renderer,
+    renderMapFn,
+    applyToChildren = true,
+    ...treeConfig
+  } = config;
   return {
-    ...params,
-    branchParams: nextBranchParams,
+    params: withWildcardBranchParams({
+      value: createBoxTreeState(treeConfig as BoxTreeConfig),
+    }),
+    resolvedUx: ux ?? uxMapFn ?? renderer ?? renderMapFn,
+    applyToChildren,
   };
 }
 
@@ -276,54 +104,48 @@ export class BoxTree extends Forest<BoxTreeState> {
   #queuedRenderTicker?: Ticker;
   #renderWatchSubscription?: Subscription;
 
-  constructor(configOrParams: BoxTreeRuntimeConfig | StoreParams<BoxTreeState>) {
-    const isParams = BoxTree.isStoreParams(configOrParams);
-    const runtimeConfig = isParams ? undefined : configOrParams;
-    const ux = runtimeConfig?.ux ?? runtimeConfig?.uxMapFn ?? runtimeConfig?.renderer ?? runtimeConfig?.renderMapFn;
-    const applyToChildren = runtimeConfig?.applyToChildren ?? true;
-    const config = runtimeConfig ? { ...runtimeConfig } : undefined;
-    if (config && 'ux' in config) {
-      delete (config as Partial<BoxTreeRuntimeConfig>).ux;
-    }
-    if (config && 'uxMapFn' in config) {
-      delete (config as Partial<BoxTreeRuntimeConfig>).uxMapFn;
-    }
-    if (config && 'renderer' in config) {
-      delete (config as Partial<BoxTreeRuntimeConfig>).renderer;
-    }
-    if (config && 'renderMapFn' in config) {
-      delete (config as Partial<BoxTreeRuntimeConfig>).renderMapFn;
-    }
-    if (config && 'applyToChildren' in config) {
-      delete (config as Partial<BoxTreeRuntimeConfig>).applyToChildren;
-    }
-
-    const baseParams: StoreParams<BoxTreeState> = BoxTree.isStoreParams(configOrParams)
-      ? {
-        ...configOrParams,
-        // StoreParams represents state-level input; children must already be a Map.
-        value: BoxTreeStateSchema.parse(configOrParams.value),
-      }
-      : { value: createBoxTreeState(config as BoxTreeConfig) };
+  constructor(params: StoreParams<BoxTreeState>);
+  constructor(config: BoxTreeRuntimeConfig);
+  constructor(configOrParams: StoreParams<BoxTreeState> | BoxTreeRuntimeConfig) {
+    const isParams = isBoxTreeStoreParams(configOrParams);
+    const prepared = isParams ? undefined : prepareRuntimeConfig(configOrParams);
+    const sourceParams = isParams ? configOrParams : prepared!.params;
+    const baseParams: StoreParams<BoxTreeState> = {
+      ...sourceParams,
+      // StoreParams represents state-level input; children must already be a Map.
+      value: BoxTreeStateSchema.parse(sourceParams.value),
+    };
 
     super(withWildcardBranchParams(baseParams));
 
     if (!isParams) {
-      if (ux) {
-        this.assignUx(ux, applyToChildren);
+      if (prepared?.resolvedUx) {
+        this.assignUx(prepared.resolvedUx, prepared.applyToChildren);
       } else {
-        this.#setUxMapFn(DEFAULT_BOX_UX_MAP_FN, applyToChildren);
+        this.#setUxMapFn(DEFAULT_BOX_UX_MAP_FN, prepared?.applyToChildren ?? true);
       }
     }
 
     this.#startRenderWatcher();
   }
 
-  static isStoreParams(value: unknown): value is StoreParams<BoxTreeState> {
-    if (!value || typeof value !== 'object') return false;
-    if (!Object.prototype.hasOwnProperty.call(value, 'value')) return false;
-    const obj = value as Record<string, unknown>;
-    return 'path' in obj || 'parent' in obj || 'schema' in obj || 'branchParams' in obj;
+  static toStoreParams(config: BoxTreeRuntimeConfig = {}): StoreParams<BoxTreeState> {
+    return prepareRuntimeConfig(config).params;
+  }
+
+  static fromConfig(config: BoxTreeRuntimeConfig = {}): BoxTree {
+    const { params, resolvedUx, applyToChildren } = prepareRuntimeConfig(config);
+    const tree = new BoxTree(params);
+    if (resolvedUx) {
+      tree.assignUx(resolvedUx, applyToChildren);
+    } else {
+      tree.#setUxMapFn(DEFAULT_BOX_UX_MAP_FN, applyToChildren);
+    }
+    return tree;
+  }
+
+  static fromStoreParams(params: StoreParams<BoxTreeState>): BoxTree {
+    return new BoxTree(params);
   }
 
   #childKey(): string | undefined {
@@ -539,6 +361,73 @@ export class BoxTree extends Forest<BoxTreeState> {
       || (parent.direction === 'column' && axis === 'y');
   }
 
+  #axisMeasurement(axis: Axis): BoxSize {
+    return axis === 'x' ? this.value.area.width : this.value.area.height;
+  }
+
+  #isStarAxis(axis: Axis): boolean {
+    return this.#axisMeasurement(axis).mode === '*';
+  }
+
+  #resolveNonStarAxis(axis: Axis, parentPixels?: number): number {
+    const inheritedParent = parentPixels ?? this.#parentAxisPixels(axis);
+    const sizeDef = this.#axisMeasurement(axis);
+    const base = resolveMeasurement(sizeDef, { axis, parentPixels: inheritedParent });
+
+    const constrain = this.#axisConstrain(axis);
+    const min = resolveConstraintValuePx(constrain?.min);
+    const max = resolveConstraintValuePx(constrain?.max);
+
+    return applyAxisConstraints(base, { min, max });
+  }
+
+  #starFlowSiblings(axis: Axis, parent: BoxTree): BoxTree[] {
+    return parent.children.filter((sibling) => !sibling.absolute && this.#isFlowAxis(axis, parent));
+  }
+
+  #resolveStarAxis(axis: Axis, parentPixels?: number): number {
+    const inheritedParent = parentPixels ?? this.#parentAxisPixels(axis);
+    if (inheritedParent === undefined) {
+      throw new Error(`* size requires parent ${axis}`);
+    }
+
+    const parent = this.parentTree;
+    let base = inheritedParent;
+
+    if (parent && !this.absolute && this.#isFlowAxis(axis, parent)) {
+      const siblings = this.#starFlowSiblings(axis, parent);
+      const starSiblings = siblings.filter((sibling) => sibling.#isStarAxis(axis));
+      const consumed = siblings
+        .filter((sibling) => !sibling.#isStarAxis(axis))
+        .reduce((total, sibling) => total + sibling.#resolveNonStarAxis(axis, inheritedParent), 0);
+      const freeSpace = Math.max(inheritedParent - consumed, 0);
+      const totalWeight = starSiblings.reduce((total, sibling) => {
+        const measurement = sibling.#axisMeasurement(axis);
+        return measurement.mode === '*' ? total + measurement.value : total;
+      }, 0);
+      const ownMeasurement = this.#axisMeasurement(axis);
+      const ownWeight = ownMeasurement.mode === '*' ? ownMeasurement.value : 0;
+
+      base = totalWeight > 0
+        ? resolveMeasurement(ownMeasurement, {
+          axis,
+          parentPixels: inheritedParent,
+          freePixels: freeSpace / totalWeight,
+        })
+        : 0;
+
+      if (ownWeight === 0) {
+        base = 0;
+      }
+    }
+
+    const constrain = this.#axisConstrain(axis);
+    const min = resolveConstraintValuePx(constrain?.min);
+    const max = resolveConstraintValuePx(constrain?.max);
+
+    return applyAxisConstraints(base, { min, max });
+  }
+
   #flowOffset(axis: Axis): number {
     const parent = this.parentTree;
     if (!parent || this.absolute || !this.#isFlowAxis(axis, parent)) {
@@ -556,52 +445,60 @@ export class BoxTree extends Forest<BoxTreeState> {
     return offset;
   }
 
-  #resolveAxis(axis: Axis, parentPixels?: number): number {
-    const inheritedParent = parentPixels ?? this.#parentAxisPixels(axis);
-    const align = this.#axisAlign(axis);
-    const sizeDef = axis === 'x' ? this.value.area.width : this.value.area.height;
-    const shouldFillParent = !this.absolute && align === 'f' && inheritedParent !== undefined;
-    const base = shouldFillParent
-      ? inheritedParent
-      : resolveMeasurement(sizeDef, { axis, parentPixels: inheritedParent });
-
-    const constrain = this.#axisConstrain(axis);
-    const min = resolveConstraintValuePx(constrain?.min);
-    const max = resolveConstraintValuePx(constrain?.max);
-
-    return applyAxisConstraints(base, { min, max });
+  #flowSpan(axis: Axis): number {
+    return this.children
+      .filter((child) => !child.absolute)
+      .reduce((total, child) => total + (axis === 'x' ? child.width : child.height), 0);
   }
 
-  #anchorAxis(axis: Axis): number {
-    const axisAnchor = axis === 'x' ? this.value.area.x : this.value.area.y;
-    const parent = this.parentTree;
-    if (!parent || this.absolute) {
-      return axisAnchor;
-    }
-
-    const align = this.#axisAlign(axis);
+  #flowAlignOffset(axis: Axis, parent: BoxTree): number {
+    const align = parent.#axisAlign(axis);
     const parentAxis = axis === 'x' ? parent.width : parent.height;
-    const ownAxis = axis === 'x' ? this.width : this.height;
-    let alignedAnchor = axisAnchor;
+    const flowSpan = parent.#flowSpan(axis);
+
     switch (align) {
       case 'c':
-        alignedAnchor = (parentAxis - ownAxis) / 2 + axisAnchor;
-        break;
+        return (parentAxis - flowSpan) / 2;
       case 'e':
-        alignedAnchor = (parentAxis - ownAxis) - axisAnchor;
-        break;
+        return parentAxis - flowSpan;
       case 's':
       case 'f':
       default:
-        alignedAnchor = axisAnchor;
-        break;
+        return 0;
+    }
+  }
+
+  #resolveAxis(axis: Axis, parentPixels?: number): number {
+    if (this.#isStarAxis(axis)) {
+      return this.#resolveStarAxis(axis, parentPixels);
+    }
+    return this.#resolveNonStarAxis(axis, parentPixels);
+  }
+
+  #resolveChildAnchor(child: BoxTree, axis: Axis): number {
+    const axisAnchor = axis === 'x' ? child.value.area.x : child.value.area.y;
+    if (child.absolute) {
+      return axisAnchor;
     }
 
-    if (this.#isFlowAxis(axis, parent)) {
-      return alignedAnchor + this.#flowOffset(axis);
+    if (child.#isFlowAxis(axis, this)) {
+      return axisAnchor + this.#flowAlignOffset(axis, this) + child.#flowOffset(axis);
     }
 
-    return alignedAnchor;
+    const align = this.#axisAlign(axis);
+    const parentAxis = axis === 'x' ? this.width : this.height;
+    const childAxis = axis === 'x' ? child.width : child.height;
+
+    switch (align) {
+      case 'c':
+        return (parentAxis - childAxis) / 2 + axisAnchor;
+      case 'e':
+        return (parentAxis - childAxis) - axisAnchor;
+      case 's':
+      case 'f':
+      default:
+        return axisAnchor;
+    }
   }
 
   #pivotOffset(axis: Axis): number {
@@ -619,11 +516,17 @@ export class BoxTree extends Forest<BoxTreeState> {
   }
 
   get anchorX(): number {
-    return this.#anchorAxis('x');
+    if (!this.parentTree) {
+      return this.value.area.x;
+    }
+    return this.parentTree.#resolveChildAnchor(this, 'x');
   }
 
   get anchorY(): number {
-    return this.#anchorAxis('y');
+    if (!this.parentTree) {
+      return this.value.area.y;
+    }
+    return this.parentTree.#resolveChildAnchor(this, 'y');
   }
 
   get x(): number {
@@ -1072,6 +975,26 @@ export class BoxTree extends Forest<BoxTreeState> {
 
     this.mutate((draft) => {
       draft.area.height = { mode: '%', value: percent };
+    });
+  }
+
+  setWidthStar(weight = 1): void {
+    if (!Number.isFinite(weight) || weight < 0) {
+      throw new Error(`${this.identityPath}.x: * weight must be finite and >= 0`);
+    }
+
+    this.mutate((draft) => {
+      draft.area.width = { mode: '*', value: weight };
+    });
+  }
+
+  setHeightStar(weight = 1): void {
+    if (!Number.isFinite(weight) || weight < 0) {
+      throw new Error(`${this.identityPath}.y: * weight must be finite and >= 0`);
+    }
+
+    this.mutate((draft) => {
+      draft.area.height = { mode: '*', value: weight };
     });
   }
 

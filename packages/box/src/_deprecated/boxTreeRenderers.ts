@@ -1,50 +1,5 @@
-import type { BoxTree } from './BoxTree.js';
-import type { Container } from 'pixi.js';
-
-type BoxNodeContentType = 'text' | 'url' | 'image';
-
-type BoxNodeGraphicsMetadata = {
-  boxContentType?: BoxNodeContentType;
-  boxContentValue?: string;
-};
-
-export type BoxTreeToPixiNodeStyle = {
-  fill?: number;
-  fillAlpha?: number;
-  stroke?: number;
-  strokeAlpha?: number;
-  strokeWidth?: number;
-};
-
-export type BoxTreeToPixiOptions = BoxTreeToPixiNodeStyle & {
-  includeRoot?: boolean;
-  nodeToStyle?: (node: BoxTree, index: number) => BoxTreeToPixiNodeStyle | undefined;
-};
-
-export type BoxTreeToSvgNodeStyle = {
-  fill?: string;
-  fillOpacity?: number;
-  stroke?: string;
-  strokeOpacity?: number;
-  strokeWidth?: number;
-};
-
-export type BoxTreeToSvgOptions = BoxTreeToSvgNodeStyle & {
-  includeRoot?: boolean;
-  padding?: number;
-  nodeToStyle?: (node: BoxTree, index: number) => BoxTreeToSvgNodeStyle | undefined;
-  background?: string;
-};
-
-type BoxNodeRenderData = {
-  node: BoxTree;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  contentType?: BoxNodeContentType;
-  contentValue?: string;
-};
+import type {BoxTree} from './BoxTree.js';
+import type {Container} from 'pixi.js';
 
 function escapeAttr(value: string): string {
   return value
