@@ -1,6 +1,7 @@
 # TODO
 
 - Achieve recursive layout so each child can compute and apply layout to its own children.
+- use Immer/diff to only recompute the children that have changed or the children of changed nodes. 
 - Properly compute fractional dimensions on the main axis.
 - Replace the current no-op fractional completion step with remainder distribution across unresolved spans.
 - Decide how overflow should resolve when content exceeds the parent container:

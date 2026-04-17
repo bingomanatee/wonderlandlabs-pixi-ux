@@ -1,66 +1,31 @@
 import {
     type BoxAlignType,
     type BoxSizeObjType,
-    type DimensionDirectionType,
     type DirectionType,
     type RectPartialType,
     type RectPXType,
 } from './types.js';
 import {
-    AXIS_X,
-    DIM_HORIZ_S,
-    DIM_VERT_S,
-    POS_CENTER_S,
-    POS_END_S,
     DIR_HORIZ_S,
     DIR_VERT_S,
+    POS_CENTER_S,
+    POS_END_S,
     POS_FILL,
     POS_START_S,
-    POS_KEY_X,
-    POS_KEY_Y,
-    dirMap,
     posMap,
     SIZE_FRACTION,
 } from './constants.js';
-import {sizeToNumber, toComplexSize} from './helpers.js';
-
-function normalizeDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
-    return (dirMap.get(direction) ?? DIR_VERT_S) as typeof DIR_HORIZ_S | typeof DIR_VERT_S;
-}
-
-function crossDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
-    return normalizeDirection(direction) === DIR_HORIZ_S ? DIR_VERT_S : DIR_HORIZ_S;
-}
-
-function alignKey(direction: DirectionType): typeof POS_KEY_X | typeof POS_KEY_Y {
-    return normalizeDirection(direction) === DIR_HORIZ_S ? POS_KEY_X : POS_KEY_Y;
-}
-
-function parentSize(direction: DirectionType, parent: RectPXType): number {
-    return normalizeDirection(direction) === DIR_HORIZ_S ? parent.w : parent.h;
-}
-
-function sizeDirection(direction: DirectionType): DimensionDirectionType {
-    return normalizeDirection(direction) === DIR_HORIZ_S ? DIM_HORIZ_S : DIM_VERT_S;
-}
-
-function sizeValue(direction: DimensionDirectionType, rect: RectPartialType) {
-    return direction === DIM_HORIZ_S ? rect.w : rect.h;
-}
-
-function alignOffset(position: string | undefined, available: number): number {
-    const normalized = position ? posMap.get(position) ?? position : undefined;
-    switch (normalized) {
-        case POS_CENTER_S:
-            return available / 2;
-        case POS_END_S:
-            return available;
-        case POS_FILL:
-        case POS_START_S:
-        default:
-            return 0;
-    }
-}
+import {
+    alignKey,
+    alignOffset,
+    crossDirection,
+    normalizeDirection,
+    parentSize,
+    sizeDirection,
+    sizeToNumber,
+    sizeValue,
+    toComplexSize
+} from './helpers.js';
 
 export class ComputeAxis {
     widths: Array<number | BoxSizeObjType>;

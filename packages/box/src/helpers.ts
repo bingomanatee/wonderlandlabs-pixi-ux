@@ -1,6 +1,28 @@
-import type {BoxSizeType, BoxSizeObjType, RectPartialType, DirectionType, RectPXType} from "./types.js";
-import {BoxSizeObj} from "./types.js";
-import {SIZE_PX, SIZE_PCT, SIZE_FRACTION, DIR_VERT_S, DIR_HORIZ_S, dirMap} from './constants.js';
+import type {
+    BoxSizeObjType,
+    BoxSizeType,
+    DimensionDirectionType,
+    DirectionType,
+    RectPartialType,
+    RectPXType
+} from "./types.js";
+import {
+    DIM_HORIZ_S,
+    DIM_VERT_S,
+    DIR_HORIZ_S,
+    DIR_VERT_S,
+    dirMap,
+    POS_CENTER_S,
+    POS_END_S,
+    POS_FILL,
+    POS_KEY_X,
+    POS_KEY_Y,
+    POS_START_S,
+    posMap,
+    SIZE_FRACTION,
+    SIZE_PCT,
+    SIZE_PX
+} from './constants.js';
 
 type RectPartialKey = keyof RectPartialType;
 
@@ -99,4 +121,42 @@ export function rectHasFractionalSizes(r: RectPartialType, ignorePosition = fals
         if (ignorePosition && posKeys.includes(key)) return false;
         return toComplexSize(value)?.unit === SIZE_FRACTION;
     })
+}
+
+export function normalizeDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
+    return (dirMap.get(direction) ?? DIR_VERT_S) as typeof DIR_HORIZ_S | typeof DIR_VERT_S;
+}
+
+export function crossDirection(direction: DirectionType): typeof DIR_HORIZ_S | typeof DIR_VERT_S {
+    return normalizeDirection(direction) === DIR_HORIZ_S ? DIR_VERT_S : DIR_HORIZ_S;
+}
+
+export function alignKey(direction: DirectionType): typeof POS_KEY_X | typeof POS_KEY_Y {
+    return normalizeDirection(direction) === DIR_HORIZ_S ? POS_KEY_X : POS_KEY_Y;
+}
+
+export function parentSize(direction: DirectionType, parent: RectPXType): number {
+    return normalizeDirection(direction) === DIR_HORIZ_S ? parent.w : parent.h;
+}
+
+export function sizeDirection(direction: DirectionType): DimensionDirectionType {
+    return normalizeDirection(direction) === DIR_HORIZ_S ? DIM_HORIZ_S : DIM_VERT_S;
+}
+
+export function sizeValue(direction: DimensionDirectionType, rect: RectPartialType) {
+    return direction === DIM_HORIZ_S ? rect.w : rect.h;
+}
+
+export function alignOffset(position: string | undefined, available: number): number {
+    const normalized = position ? posMap.get(position) ?? position : undefined;
+    switch (normalized) {
+        case POS_CENTER_S:
+            return available / 2;
+        case POS_END_S:
+            return available;
+        case POS_FILL:
+        case POS_START_S:
+        default:
+            return 0;
+    }
 }
