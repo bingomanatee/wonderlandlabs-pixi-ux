@@ -1,0 +1,69 @@
+{
+  "container": {
+    "background": {
+      "color": {
+        "$*": "#FFFFFF",
+        "$dark": "#000000"
+      },
+      "padding": {
+        "$*": 4,
+        "$avatar": 15
+      },
+      "width": {
+        "$*": 200,
+        "$avatar": 150
+      },
+      "height": {
+        "$*": 40,
+        "$avatar": 150
+      }
+    },
+    "border": {
+      "width": {
+        "$*": 1,
+        "$avatar": 0
+      },
+      "color": {
+        "$*": "#000000",
+        "$dark": "#FFFFFF"
+      },
+      "radius": {
+        "$*": 10,
+        "$avatar": 100
+      }
+    }
+  },
+  "label": {
+    "font": {
+      "$*": [
+        "Helvetica",
+        "Arial",
+        "sans-serif"
+      ],
+      "color": {
+        "$*": "#000000",
+        "$dark": "#FFFFFF"
+      }
+    },
+    "size": {
+      "$*": 14,
+      "$avatar": 24
+    }
+  },
+  "icon": {
+    "size": {
+      "width": {
+        "$*": 16,
+        "$avatar": 24
+      },
+      "height": {
+        "$*": 16,
+        "$avatar": 24
+      },
+      "size": {
+        "$*": 16,
+        "$avatar": 24
+      }
+    }
+  }
+}

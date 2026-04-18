@@ -1,7 +1,8 @@
-import { Color, Container, Graphics, type ColorSource } from 'pixi.js';
+import { Color, Container, Graphics, Sprite, Text, TextStyle, Texture, type ColorSource, type TextStyleOptions } from 'pixi.js';
 import type { RectStaticType } from './types.js';
 
 export const GRAPHICS_LABEL = '$$background';
+export const CONTENT_LABEL = '$$content';
 
 export function ensureGraphics(container: Container): Graphics {
   const existing = container.children.find((child) => child.label === GRAPHICS_LABEL);
@@ -12,6 +13,44 @@ export function ensureGraphics(container: Container): Graphics {
   const graphics = new Graphics({ label: GRAPHICS_LABEL });
   container.addChildAt(graphics, 0);
   return graphics;
+}
+
+export function ensureText(
+  container: Container,
+  style: TextStyleOptions = {},
+): Text {
+  const existing = container.children.find((child) => child.label === CONTENT_LABEL);
+  if (existing instanceof Text) {
+    return existing;
+  }
+  if (existing) {
+    container.removeChild(existing);
+    existing.destroy({ children: true });
+  }
+
+  const text = new Text({
+    text: '',
+    style: new TextStyle(style),
+  });
+  text.label = CONTENT_LABEL;
+  container.addChild(text);
+  return text;
+}
+
+export function ensureSprite(container: Container): Sprite {
+  const existing = container.children.find((child) => child.label === CONTENT_LABEL);
+  if (existing instanceof Sprite) {
+    return existing;
+  }
+  if (existing) {
+    container.removeChild(existing);
+    existing.destroy({ children: true });
+  }
+
+  const sprite = new Sprite(Texture.EMPTY);
+  sprite.label = CONTENT_LABEL;
+  container.addChild(sprite);
+  return sprite;
 }
 
 export function drawBorderBands(
@@ -98,6 +137,9 @@ export function cleanupChildren(
 ): void {
   for (const child of [...parent.children]) {
     if (child.label === GRAPHICS_LABEL) {
+      continue;
+    }
+    if (typeof child.label === 'string' && child.label.startsWith('$$')) {
       continue;
     }
     if (desired.has(child.label)) {

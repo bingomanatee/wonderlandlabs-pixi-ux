@@ -57,6 +57,32 @@ describe('digest', () => {
       // Note: state is parsed as single string 'disabled-selected'
       expect(tree.get('button.color', ['disabled-selected'])).toBe('gray');
     });
+
+    it('should split comma-delimited state keys into multiple states', () => {
+      const json = {
+        button: {
+          '$dark,vertical': {
+            color: 'gray',
+          },
+        },
+      };
+
+      const tree = fromJSON(json);
+      expect(tree.get('button.color', ['dark', 'vertical'])).toBe('gray');
+    });
+
+    it('should trim whitespace around comma-delimited state keys', () => {
+      const json = {
+        button: {
+          '$dark, vertical': {
+            color: 'gray',
+          },
+        },
+      };
+
+      const tree = fromJSON(json);
+      expect(tree.get('button.color', ['dark', 'vertical'])).toBe('gray');
+    });
   });
 
   describe('digestJSON', () => {

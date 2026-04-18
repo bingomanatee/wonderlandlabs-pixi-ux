@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, TextStyle } from 'pixi.js';
 import { z } from 'zod';
 import { cellLayers } from './helpers.js';
 import { resolveStyleValue, styleContextForCell, type BoxStyleContext } from './styleHelpers.js';
@@ -8,6 +8,7 @@ import {
   createContainer,
   drawBorderBands,
   ensureGraphics,
+  ensureText,
   findContainerById,
   resolveNumericStyle,
   resolvePixiColor,
@@ -18,6 +19,7 @@ import type {
   BoxPixiNodeContext,
   BoxPixiOptions,
   BoxPixiRenderInput,
+  BoxPixiRendererManifest,
   BoxPixiRendererOverride,
   BoxStyleManagerLike,
 } from './types.js';
@@ -66,7 +68,7 @@ function renderPixiNode(
       localLocation,
     },
   };
-  const override = resolvePixiRendererOverride(options.styleTree, context);
+  const override = resolvePixiRendererOverride(options.renderers, options.styleTree, context, cell.id);
 
   if (override && !override.post) {
     const result = validateRendererResult(override.renderer(renderInput), cell.name, pathString);
@@ -185,13 +187,103 @@ function renderDefaultPixiNode(
     }
   }
 
+  renderDefaultContent(input, context);
+
   return currentContainer!;
 }
 
+function renderDefaultContent(
+  input: BoxPixiRenderInput,
+  context: BoxStyleContext,
+): void {
+  const { currentContainer, localLocation } = input.local;
+  const content = input.context.cell.content;
+
+  if (!currentContainer || !content || content.type !== 'text') {
+    return;
+  }
+
+  const fill = resolvePixiColor(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'color'])
+      ?? resolveStyleValue(input.options.styleTree, context, ['color'])
+  ) ?? 0x111111;
+  const alpha = resolveNumericStyle(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'alpha'])
+      ?? resolveStyleValue(input.options.styleTree, context, ['alpha'])
+  ) ?? 1;
+  const fontSize = resolveNumericStyle(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'size'])
+      ?? resolveStyleValue(input.options.styleTree, context, ['size'])
+  ) ?? 14;
+  const fontFamilyValue = resolveStyleValue<unknown>(input.options.styleTree, context, ['font', 'family'])
+    ?? resolveStyleValue<unknown>(input.options.styleTree, context, ['font']);
+  const fontFamily = Array.isArray(fontFamilyValue)
+    ? fontFamilyValue.join(', ')
+    : typeof fontFamilyValue === 'string'
+      ? fontFamilyValue
+      : 'Arial';
+  const fontWeightValue = resolveStyleValue<unknown>(input.options.styleTree, context, ['font', 'weight']);
+  const fontStyleValue = resolveStyleValue<unknown>(input.options.styleTree, context, ['font', 'style']);
+  const alignValue = resolveStyleValue<unknown>(input.options.styleTree, context, ['font', 'align']);
+  const letterSpacing = resolveNumericStyle(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'letterSpacing'])
+  );
+  const lineHeight = resolveNumericStyle(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'lineHeight'])
+  );
+  const wordWrap = resolveStyleValue<unknown>(input.options.styleTree, context, ['font', 'wordWrap']);
+  const wordWrapWidth = resolveNumericStyle(
+    resolveStyleValue(input.options.styleTree, context, ['font', 'wordWrapWidth'])
+  ) ?? Math.max(1, localLocation.w);
+
+  const textNode = ensureText(currentContainer);
+  textNode.text = content.value;
+  textNode.alpha = alpha;
+  textNode.style = new TextStyle({
+    fontFamily,
+    fontSize,
+    fill,
+    fontWeight: typeof fontWeightValue === 'string' ? fontWeightValue : undefined,
+    fontStyle: typeof fontStyleValue === 'string' ? fontStyleValue : undefined,
+    align: alignValue === 'center' || alignValue === 'right' ? alignValue : 'left',
+    letterSpacing: letterSpacing ?? 0,
+    lineHeight: lineHeight ?? undefined,
+    wordWrap: wordWrap === true,
+    wordWrapWidth,
+  });
+
+  const bounds = textNode.getLocalBounds();
+  textNode.position.set(
+    resolveAlignedOffset(localLocation.w, bounds.width, input.context.cell.align.xPosition),
+    resolveAlignedOffset(localLocation.h, bounds.height, input.context.cell.align.yPosition),
+  );
+}
+
+function resolveAlignedOffset(
+  outerSize: number,
+  innerSize: number,
+  position: string | undefined,
+): number {
+  if (position === 'center') {
+    return Math.max(0, (outerSize - innerSize) / 2);
+  }
+  if (position === 'end' || position === 'right' || position === 'bottom') {
+    return Math.max(0, outerSize - innerSize);
+  }
+  return 0;
+}
+
 function resolvePixiRendererOverride(
+  renderers: BoxPixiRendererManifest | undefined,
   styles: BoxStyleManagerLike | undefined,
   context: BoxStyleContext,
+  id?: string,
 ): BoxPixiRendererOverride | undefined {
+  const manifestOverride = resolveRendererManifestOverride(renderers, context, id);
+  if (manifestOverride) {
+    return manifestOverride;
+  }
+
   if (!styles) {
     return undefined;
   }
@@ -204,6 +296,44 @@ function resolvePixiRendererOverride(
   const directValue = resolveStyleValue<unknown>(styles, context, []);
   if (isPixiRendererOverride(directValue)) {
     return directValue;
+  }
+
+  return undefined;
+}
+
+function resolveRendererManifestOverride(
+  renderers: BoxPixiRendererManifest | undefined,
+  context: BoxStyleContext,
+  id?: string,
+): BoxPixiRendererOverride | undefined {
+  if (!renderers) {
+    return undefined;
+  }
+
+  if (id) {
+    const byId = renderers.byId?.[id];
+    if (byId) {
+      return byId;
+    }
+  }
+
+  const path = context.nouns.join('.');
+  const exact = renderers.byPath?.[path];
+  if (exact) {
+    return exact;
+  }
+
+  if (!renderers.byPath) {
+    return undefined;
+  }
+
+  const nouns = context.nouns;
+  for (let index = 1; index < nouns.length; index += 1) {
+    const suffix = nouns.slice(index).join('.');
+    const match = renderers.byPath[suffix];
+    if (match) {
+      return match;
+    }
   }
 
   return undefined;

@@ -1,0 +1,940 @@
+import type { Meta, StoryObj } from '@storybook/html';
+import {
+    Application,
+    Assets,
+    Container,
+    Graphics,
+    Sprite,
+    Text,
+    TextStyle,
+    Texture,
+} from 'pixi.js';
+import { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
+import {
+    BoxStore,
+    DIR_HORIZ,
+    DIR_VERT,
+    INSET_SCOPE_ALL,
+    POS_CENTER,
+    POS_FILL,
+    POS_START,
+    SIZE_FRACTION,
+    SIZE_PCT,
+    boxTreeToPixi,
+    type BoxCellType,
+    type BoxPixiRenderInput,
+    type BoxPixiRendererManifest,
+    type BoxPixiRendererOverride,
+} from './index.js';
+
+type Story = StoryObj;
+
+const meta: Meta = {
+    title: 'Box/Pixi/Renderer',
+};
+
+export default meta;
+
+type ProductRecord = {
+    name: string;
+    price: string;
+    imageUrl: string;
+    bullets: string[];
+    accent: number;
+    tint?: number;
+};
+
+type PixiStoryConfig = {
+    title: string;
+    subtitle: string;
+    width: number;
+    height: number;
+    root: BoxCellType;
+    styles: StyleTree;
+    renderers: BoxPixiRendererManifest;
+};
+
+function createPixiStory(config: PixiStoryConfig): HTMLElement {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <style>
+            .pixi-box-story {
+                min-height: 100vh;
+                padding: 18px;
+                background:
+                    radial-gradient(circle at top left, rgba(255, 232, 214, 0.9), transparent 34%),
+                    linear-gradient(180deg, #f6f0e8 0%, #e6edf6 100%);
+                color: #14213d;
+                font-family: Georgia, "Times New Roman", serif;
+            }
+
+            .pixi-box-shell {
+                max-width: 1240px;
+                margin: 0 auto;
+                display: grid;
+                gap: 16px;
+            }
+
+            .pixi-box-header {
+                display: grid;
+                gap: 6px;
+            }
+
+            .pixi-box-kicker {
+                font-size: 11px;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: #8b5e34;
+            }
+
+            .pixi-box-header h2 {
+                margin: 0;
+                font-size: 34px;
+                line-height: 1.05;
+                font-weight: 600;
+            }
+
+            .pixi-box-header p {
+                margin: 0;
+                max-width: 760px;
+                color: #46546b;
+                font: 15px/1.5 ui-sans-serif, system-ui, sans-serif;
+            }
+
+            .pixi-box-canvas {
+                display: inline-flex;
+                border-radius: 28px;
+                overflow: hidden;
+                border: 1px solid rgba(20, 33, 61, 0.08);
+                box-shadow: 0 24px 70px rgba(20, 33, 61, 0.16);
+                background: #f7f5f1;
+            }
+        </style>
+        <div class="pixi-box-story">
+            <div class="pixi-box-shell">
+                <header class="pixi-box-header">
+                    <div class="pixi-box-kicker">Box Renderer / Pixi</div>
+                    <h2>${escapeHtml(config.title)}</h2>
+                    <p>${escapeHtml(config.subtitle)}</p>
+                </header>
+                <div class="pixi-box-canvas"></div>
+            </div>
+        </div>
+    `;
+
+    const mount = wrapper.querySelector('.pixi-box-canvas');
+    if (!(mount instanceof HTMLElement)) {
+        throw new Error('Pixi story mount missing');
+    }
+
+    void renderPixiLayout(config, mount);
+    return wrapper;
+}
+
+async function renderPixiLayout(config: PixiStoryConfig, mount: HTMLElement): Promise<void> {
+    const app = new Application();
+    await app.init({
+        width: config.width,
+        height: config.height,
+        antialias: true,
+        background: '#f7f5f1',
+    });
+
+    mount.appendChild(app.canvas);
+    await preloadStoryTextures(config.root);
+
+    const store = new BoxStore({ value: config.root });
+    store.styles = config.styles;
+    store.update();
+    boxTreeToPixi({
+        root: store.value,
+        app,
+        styleTree: config.styles,
+        renderers: config.renderers,
+        store,
+    });
+}
+
+function createPixiStoryStyles(): StyleTree {
+    const styles = new StyleTree();
+
+    styles.set('scene.background.color', [], '#f7f5f1');
+    styles.set('scene.border.color', [], '#dccfc0');
+    styles.set('scene.border.alpha', [], 1);
+
+    styles.set('hero.background.color', [], '#f2e3d6');
+    styles.set('hero.border.color', [], '#d9b89f');
+    styles.set('hero.border.alpha', [], 1);
+
+    styles.set('hero-photo.background.color', [], '#ead7c4');
+    styles.set('hero-photo.border.color', [], '#cfad8f');
+    styles.set('hero-photo.border.alpha', [], 1);
+
+    styles.set('catalog.background.color', [], '#fbfaf8');
+    styles.set('catalog.border.color', [], '#e1d7ca');
+    styles.set('catalog.border.alpha', [], 1);
+
+    styles.set('card.background.color', [], '#fffdfa');
+    styles.set('card.border.color', [], '#d7c8b5');
+    styles.set('card.border.alpha', [], 1);
+
+    styles.set('photo.background.color', [], '#efe2d0');
+    styles.set('photo.border.color', [], '#d2b89a');
+    styles.set('photo.border.alpha', [], 1);
+
+    styles.set('details.background.color', [], '#fffdf9');
+    styles.set('details.border.color', [], '#e1d7ca');
+    styles.set('details.border.alpha', [], 1);
+
+    styles.set('cta.background.color', [], '#1f5c4d');
+    styles.set('cta.border.color', [], '#17483c');
+    styles.set('cta.border.alpha', [], 1);
+
+    return styles;
+}
+
+function createPixiStoryRenderers(): BoxPixiRendererManifest {
+    return {
+        byPath: {
+            photo: { renderer: renderPhotoNode, post: true } satisfies BoxPixiRendererOverride,
+            'hero-photo': { renderer: renderPhotoNode, post: true } satisfies BoxPixiRendererOverride,
+            eyebrow: { renderer: renderTextNode, post: true } satisfies BoxPixiRendererOverride,
+            title: { renderer: renderTextNode, post: true } satisfies BoxPixiRendererOverride,
+            price: { renderer: renderTextNode, post: true } satisfies BoxPixiRendererOverride,
+            body: { renderer: renderTextNode, post: true } satisfies BoxPixiRendererOverride,
+            bullet: { renderer: renderTextNode, post: true } satisfies BoxPixiRendererOverride,
+            cta: { renderer: renderCtaNode, post: true } satisfies BoxPixiRendererOverride,
+        },
+    };
+}
+
+function renderPhotoNode(input: BoxPixiRenderInput): Container {
+    const host = input.local.currentContainer!;
+    const location = input.local.localLocation;
+    const imageUrl = input.context.cell.content?.value;
+    const accent = accentFromSeed(imageUrl ?? input.context.cell.name);
+
+    const frame = ensureGraphicsChild(host, '$$photo-frame');
+    frame.clear();
+    frame.roundRect(0, 0, location.w, location.h, 18);
+    frame.fill(0xf5eadf);
+    frame.roundRect(8, 8, location.w - 16, location.h - 16, 14);
+    frame.fill(lighten(accent, 0.55));
+
+    const mask = ensureGraphicsChild(host, '$$photo-mask');
+    mask.clear();
+    mask.roundRect(10, 10, location.w - 20, location.h - 20, 14);
+    mask.fill(0xffffff);
+
+    const sprite = ensureSpriteChild(host, '$$photo-sprite');
+    const texture = imageUrl ? textureCache.get(imageUrl) : undefined;
+    if (texture) {
+        sprite.texture = texture;
+        fitSprite(sprite, texture, location.w - 20, location.h - 20, 10, 10);
+        sprite.tint = tintFromStates(input.context.cell.states);
+        sprite.alpha = input.context.cell.states?.includes('muted') ? 0.84 : 1;
+        sprite.visible = true;
+        sprite.mask = mask;
+    } else {
+        sprite.visible = false;
+    }
+
+    const text = ensureTextChild(host, '$$photo-label');
+    text.text = input.context.cell.name === 'hero-photo' ? 'PRODUCT IMAGE' : 'PRODUCT';
+    text.style = new TextStyle({
+        fontFamily: 'Courier New',
+        fontSize: Math.max(12, Math.floor(location.h * 0.08)),
+        fontWeight: '700',
+        fill: 0x4c3d30,
+        letterSpacing: 1.2,
+    });
+    text.position.set(16, Math.max(12, location.h - 34));
+
+    return host;
+}
+
+function renderTextNode(input: BoxPixiRenderInput): Container {
+    const host = input.local.currentContainer!;
+    const location = input.local.localLocation;
+    const cell = input.context.cell;
+    const textValue = cell.content?.value ?? cell.name;
+    const text = ensureTextChild(host, '$$copy');
+
+    let style: TextStyle;
+    let x = 0;
+    let y = 0;
+
+    if (cell.name === 'eyebrow') {
+        style = new TextStyle({
+            fontFamily: 'Courier New',
+            fontSize: 11,
+            fontWeight: '700',
+            fill: 0x8b5e34,
+            letterSpacing: 2,
+        });
+        text.text = textValue.toUpperCase();
+        y = 4;
+    } else if (cell.name === 'title') {
+        style = new TextStyle({
+            fontFamily: 'Georgia',
+            fontSize: Math.max(18, Math.floor(location.h * 0.28)),
+            fontWeight: '700',
+            fill: 0x14213d,
+            wordWrap: true,
+            wordWrapWidth: Math.max(40, location.w),
+            lineHeight: Math.max(22, Math.floor(location.h * 0.34)),
+        });
+        text.text = textValue;
+    } else if (cell.name === 'price') {
+        style = new TextStyle({
+            fontFamily: 'Georgia',
+            fontSize: Math.max(18, Math.floor(location.h * 0.4)),
+            fontWeight: '700',
+            fill: 0x1f5c4d,
+        });
+        text.text = textValue;
+    } else if (cell.name === 'cta') {
+        style = new TextStyle({
+            fontFamily: 'Arial',
+            fontSize: Math.max(13, Math.floor(location.h * 0.34)),
+            fontWeight: '700',
+            fill: 0xf9f6f1,
+            align: 'center',
+        });
+        text.text = textValue;
+        x = Math.max(0, (location.w - text.width) / 2);
+        y = Math.max(0, (location.h - text.height) / 2) - 1;
+    } else {
+        style = new TextStyle({
+            fontFamily: 'Arial',
+            fontSize: cell.name === 'bullet' ? 13 : 14,
+            fill: 0x46546b,
+            wordWrap: true,
+            wordWrapWidth: Math.max(40, location.w),
+            lineHeight: cell.name === 'bullet' ? 18 : 20,
+        });
+        text.text = cell.name === 'bullet' ? `- ${textValue}` : textValue;
+    }
+
+    text.style = style;
+    text.position.set(x, y);
+    return host;
+}
+
+function renderCtaNode(input: BoxPixiRenderInput): Container {
+    const host = input.local.currentContainer!;
+    const location = input.local.localLocation;
+    const textValue = input.context.cell.content?.value ?? 'Action';
+    const chrome = ensureGraphicsChild(host, '$$cta-chrome');
+    const text = ensureTextChild(host, '$$copy');
+
+    const normalFill = 0x1f5c4d;
+    const hoverFill = 0xb85c38;
+    const normalBorder = 0x17483c;
+    const hoverBorder = 0x8e4124;
+
+    const draw = (hovered: boolean) => {
+        chrome.clear();
+        chrome.roundRect(0, 0, location.w, location.h, 12);
+        chrome.fill(hovered ? hoverFill : normalFill);
+        chrome.roundRect(1, 1, location.w - 2, location.h - 2, 11);
+        chrome.stroke({
+            color: hovered ? hoverBorder : normalBorder,
+            width: 2,
+            alpha: 1,
+        });
+
+        text.text = textValue;
+        text.style = new TextStyle({
+            fontFamily: 'Arial',
+            fontSize: Math.max(13, Math.floor(location.h * 0.34)),
+            fontWeight: '700',
+            fill: hovered ? 0xfff4e8 : 0xf9f6f1,
+            align: 'center',
+        });
+        text.position.set(
+            Math.max(0, (location.w - text.width) / 2),
+            Math.max(0, (location.h - text.height) / 2) - 1,
+        );
+
+        if (host.getChildIndex(text) < host.getChildIndex(chrome)) {
+            host.setChildIndex(text, host.children.length - 1);
+        }
+    };
+
+    bindCtaHover(host, draw);
+    draw(false);
+    return host;
+}
+
+function ensureGraphicsChild(host: Container, label: string): Graphics {
+    const existing = host.children.find((child) => child.label === label);
+    if (existing instanceof Graphics) {
+        return existing;
+    }
+
+    const graphics = new Graphics();
+    graphics.label = label;
+    host.addChild(graphics);
+    return graphics;
+}
+
+function ensureTextChild(host: Container, label: string): Text {
+    const existing = host.children.find((child) => child.label === label);
+    if (existing instanceof Text) {
+        return existing;
+    }
+
+    const text = new Text({
+        text: '',
+        style: new TextStyle({
+            fontFamily: 'Arial',
+            fontSize: 14,
+            fill: 0x14213d,
+        }),
+    });
+    text.label = label;
+    host.addChild(text);
+    return text;
+}
+
+function ensureSpriteChild(host: Container, label: string): Sprite {
+    const existing = host.children.find((child) => child.label === label);
+    if (existing instanceof Sprite) {
+        return existing;
+    }
+
+    const sprite = new Sprite(Texture.EMPTY);
+    sprite.label = label;
+    host.addChild(sprite);
+    return sprite;
+}
+
+function bindCtaHover(host: Container, draw: (hovered: boolean) => void): void {
+    const interactiveHost = host as Container & {
+        __ctaHoverBound?: boolean;
+        __ctaHoverDraw?: (hovered: boolean) => void;
+    };
+
+    interactiveHost.__ctaHoverDraw = draw;
+    if (interactiveHost.__ctaHoverBound) {
+        return;
+    }
+
+    interactiveHost.__ctaHoverBound = true;
+    interactiveHost.eventMode = 'static';
+    interactiveHost.cursor = 'pointer';
+    interactiveHost.on('pointerover', () => interactiveHost.__ctaHoverDraw?.(true));
+    interactiveHost.on('pointerout', () => interactiveHost.__ctaHoverDraw?.(false));
+}
+
+function accentFromSeed(seed: string): number {
+    const palette = [0xa55c3d, 0x356c7d, 0x7e935b, 0x9a6d2f, 0x75518b];
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+        hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+    }
+    return palette[hash % palette.length] ?? palette[0];
+}
+
+function lighten(color: number, amount: number): number {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+    const nextR = Math.round(r + (255 - r) * ratio);
+    const nextG = Math.round(g + (255 - g) * ratio);
+    const nextB = Math.round(b + (255 - b) * ratio);
+    return (nextR << 16) | (nextG << 8) | nextB;
+}
+
+const textureCache = new Map<string, Texture>();
+
+async function preloadStoryTextures(root: BoxCellType): Promise<void> {
+    const urls = collectImageUrls(root);
+    if (urls.length === 0) {
+        return;
+    }
+
+    const loaded = await Promise.all(urls.map(async (url) => [url, await Assets.load<Texture>(url)] as const));
+    for (const [url, texture] of loaded) {
+        textureCache.set(url, texture);
+    }
+}
+
+function collectImageUrls(cell: BoxCellType): string[] {
+    const urls = new Set<string>();
+
+    function visit(node: BoxCellType): void {
+        if (node.content?.type === 'url') {
+            urls.add(node.content.value);
+        }
+        for (const child of node.children ?? []) {
+            visit(child);
+        }
+    }
+
+    visit(cell);
+    return [...urls];
+}
+
+function fitSprite(sprite: Sprite, texture: Texture, width: number, height: number, x: number, y: number): void {
+    const sourceWidth = texture.width || width;
+    const sourceHeight = texture.height || height;
+    const scale = Math.max(width / sourceWidth, height / sourceHeight);
+    sprite.position.set(x, y);
+    sprite.scale.set(scale);
+    sprite.x = x + (width - sourceWidth * scale) / 2;
+    sprite.y = y + (height - sourceHeight * scale) / 2;
+}
+
+function tintFromStates(states: string[] | undefined): number {
+    if (!states || states.length === 0) {
+        return 0xffffff;
+    }
+    if (states.includes('warm')) {
+        return 0xffd0c2;
+    }
+    if (states.includes('cool')) {
+        return 0xcfe8ff;
+    }
+    if (states.includes('forest')) {
+        return 0xd6f0d7;
+    }
+    if (states.includes('sunset')) {
+        return 0xffddb3;
+    }
+    return 0xffffff;
+}
+
+function productCard(product: ProductRecord): BoxCellType {
+    return {
+        name: 'card',
+        absolute: false,
+        dim: { w: { value: 1, unit: SIZE_FRACTION }, h: { value: 100, unit: SIZE_PCT } },
+        align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_START },
+        insets: [{
+            role: 'padding',
+            inset: [{ scope: INSET_SCOPE_ALL, value: 16 }],
+        }],
+        gap: 10,
+        children: [
+            {
+                name: 'photo',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 150 },
+                align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+                content: { type: 'url', value: product.imageUrl },
+                states: product.tint ? tintState(product.tint) : undefined,
+            },
+            {
+                name: 'eyebrow',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 16 },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                content: { type: 'text', value: 'Studio Edition' },
+            },
+            {
+                name: 'title',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 54 },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                content: { type: 'text', value: product.name },
+            },
+            {
+                name: 'bullet',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 24 },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                content: { type: 'text', value: product.bullets[0] ?? 'Lorem ipsum dolor sit amet.' },
+            },
+            {
+                name: 'bullet',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 24 },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                content: { type: 'text', value: product.bullets[1] ?? 'Consectetur adipiscing elit.' },
+            },
+            {
+                name: 'price',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 32 },
+                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                content: { type: 'text', value: product.price },
+                states: product.accent > 0x700000 ? ['warm'] : ['cool'],
+            },
+            {
+                name: 'cta',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 42 },
+                align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+                content: { type: 'text', value: 'Add to cart' },
+            },
+        ],
+    };
+}
+
+function createCatalogRoot(products: ProductRecord[]): BoxCellType {
+    return {
+        name: 'scene',
+        absolute: true,
+        dim: { x: 28, y: 28, w: 1120, h: 760 },
+        align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_FILL },
+        insets: [{
+            role: 'padding',
+            inset: [{ scope: INSET_SCOPE_ALL, value: 20 }],
+        }],
+        gap: 20,
+        children: [
+            {
+                name: 'hero',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 230 },
+                align: { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_FILL },
+                insets: [{
+                    role: 'padding',
+                    inset: [{ scope: INSET_SCOPE_ALL, value: 18 }],
+                }],
+                gap: 18,
+                children: [
+                    {
+                        name: 'details',
+                        absolute: false,
+                        dim: { w: { value: 1.2, unit: SIZE_FRACTION }, h: { value: 100, unit: SIZE_PCT } },
+                        align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_START },
+                        insets: [{
+                            role: 'padding',
+                            inset: [{ scope: INSET_SCOPE_ALL, value: 14 }],
+                        }],
+                        gap: 10,
+                        children: [
+                            {
+                                name: 'eyebrow',
+                                absolute: false,
+                                dim: { w: { value: 100, unit: SIZE_PCT }, h: 18 },
+                                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                                content: { type: 'text', value: 'Spring Drop 04' },
+                            },
+                            {
+                                name: 'title',
+                                absolute: false,
+                                dim: { w: { value: 100, unit: SIZE_PCT }, h: 62 },
+                                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                                content: { type: 'text', value: 'Quiet forms for desks, shelves, and travel kits.' },
+                            },
+                            {
+                                name: 'body',
+                                absolute: false,
+                                dim: { w: { value: 100, unit: SIZE_PCT }, h: 48 },
+                                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                                content: { type: 'text', value: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer posuere erat a ante venenatis.' },
+                            },
+                            {
+                                name: 'bullet',
+                                absolute: false,
+                                dim: { w: { value: 100, unit: SIZE_PCT }, h: 20 },
+                                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                                content: { type: 'text', value: 'Durable shell, soft-touch finish, low visual noise.' },
+                            },
+                            {
+                                name: 'bullet',
+                                absolute: false,
+                                dim: { w: { value: 100, unit: SIZE_PCT }, h: 20 },
+                                align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                                content: { type: 'text', value: 'Sized for small spaces and tidy merchandising.' },
+                            },
+                        ],
+                    },
+                    {
+                        name: 'hero-photo',
+                        absolute: false,
+                        dim: { w: { value: 1, unit: SIZE_FRACTION }, h: { value: 100, unit: SIZE_PCT } },
+                        align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+                        content: { type: 'url', value: products[0]?.imageUrl ?? '/products/laptop.png' },
+                        states: products[0]?.tint ? tintState(products[0].tint) : ['cool'],
+                    },
+                ],
+            },
+            {
+                name: 'catalog',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: { value: 1, unit: SIZE_FRACTION } },
+                align: { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_FILL },
+                insets: [{
+                    role: 'padding',
+                    inset: [{ scope: INSET_SCOPE_ALL, value: 18 }],
+                }],
+                gap: 18,
+                children: products.map((product) => productCard(product)),
+            },
+        ],
+    };
+}
+
+function createDetailRoot(product: ProductRecord): BoxCellType {
+    return {
+        name: 'scene',
+        absolute: true,
+        dim: { x: 28, y: 28, w: 1120, h: 760 },
+        align: { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_FILL },
+        insets: [{
+            role: 'padding',
+            inset: [{ scope: INSET_SCOPE_ALL, value: 22 }],
+        }],
+        gap: 22,
+        children: [
+            {
+                name: 'hero-photo',
+                absolute: false,
+                dim: { w: { value: 1.1, unit: SIZE_FRACTION }, h: { value: 100, unit: SIZE_PCT } },
+                align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+                content: { type: 'url', value: product.imageUrl },
+                states: product.tint ? tintState(product.tint) : ['cool'],
+            },
+            {
+                name: 'details',
+                absolute: false,
+                dim: { w: { value: 0.9, unit: SIZE_FRACTION }, h: { value: 100, unit: SIZE_PCT } },
+                align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_START },
+                insets: [{
+                    role: 'padding',
+                    inset: [{ scope: INSET_SCOPE_ALL, value: 20 }],
+                }],
+                gap: 14,
+                children: [
+                    {
+                        name: 'eyebrow',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 18 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                        content: { type: 'text', value: 'Featured Product' },
+                    },
+                    {
+                        name: 'title',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 88 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                        content: { type: 'text', value: product.name },
+                    },
+                    {
+                        name: 'price',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 34 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                        content: { type: 'text', value: product.price },
+                    },
+                    {
+                        name: 'body',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 70 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                        content: { type: 'text', value: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed posuere consectetur est at lobortis. Cras mattis consectetur purus sit amet fermentum.' },
+                    },
+                    ...product.bullets.map<BoxCellType>((bullet) => ({
+                        name: 'bullet',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 24 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                        content: { type: 'text', value: bullet },
+                    })),
+                    {
+                        name: 'cta',
+                        absolute: false,
+                        dim: { w: 220, h: 46 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_CENTER, yPosition: POS_CENTER },
+                        content: { type: 'text', value: 'Reserve this finish' },
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+function createComparisonRoot(products: ProductRecord[]): BoxCellType {
+    return {
+        name: 'scene',
+        absolute: true,
+        dim: { x: 24, y: 24, w: 1140, h: 700 },
+        align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_FILL },
+        insets: [{
+            role: 'padding',
+            inset: [{ scope: INSET_SCOPE_ALL, value: 18 }],
+        }],
+        gap: 16,
+        children: [
+            {
+                name: 'details',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: 140 },
+                align: { direction: DIR_VERT, xPosition: POS_FILL, yPosition: POS_START },
+                insets: [{
+                    role: 'padding',
+                    inset: [{ scope: INSET_SCOPE_ALL, value: 16 }],
+                }],
+                gap: 8,
+                children: [
+                    {
+                        name: 'eyebrow',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 18 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_CENTER },
+                        content: { type: 'text', value: 'Renderer stress test' },
+                    },
+                    {
+                        name: 'title',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 40 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                        content: { type: 'text', value: 'Three card variants sharing one box-driven renderer override map.' },
+                    },
+                    {
+                        name: 'body',
+                        absolute: false,
+                        dim: { w: { value: 100, unit: SIZE_PCT }, h: 46 },
+                        align: { direction: DIR_HORIZ, xPosition: POS_START, yPosition: POS_START },
+                        content: { type: 'text', value: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam euismod keeps the custom Pixi nodes aligned to the computed box rectangles.' },
+                    },
+                ],
+            },
+            {
+                name: 'catalog',
+                absolute: false,
+                dim: { w: { value: 100, unit: SIZE_PCT }, h: { value: 1, unit: SIZE_FRACTION } },
+                align: { direction: DIR_HORIZ, xPosition: POS_FILL, yPosition: POS_FILL },
+                insets: [{
+                    role: 'padding',
+                    inset: [{ scope: INSET_SCOPE_ALL, value: 18 }],
+                }],
+                gap: 18,
+                children: products.map((product) => productCard(product)),
+            },
+        ],
+    };
+}
+
+function escapeHtml(input: string): string {
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function tintState(tint: number): string[] {
+    if (tint === 0xffd0c2) return ['warm'];
+    if (tint === 0xcfe8ff) return ['cool'];
+    if (tint === 0xd6f0d7) return ['forest'];
+    if (tint === 0xffddb3) return ['sunset'];
+    return [];
+}
+
+const sampleProducts: ProductRecord[] = [
+    {
+        name: 'Featherweight Laptop',
+        price: '$48',
+        imageUrl: '/products/laptop.png',
+        bullets: [
+            'Lorem ipsum dolor sit amet.',
+            'Slim profile with quiet metallic finish.',
+        ],
+        accent: 0xa55c3d,
+        tint: 0xcfe8ff,
+    },
+    {
+        name: 'Merino Crew Sweater',
+        price: '$92',
+        imageUrl: '/products/sweater.png',
+        bullets: [
+            'Consectetur adipiscing elit.',
+            'Soft knit texture with clean neckline.',
+        ],
+        accent: 0x356c7d,
+        tint: 0xffd0c2,
+    },
+    {
+        name: 'Hyundai Sport Coupe',
+        price: '$64',
+        imageUrl: '/products/hyundai.png',
+        bullets: [
+            'Integer posuere erat a ante.',
+            'Gloss finish with bold contour lines.',
+        ],
+        accent: 0x7e935b,
+        tint: 0xd6f0d7,
+    },
+];
+
+export const PixiBoxRendererPOC: Story = {
+    render: () => createPixiStory({
+        title: 'Pixi Box Renderer POC',
+        subtitle: 'A direct proof of concept for box-driven Pixi rendering: one box tree lays out repeated product cards, the same public images are reused, and per-node states tint the sprites to prove the renderer can vary output without changing the source assets.',
+        width: 1180,
+        height: 760,
+        root: createComparisonRoot([
+            {
+                ...sampleProducts[0],
+                name: 'Laptop / Cool Tint',
+                tint: 0xcfe8ff,
+            },
+            {
+                ...sampleProducts[1],
+                name: 'Sweater / Warm Tint',
+                tint: 0xffd0c2,
+            },
+            {
+                ...sampleProducts[2],
+                name: 'Hyundai / Forest Tint',
+                tint: 0xd6f0d7,
+            },
+        ]),
+        styles: createPixiStoryStyles(),
+        renderers: createPixiStoryRenderers(),
+    }),
+};
+
+export const ProductCatalogGrid: Story = {
+    render: () => createPixiStory({
+        title: 'Product Catalog Grid',
+        subtitle: 'Three cards rendered through box-computed geometry, with Pixi image and text overrides for thumbnails, pricing, and bullet copy.',
+        width: 1180,
+        height: 820,
+        root: createCatalogRoot(sampleProducts),
+        styles: createPixiStoryStyles(),
+        renderers: createPixiStoryRenderers(),
+    }),
+};
+
+export const ProductDetailHero: Story = {
+    render: () => createPixiStory({
+        title: 'Product Detail Hero',
+        subtitle: 'A larger product image with copy, bullet points, and CTA showing the same renderer overrides on a different box tree.',
+        width: 1180,
+        height: 820,
+        root: createDetailRoot({
+            name: 'Featherweight Laptop in Graphite',
+            price: '$48',
+            imageUrl: '/products/laptop.png',
+            bullets: [
+                'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+                'Balanced silhouette sized for commuting, studio desks, and compact bags.',
+                'Lightweight shell with crisp edges and a low-gloss exterior.',
+            ],
+            accent: 0xa55c3d,
+        }),
+        styles: createPixiStoryStyles(),
+        renderers: createPixiStoryRenderers(),
+    }),
+};
+
+export const ProductComparisonStrip: Story = {
+    render: () => createPixiStory({
+        title: 'Product Comparison Strip',
+        subtitle: 'A denser catalog view for checking how repeated card renderers behave when the box tree is reused across siblings.',
+        width: 1180,
+        height: 760,
+        root: createComparisonRoot(sampleProducts),
+        styles: createPixiStoryStyles(),
+        renderers: createPixiStoryRenderers(),
+    }),
+};

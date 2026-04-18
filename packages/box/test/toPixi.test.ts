@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { BoxStore, prepareBoxCellTree } from '../src/BoxStore.js';
 import type {
   BoxCellType,
+  BoxPixiRendererManifest,
   BoxPixiRendererOverride,
   BoxStyleManagerLike,
   BoxStyleQueryLike,
@@ -9,11 +10,12 @@ import type {
 
 let ContainerCtor: typeof import('pixi.js').Container;
 let GraphicsCtor: typeof import('pixi.js').Graphics;
+let TextCtor: typeof import('pixi.js').Text;
 let boxTreeToPixi: typeof import('../src/toPixi.js').boxTreeToPixi;
 
 beforeAll(async () => {
   vi.stubGlobal('navigator', { userAgent: 'vitest' });
-  ({ Container: ContainerCtor, Graphics: GraphicsCtor } = await import('pixi.js'));
+  ({ Container: ContainerCtor, Graphics: GraphicsCtor, Text: TextCtor } = await import('pixi.js'));
   ({ boxTreeToPixi } = await import('../src/toPixi.js'));
 });
 
@@ -100,6 +102,58 @@ describe('toPixi', () => {
     expect(renderer.mock.calls[0]?.[0].options.root).toBe(panel);
     expect(rendered.alpha).toBe(0.5);
     expect(fallbackRendered.children.some((child) => child instanceof GraphicsCtor)).toBe(true);
+  });
+
+  it('supports renderer manifests separate from the style tree', () => {
+    const renderer = vi.fn(({ local }) => {
+      local.currentContainer!.alpha = 0.25;
+      return local.currentContainer;
+    });
+    const renderers: BoxPixiRendererManifest = {
+      byId: {
+        'panel-id': { renderer },
+      },
+    };
+    const styles = createStyleManager({
+      'panel.background.color:': '#eeeeee',
+      'panel.border.color:': '#222222',
+    });
+    const panel = prepareBoxCellTree({
+      id: 'panel-id',
+      name: 'panel',
+      absolute: true,
+      dim: { x: 10, y: 10, w: 120, h: 80 },
+      location: { x: 10, y: 10, w: 120, h: 80 },
+      align: { direction: 'horizontal', xPosition: 'start', yPosition: 'start' },
+    });
+
+    const rendered = boxTreeToPixi({ root: panel, styleTree: styles, renderers });
+
+    expect(renderer).toHaveBeenCalled();
+    expect(rendered.alpha).toBe(0.25);
+  });
+
+  it('renders text content with default text styling from the style tree', () => {
+    const styles = createStyleManager({
+      'label.font.color:': '#224466',
+      'label.font.size:': 18,
+      'label.font.family:': 'Georgia',
+      'label.font.align:': 'center',
+    });
+    const label = prepareBoxCellTree({
+      name: 'label',
+      absolute: true,
+      dim: { x: 0, y: 0, w: 160, h: 48 },
+      location: { x: 0, y: 0, w: 160, h: 48 },
+      align: { direction: 'horizontal', xPosition: 'center', yPosition: 'center' },
+      content: { type: 'text', value: 'Hello' },
+    });
+
+    const rendered = boxTreeToPixi({ root: label, styleTree: styles });
+    const textChild = rendered.children.find((child) => child instanceof TextCtor);
+
+    expect(textChild).toBeInstanceOf(TextCtor);
+    expect((textChild as import('pixi.js').Text).text).toBe('Hello');
   });
 
   it('logs and falls back when a custom renderer returns a non-container value', () => {

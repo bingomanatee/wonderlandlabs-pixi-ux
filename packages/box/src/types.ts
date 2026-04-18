@@ -247,12 +247,18 @@ export type BoxPixiRendererOverride = {
   post?: boolean;
 };
 
+export type BoxPixiRendererManifest = {
+  byId?: Record<string, BoxPixiRendererOverride>;
+  byPath?: Record<string, BoxPixiRendererOverride>;
+};
+
 export type BoxPixiOptions = {
   root: BoxPreparedCellType;
   app?: Application;
   parentContainer?: Container;
   store?: BoxStore;
   styleTree?: BoxStyleManagerLike;
+  renderers?: BoxPixiRendererManifest;
 };
 
 export const Axes = z.enum([AXIS_Y, AXIS_X]);

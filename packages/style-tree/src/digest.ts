@@ -20,10 +20,14 @@ function isStateKey(key: string, prefix: string): boolean {
 }
 
 /**
- * Extract state name from a state key (removes prefix)
+ * Extract state names from a state key (removes prefix and splits comma-delimited states)
  */
-function extractStateName(key: string, prefix: string): string {
-  return key.slice(prefix.length);
+function extractStateNames(key: string, prefix: string): string[] {
+  return key
+    .slice(prefix.length)
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }
 
 /**
@@ -101,9 +105,10 @@ export function digestJSON(
     for (const [key, value] of Object.entries(obj)) {
       if (isStateKey(key, statePrefix)) {
         // State key - extract state and recurse with same noun path
-        const stateName = extractStateName(key, statePrefix);
+        const stateNames = extractStateNames(key, statePrefix);
         // Filter out '*' - it represents base/default state (empty states)
-        const newStates = stateName === '*' ? states : [...states, stateName];
+        const nextStates = stateNames.filter((stateName) => stateName !== '*');
+        const newStates = nextStates.length === 0 ? states : [...states, ...nextStates];
         processNode(value, nounPath, newStates);
       } else {
         // Noun key - add to path and recurse
@@ -177,4 +182,3 @@ export function toJSON(
 
   return result;
 }
-
