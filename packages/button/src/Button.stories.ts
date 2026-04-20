@@ -1,8 +1,13 @@
 import type {Meta, StoryObj} from '@storybook/html';
 import {Application, Color} from 'pixi.js';
-import {fromJSON, digestJSON} from '@wonderlandlabs-pixi-ux/style-tree';
+import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
 import {ButtonStore} from './ButtonStore.js';
-import defaultStyles from './defaultStyles.json' with {type: 'json'};
+import {
+    BTYPE_AVATAR,
+    BTYPE_BASE,
+    BTYPE_VERTICAL,
+    BTYPE_TEXT,
+} from './constants.js';
 import storyStyles from './storyStyles.json' with {type: 'json'};
 import capsuleStyles from './capsuleStyles.json' with {type: 'json'};
 import warnStyles from './warnStyles.json' with {type: 'json'};
@@ -15,9 +20,7 @@ function color(value: string | number): number {
 }
 
 function createStoryStyleTree() {
-    const tree = fromJSON(defaultStyles);
-    digestJSON(tree, storyStyles);
-    return tree;
+    return fromJSON(storyStyles);
 }
 
 function createCapsuleOverrideTree() {
@@ -34,10 +37,56 @@ function showAlert(message: string) {
     };
 }
 
-type Story = StoryObj;
+function fullStoryIconUrl(path: string): string {
+    return new URL(path, window.location.href).toString();
+}
 
-const meta: Meta = {
+type Story = StoryObj;
+type DesignerArgs = {
+    variant: typeof BTYPE_BASE | typeof BTYPE_TEXT | typeof BTYPE_VERTICAL | typeof BTYPE_AVATAR;
+    label: string;
+    iconUrl: string;
+    width: number;
+    height: number;
+    paddingX: number;
+    paddingY: number;
+    gap: number;
+    borderRadius: number;
+    borderWidth: number;
+    backgroundColor: string;
+    borderColor: string;
+    labelColor: string;
+    hoverBackgroundColor: string;
+    hoverBorderColor: string;
+    disabledLabelAlpha: number;
+    fontSize: number;
+    iconSize: number;
+    disabled: boolean;
+};
+
+const meta: Meta<DesignerArgs> = {
     title: 'Button/Click Alerts',
+    argTypes: {
+        variant: {control: 'select', options: [BTYPE_BASE, BTYPE_TEXT, BTYPE_VERTICAL, BTYPE_AVATAR]},
+        label: {control: 'text'},
+        iconUrl: {control: 'text'},
+        width: {control: {type: 'range', min: 48, max: 320, step: 2}},
+        height: {control: {type: 'range', min: 32, max: 180, step: 2}},
+        paddingX: {control: {type: 'range', min: 0, max: 32, step: 1}},
+        paddingY: {control: {type: 'range', min: 0, max: 32, step: 1}},
+        gap: {control: {type: 'range', min: 0, max: 24, step: 1}},
+        borderRadius: {control: {type: 'range', min: 0, max: 64, step: 1}},
+        borderWidth: {control: {type: 'range', min: 0, max: 8, step: 1}},
+        backgroundColor: {control: 'color'},
+        borderColor: {control: 'color'},
+        labelColor: {control: 'color'},
+        hoverBackgroundColor: {control: 'color'},
+        hoverBorderColor: {control: 'color'},
+        disabledLabelAlpha: {control: {type: 'range', min: 0.1, max: 1, step: 0.05}},
+        fontSize: {control: {type: 'range', min: 10, max: 36, step: 1}},
+        iconSize: {control: {type: 'range', min: 12, max: 72, step: 1}},
+        disabled: {control: 'boolean'},
+    },
 };
 
 export default meta;
@@ -60,7 +109,7 @@ export const AlertButtons: Story = {
 
             const buttons = [
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Primary Button',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 40, y: 40, width: 220, height: 52},
@@ -70,7 +119,7 @@ export const AlertButtons: Story = {
                     handlers: {click: showAlert('Primary button clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'text',
+                    variant: BTYPE_TEXT,
                     label: 'Text Link Button',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 300, y: 46, width: 220, height: 40},
@@ -80,7 +129,7 @@ export const AlertButtons: Story = {
                     handlers: {click: showAlert('Text button clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'icon-vert',
+                    variant: BTYPE_VERTICAL,
                     label: 'Profile',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 560, y: 24, width: 80, height: 80},
@@ -90,7 +139,7 @@ export const AlertButtons: Story = {
                     handlers: {click: showAlert('Vertical icon button clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'avatar',
+                    variant: BTYPE_AVATAR,
                     label: 'AB',
                     size: {x: 720, y: 40, width: 72, height: 72},
                 }, {
@@ -128,7 +177,7 @@ export const AlertStates: Story = {
 
             const buttons = [
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Enabled',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 40, y: 40, width: 190, height: 52},
@@ -138,7 +187,7 @@ export const AlertStates: Story = {
                     handlers: {click: showAlert('Enabled button clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Disabled',
                     icon: PLACEHOLDER_ICON,
                     status: new Set(['disabled']),
@@ -149,7 +198,7 @@ export const AlertStates: Story = {
                     handlers: {click: showAlert('This should not fire')},
                 }),
                 new ButtonStore({
-                    variant: 'text',
+                    variant: BTYPE_TEXT,
                     label: 'Hover Me',
                     size: {x: 500, y: 46, width: 160, height: 40},
                 }, {
@@ -158,7 +207,7 @@ export const AlertStates: Story = {
                     handlers: {click: showAlert('Hover state button clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'avatar',
+                    variant: BTYPE_AVATAR,
                     icon: PLACEHOLDER_ICON,
                     size: {x: 720, y: 30, width: 88, height: 88},
                 }, {
@@ -195,7 +244,7 @@ export const SubmitFlow: Story = {
             wrapper.appendChild(app.canvas);
 
             const submitButton = new ButtonStore({
-                variant: 'button',
+                variant: BTYPE_BASE,
                 label: 'Submit',
                 icon: PLACEHOLDER_ICON,
                 size: {x: 40, y: 48, width: 220, height: 52},
@@ -217,7 +266,7 @@ export const SubmitFlow: Story = {
             });
 
             const disabledHint = new ButtonStore({
-                variant: 'text',
+                variant: BTYPE_TEXT,
                 label: 'Click Submit to see the temporary disabled state.',
                 size: {x: 300, y: 54, width: 420, height: 36},
             }, {
@@ -259,7 +308,7 @@ export const PartialThemeOverrides: Story = {
 
             const buttons = [
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Base Theme',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 40, y: 40, width: 210, height: 52},
@@ -269,7 +318,7 @@ export const PartialThemeOverrides: Story = {
                     handlers: {click: showAlert('Base theme clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Partial Capsule',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 290, y: 40, width: 220, height: 52},
@@ -279,7 +328,7 @@ export const PartialThemeOverrides: Story = {
                     handlers: {click: showAlert('Capsule override clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Partial Warm',
                     icon: PLACEHOLDER_ICON,
                     size: {x: 550, y: 40, width: 220, height: 52},
@@ -289,7 +338,7 @@ export const PartialThemeOverrides: Story = {
                     handlers: {click: showAlert('Warm override clicked')},
                 }),
                 new ButtonStore({
-                    variant: 'button',
+                    variant: BTYPE_BASE,
                     label: 'Disabled Uses Base + Override',
                     icon: PLACEHOLDER_ICON,
                     status: new Set(['disabled']),
@@ -305,6 +354,142 @@ export const PartialThemeOverrides: Story = {
                 app.stage.addChild(button.container!);
                 button.kickoff();
             });
+        })();
+
+        return wrapper;
+    },
+};
+
+function createDesignerOverrideJSON(args: DesignerArgs) {
+    const variantKey = `$${args.variant}`;
+    const hoverKey = `$${args.variant},hover`;
+    const hasBackground = args.variant !== BTYPE_TEXT;
+    return {
+        container: {
+            background: {
+                width: {[variantKey]: args.width},
+                height: {[variantKey]: args.height},
+                padding: {[variantKey]: [args.paddingY, args.paddingX]},
+                color: {
+                    [variantKey]: hasBackground ? color(args.backgroundColor) : null,
+                    [hoverKey]: hasBackground ? color(args.hoverBackgroundColor) : null,
+                },
+            },
+            border: {
+                color: {
+                    [variantKey]: color(args.borderColor),
+                    [hoverKey]: color(args.hoverBorderColor),
+                },
+                width: {
+                    [variantKey]: hasBackground ? args.borderWidth : 0,
+                    [hoverKey]: hasBackground ? args.borderWidth : 0,
+                },
+                radius: {[variantKey]: args.borderRadius},
+            },
+            content: {
+                gap: {[variantKey]: args.gap},
+            },
+        },
+        label: {
+            font: {
+                color: {[variantKey]: color(args.labelColor)},
+                size: {[variantKey]: args.fontSize},
+                alpha: {'$disabled': args.disabledLabelAlpha},
+            },
+        },
+        icon: {
+            alpha: {'$disabled': args.disabledLabelAlpha},
+            size: {
+                width: {[variantKey]: args.iconSize},
+                height: {[variantKey]: args.iconSize},
+            },
+        },
+    };
+}
+
+export const Designer: StoryObj<DesignerArgs> = {
+    args: {
+        variant: BTYPE_BASE,
+        label: "Another Label is the",
+        iconUrl: fullStoryIconUrl(PLACEHOLDER_ICON),
+        width: 182,
+        height: 56,
+        paddingX: 19,
+        paddingY: 9,
+        gap: 10,
+        borderRadius: 14,
+        borderWidth: 5,
+        backgroundColor: "#812f2f",
+        borderColor: "#2d47a2",
+        labelColor: "#f8fff8",
+        hoverBackgroundColor: "#da2ada",
+        hoverBorderColor: '#3b82f6',
+        disabledLabelAlpha: 0.45,
+        fontSize: 23,
+        iconSize: 28,
+        disabled: true,
+    },
+    render: (args) => {
+        const baseStyles = createStoryStyleTree();
+        const overrideJSON = createDesignerOverrideJSON(args);
+        const overrideStyles = fromJSON(overrideJSON);
+        const wrapper = document.createElement('div');
+        wrapper.style.width = '100%';
+        wrapper.style.height = '320px';
+        wrapper.style.display = 'flex';
+        wrapper.style.gap = '16px';
+        wrapper.style.alignItems = 'stretch';
+
+        const preview = document.createElement('div');
+        preview.style.flex = '1 1 auto';
+        preview.style.minWidth = '0';
+
+        const code = document.createElement('textarea');
+        code.readOnly = true;
+        code.value = JSON.stringify(overrideJSON, null, 2);
+        code.style.width = '320px';
+        code.style.height = '100%';
+        code.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+        code.style.fontSize = '12px';
+        code.style.lineHeight = '1.4';
+        code.style.padding = '12px';
+        code.style.border = '1px solid #d8d0bf';
+        code.style.borderRadius = '8px';
+        code.style.background = '#fffdf8';
+        code.style.color = '#3a3125';
+
+        wrapper.appendChild(preview);
+        wrapper.appendChild(code);
+
+        void (async () => {
+            const app = new Application();
+            await app.init({
+                width: 640,
+                height: 320,
+                backgroundColor: STORY_BACKGROUND,
+                antialias: true,
+            });
+            preview.appendChild(app.canvas);
+
+            const button = new ButtonStore({
+                variant: args.variant,
+                label: args.label || undefined,
+                icon: args.iconUrl || undefined,
+                status: args.disabled ? new Set(['disabled']) : undefined,
+                size: {
+                    x: 80,
+                    y: args.variant === BTYPE_VERTICAL ? 36 : 60,
+                    width: args.width,
+                    height: args.height,
+                },
+            }, {
+                app,
+                styleTree: [baseStyles, overrideStyles],
+                handlers: {click: showAlert('Designer button clicked')},
+            });
+
+            app.stage.addChild(button.container!);
+            button.kickoff();
         })();
 
         return wrapper;

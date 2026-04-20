@@ -165,11 +165,40 @@ export const RectPartial = RectTemplate.partial({
 
 export type RectPartialType = z.infer<typeof RectPartial>;
 
+export const BoxPoint = z.object({
+  x: BoxSize,
+  y: BoxSize,
+});
+export type BoxPointType = z.infer<typeof BoxPoint>;
+
+export const BoxGradientStop = z.object({
+  offset: z.number(),
+  color: z.union([z.string(), z.number()]),
+});
+export type BoxGradientStopType = z.infer<typeof BoxGradientStop>;
+
+export const BoxGradientDirection = z.enum(['horizontal', 'vertical']);
+export type BoxGradientDirectionType = z.infer<typeof BoxGradientDirection>;
+
+export const BoxGradient = z.object({
+  from: BoxPoint.optional(),
+  to: BoxPoint.optional(),
+  direction: BoxGradientDirection.optional(),
+  colors: z.array(z.union([
+    BoxGradientStop,
+    z.union([z.string(), z.number()]),
+  ])),
+});
+export type BoxGradientType = z.infer<typeof BoxGradient>;
+
 export const BoxCellData = z.object({
   id: z.string().optional(),
   dim: RectPartial,
   location: RectStatic.optional(),
+  textWidth: z.number().optional(),
+  textHeight: z.number().optional(),
   absolute: z.boolean(),
+  crop: z.boolean().optional(),
   variant: z.string().optional(),
   verbs: z.array(z.string()).optional(),
   states: z.array(z.string()).optional(),

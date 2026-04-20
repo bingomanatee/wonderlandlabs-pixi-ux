@@ -42,6 +42,34 @@ export function normalizeStates(states: string[]): string[] {
   return [...states].sort();
 }
 
+type QueryStateGroups = {
+  required: string[];
+  optional: string[];
+  hasOptional: boolean;
+};
+
+function splitQueryStates(states: string[]): QueryStateGroups {
+  const required: string[] = [];
+  const optional: string[] = [];
+
+  for (const state of states) {
+    if (state.endsWith('?')) {
+      const name = state.slice(0, -1);
+      if (name) {
+        optional.push(name);
+      }
+      continue;
+    }
+    required.push(state);
+  }
+
+  return {
+    required,
+    optional,
+    hasOptional: optional.length > 0,
+  };
+}
+
 /**
  * Check if a noun segment matches (considering wildcards)
  * @param pattern - Pattern segment (may be wildcard)
@@ -96,22 +124,32 @@ export function calculateMatchScore(
     }
   }
   
-  // Check states - pattern states can be LESS specific than target states
-  // Pattern can have fewer states, but never more states than the target
-  // Example: pattern "disabled" matches target "disabled-selected"
-  // But pattern "disabled-selected" does NOT match target "disabled"
+  const queryStates = splitQueryStates(targetStates);
+  const explicitPatternStates = patternStates.filter((state) => state !== BASE_STATE);
+  const candidateStates = normalizeStates([...queryStates.required, ...queryStates.optional]);
+
+  // Optional query states change the fallback contract slightly:
+  // explicit pattern states must still include all required states.
+  if (queryStates.hasOptional && explicitPatternStates.length > 0) {
+    for (const requiredState of queryStates.required) {
+      if (!explicitPatternStates.includes(requiredState)) {
+        return null;
+      }
+    }
+  }
+
   let matchingStates = 0;
 
   if (patternStates.length === 1 && patternStates[0] === BASE_STATE) {
     // Base state matches anything, but contributes 0 to score
     matchingStates = 0;
-  } else if (patternStates.length === 0 && targetStates.length === 0) {
+  } else if (patternStates.length === 0 && candidateStates.length === 0) {
     // Both have no states - perfect match
     matchingStates = 0;
-  } else if (patternStates.length === 0 && targetStates.length > 0) {
+  } else if (patternStates.length === 0 && candidateStates.length > 0) {
     // Pattern has no states but target does - pattern is less specific, matches
     matchingStates = 0;
-  } else if (patternStates.length > targetStates.length) {
+  } else if (patternStates.length > candidateStates.length) {
     // Pattern has more states than target - pattern is MORE specific, no match
     return null;
   } else {
@@ -122,7 +160,7 @@ export function calculateMatchScore(
         // Wildcard state - matches but doesn't count
         continue;
       }
-      if (!targetStates.includes(patternState)) {
+      if (!candidateStates.includes(patternState)) {
         return null;
       }
       matchingStates++;
@@ -137,4 +175,3 @@ export function calculateMatchScore(
     matchingStates,
   };
 }
-

@@ -248,9 +248,9 @@ export function prepareBoxCellTree(
 }
 
 export function layoutCell(cell: BoxPreparedCellType, parentRect?: RectStaticType): BoxPreparedCellType {
-    const ownLocation = cell.location
+    let ownLocation = cell.location
         ? rectToAbsolute(cell.location)
-        : rectToAbsolute(cell.dim, cell.absolute ? undefined : parentRect);
+        : rectToAbsolute(effectiveDim(cell), cell.absolute ? undefined : parentRect);
     const {children, align} = cell;
 
     if (!Array.isArray(children) || children.length === 0) {
@@ -260,43 +260,59 @@ export function layoutCell(cell: BoxPreparedCellType, parentRect?: RectStaticTyp
         };
     }
 
-    const childLocations: RectStaticType[] = new Array(children.length);
-    const flowChildren = children
-        .map((child, index) => ({child, index}))
-        .filter(({child}) => !child.absolute);
+    let resolvedChildren = children;
+    for (let pass = 0; pass < 5; pass += 1) {
+        const childLocations: RectStaticType[] = new Array(children.length);
+        const flowChildren = children
+            .map((child, index) => ({child, index}))
+            .filter(({child}) => !child.absolute);
 
-    if (flowChildren.length > 0) {
-        const flowChildLocations = new ComputeAxis(
-            align,
-            ownLocation,
-            flowChildren.map(({child}) => child.dim),
-            {
-                insets: cell.insets,
-                gap: cell.gap,
-            },
-        ).compute();
+        if (flowChildren.length > 0) {
+            const flowChildLocations = new ComputeAxis(
+                align,
+                ownLocation,
+                flowChildren.map(({child}) => effectiveDim(child)),
+                {
+                    insets: cell.insets,
+                    gap: cell.gap,
+                },
+            ).compute();
 
-        flowChildren.forEach(({index}, flowIndex) => {
-            childLocations[index] = flowChildLocations[flowIndex];
-        });
+            flowChildren.forEach(({index}, flowIndex) => {
+                childLocations[index] = flowChildLocations[flowIndex];
+            });
+        }
+
+        children
+            .map((child, index) => ({child, index}))
+            .filter(({child}) => child.absolute)
+            .forEach(({child, index}) => {
+                childLocations[index] = child.location
+                    ? rectToAbsolute(child.location)
+                    : rectToParentSpace(effectiveDim(child), ownLocation);
+            });
+
+        resolvedChildren = children.map((child: BoxPreparedCellType, index: number) => layoutCell({
+            ...child,
+            location: childLocations[index],
+        }, childLocations[index]));
+
+        const resolvedLocation = cell.crop
+            ? ownLocation
+            : expandToFitChildren(ownLocation, resolvedChildren.map((child) => child.location), cell.insets);
+
+        if (sameRect(ownLocation, resolvedLocation)) {
+            ownLocation = resolvedLocation;
+            break;
+        }
+
+        ownLocation = resolvedLocation;
     }
-
-    children
-        .map((child, index) => ({child, index}))
-        .filter(({child}) => child.absolute)
-        .forEach(({child, index}) => {
-            childLocations[index] = child.location
-                ? rectToAbsolute(child.location)
-                : rectToParentSpace(child.dim, ownLocation);
-        });
 
     return {
         ...cell,
         location: ownLocation,
-        children: children.map((child: BoxPreparedCellType, index: number) => layoutCell({
-            ...child,
-            location: childLocations[index],
-        }, childLocations[index])),
+        children: resolvedChildren,
     };
 }
 
@@ -347,4 +363,44 @@ function recordPathToCell(ids: Set<string>, cell: BoxPreparedCellType, path: str
     for (const child of cell.children ?? []) {
         recordPathToCell(ids, child, nextPath);
     }
+}
+
+function expandToFitChildren(
+    location: RectStaticType,
+    childLocations: Array<RectStaticType | undefined>,
+    insets?: BoxInsetEntryType[],
+): RectStaticType {
+    const contentRect = insetRect(location, insets);
+    let maxRight = contentRect.x + contentRect.w;
+    let maxBottom = contentRect.y + contentRect.h;
+
+    for (const childLocation of childLocations) {
+        if (!childLocation) {
+            continue;
+        }
+        maxRight = Math.max(maxRight, childLocation.x + childLocation.w);
+        maxBottom = Math.max(maxBottom, childLocation.y + childLocation.h);
+    }
+
+    return {
+        ...location,
+        w: location.w + Math.max(0, maxRight - (contentRect.x + contentRect.w)),
+        h: location.h + Math.max(0, maxBottom - (contentRect.y + contentRect.h)),
+    };
+}
+
+function effectiveDim(cell: BoxPreparedCellType): RectPartialType {
+    if (cell.content?.type !== 'text') {
+        return cell.dim;
+    }
+
+    return {
+        ...cell.dim,
+        w: Math.max(sizeToNumber({input: cell.dim.w}) ?? 0, cell.textWidth ?? 0),
+        h: Math.max(sizeToNumber({input: cell.dim.h}) ?? 0, cell.textHeight ?? 0),
+    };
+}
+
+function sameRect(a: RectStaticType, b: RectStaticType): boolean {
+    return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }

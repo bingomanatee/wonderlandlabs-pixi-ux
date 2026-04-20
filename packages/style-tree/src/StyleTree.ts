@@ -3,7 +3,9 @@ import type {
   StyleMatch,
   StyleTreeOptions,
 } from './types.js';
+import type { DigestOptions } from './digest.js';
 import { StyleKeySchema } from './types.js';
+import { digestJSON, toJSON as exportToJSON } from './digest.js';
 import {
   normalizeStates,
   calculateMatchScore,
@@ -309,6 +311,38 @@ export class StyleTree {
 
     return matches;
   }
+
+  static fromJSON(json: any, options: DigestOptions = {}): StyleTree {
+    const tree = new StyleTree();
+    digestJSON(tree, json, options);
+    return tree;
+  }
+
+  static async fromJSONUrl(
+    url: string,
+    options: FromJSONUrlOptions = {},
+  ): Promise<StyleTree> {
+    const json = options.getJson
+      ? await options.getJson(url)
+      : await loadJSON(url);
+    return StyleTree.fromJSON(json, options);
+  }
+
+  toJSON(options: { statePrefix?: string } = {}): any {
+    return exportToJSON(this, options);
+  }
+}
+
+export type FromJSONUrlOptions = DigestOptions & {
+  getJson?: (url: string) => Promise<any>;
+};
+
+async function loadJSON(url: string): Promise<any> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`StyleTree.fromJSONUrl failed for "${url}" with ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 }
 
 function isPlainObject(value: unknown): value is Record<string, any> {

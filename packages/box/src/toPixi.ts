@@ -1,16 +1,19 @@
 import {Assets, Container, Graphics, TextStyle, TextStyleFontStyle, TextStyleFontWeight, TextStyleOptions, Texture} from 'pixi.js';
 import {z} from 'zod';
-import {getSharedRenderHelper} from '@wonderlandlabs-pixi-ux/utils';
 import {cellLayers} from './helpers.js';
 import {resolveStyleValue, styleContextForCell, type BoxStyleContext} from './styleHelpers.js';
 import {drainKillList} from './toPixi.killlist.helpers.js';
 import {
     attachToParent,
+    CROP_MASK_LABEL,
     drawBorderBands,
     ensureGraphics,
+    ensureGraphicsByLabel,
     ensureSprite,
     ensureText,
     fitSpriteToRect,
+    insetRoundRect,
+    resolvePixiGradient,
     resolveNumericStyle,
     resolvePixiColor,
     resolveAlignedOffset,
@@ -31,18 +34,28 @@ const PixiOverrideSchema = z.object({
     renderer: z.unknown(),
 })
 
+type ContentExtent = {
+    w: number;
+    h: number;
+};
+
 export function boxTreeToPixi(options: BoxPixiOptions): Container {
     drainKillList(options);
-
-    return renderPixiNode({
+    const textMeasures = new Map<string, {w: number; h: number}>();
+    const rendered = renderPixiNode({
         cell: options.root,
         parentContainer: options.parentContainer ?? options.app?.stage,
-    }, options);
+    }, options, textMeasures);
+    if (options.store.applyTextMeasures(textMeasures)) {
+        options.observer?.({action: 'invalidate'});
+    }
+    return rendered;
 }
 
 function renderPixiNode(
     {cell, parentContext, parentContainer, parentCell}: BoxPixiNodeContext,
     options: BoxPixiOptions,
+    textMeasures: Map<string, {w: number; h: number}>,
 ): Container {
     if (!cell.location) {
         throw new Error(`boxTreeToPixi requires location data on "${cell.name}"`);
@@ -54,8 +67,8 @@ function renderPixiNode(
     const container = (hostParentContainer?.getChildByLabel(cell.id) as Container) ?? new Container({label: cell.id});
     container.isRenderGroup = !!cell.renderGroup;
 
-    const layers = cellLayers(cell);
     const localLocation = toLocalRect(cell.location, parentCell?.location);
+    const layers = cellLayers(cell);
     const renderInput: BoxPixiRenderInput = {
         options,
         context: {
@@ -79,14 +92,21 @@ function renderPixiNode(
         const result = validateRendererResult(override.renderer(renderInput), cell.name, pathString);
         if (result !== false) {
             const rendered = attachToParent(result ?? container, hostParentContainer, cell.id);
-            renderChildren(rendered, cell, options, context);
+            renderChildren(rendered, cell, options, context, textMeasures);
             return rendered;
         }
     }
 
-  const rendered = renderDefaultPixiNode(renderInput, context);
+  const rendered = renderDefaultPixiNode(renderInput);
     attachToParent(rendered, hostParentContainer, cell.id);
-    renderChildren(rendered, cell, options, context);
+    renderChildren(rendered, cell, options, context, textMeasures);
+    finalizeDefaultPixiNode({
+        ...renderInput,
+        local: {
+            ...renderInput.local,
+            currentContainer: rendered,
+        },
+    }, context, textMeasures);
 
     if (override?.post) {
         const result = validateRendererResult(override.renderer({
@@ -112,6 +132,7 @@ function renderChildren(
     cell: BoxPreparedCellType,
     options: BoxPixiOptions,
     context: BoxStyleContext,
+    textMeasures: Map<string, {w: number; h: number}>,
 ): void {
     for (const child of cell.children ?? []) {
         renderPixiNode({
@@ -119,106 +140,132 @@ function renderChildren(
             parentContainer: container,
             parentContext: context,
             parentCell: cell,
-        }, options);
+        }, options, textMeasures);
     }
 }
 
 function renderDefaultPixiNode(
   input: BoxPixiRenderInput,
-  context: BoxStyleContext,
 ): Container {
+    const {currentContainer, localLocation} = input.local;
+    currentContainer!.position.set(localLocation.x, localLocation.y);
+    return currentContainer!;
+}
+
+function finalizeDefaultPixiNode(
+  input: BoxPixiRenderInput,
+  context: BoxStyleContext,
+  textMeasures: Map<string, {w: number; h: number}>,
+): void {
     const {
         currentContainer,
-        layers,
         localLocation,
-        location,
     } = input.local;
+    const contentExtent = renderDefaultContent(input, context);
+    const effectiveWidth = Math.max(localLocation.w, contentExtent.w);
+    const effectiveHeight = Math.max(localLocation.h, contentExtent.h);
+    if (input.context.cell.content?.type === 'text') {
+        textMeasures.set(input.context.cell.id, {w: contentExtent.w, h: contentExtent.h});
+    }
 
     const fillColor = resolvePixiColor(
         resolveStyleValue(input.options.styleTree, context, ['background', 'color'])
+    );
+    const fillGradient = resolvePixiGradient(
+        resolveStyleValue(input.options.styleTree, context, ['background', 'gradient']),
+        localLocation,
     );
     const fillAlpha = resolveNumericStyle(resolveStyleValue(input.options.styleTree, context, ['background', 'alpha'])) ?? 1;
     const borderRadius = Math.max(
         0,
         Math.min(
             resolveNumericStyle(resolveStyleValue(input.options.styleTree, context, ['border', 'radius'])) ?? 6,
-            Math.min(localLocation.w, localLocation.h) / 2,
+            Math.min(effectiveWidth, effectiveHeight) / 2,
         ),
     );
+    const baseBorderColor = resolvePixiColor(
+        resolveStyleValue(input.options.styleTree, context, ['border', 'color'])
+    );
+    const baseBorderWidth = resolveNumericStyle(
+        resolveStyleValue(input.options.styleTree, context, ['border', 'width'])
+    ) ?? 0;
+    const baseBorderAlpha = resolveNumericStyle(
+        resolveStyleValue(input.options.styleTree, context, ['border', 'alpha'])
+    ) ?? 1;
 
-    currentContainer!.position.set(localLocation.x, localLocation.y);
+    const background = ensureGraphics(currentContainer!);
+    background.clear();
 
-    if (fillColor !== undefined) {
-        const background = ensureGraphics(currentContainer!);
-        background.clear();
-        background.roundRect(0, 0, localLocation.w, localLocation.h, borderRadius).fill({
-            color: fillColor,
-            alpha: fillAlpha,
-        });
-    } else {
-        const background = currentContainer!.children.find((child) => child.label === '$$background');
-        if (background instanceof Graphics) {
-            background.clear();
-        }
-    }
-
-    let hasBorders = false;
-    for (const layer of layers) {
-        if (layer.role !== 'border') {
-            continue;
-        }
-
-        const borderColor = resolvePixiColor(
-            resolveStyleValue(input.options.styleTree, context, ['border', 'color'], {extraNouns: [layer.role]})
-            ?? resolveStyleValue(input.options.styleTree, context, ['border', 'color'])
+    if (fillGradient || fillColor !== undefined) {
+        background.roundRect(0, 0, effectiveWidth, effectiveHeight, borderRadius).fill(
+            fillGradient
+                ? {
+                    fill: fillGradient,
+                    alpha: fillAlpha,
+                  }
+                : {
+                    color: fillColor,
+                    alpha: fillAlpha,
+                  }
         );
-
-        if (borderColor === undefined) {
-            continue;
-        }
-
-        hasBorders = true;
-        const borderAlpha = resolveNumericStyle(
-            resolveStyleValue(input.options.styleTree, context, ['border', 'alpha'], {extraNouns: [layer.role]})
-            ?? resolveStyleValue(input.options.styleTree, context, ['border', 'alpha'])
-        ) ?? 1;
-
-        const background = ensureGraphics(currentContainer!);
-        drawBorderBands(background, toLocalRect(layer.rect, location), toLocalRect(layer.insets, location), borderColor, borderAlpha);
     }
 
-    if (!fillColor && !hasBorders) {
-        const background = currentContainer!.children.find((child) => child.label === '$$background');
-        if (background instanceof Graphics) {
-            background.clear();
-        }
+    if (baseBorderColor !== undefined && baseBorderWidth > 0) {
+        const strokeShape = insetRoundRect(
+            {x: 0, y: 0, w: effectiveWidth, h: effectiveHeight},
+            borderRadius,
+            baseBorderWidth / 2,
+        );
+        background.roundRect(
+            strokeShape.rect.x,
+            strokeShape.rect.y,
+            strokeShape.rect.w,
+            strokeShape.rect.h,
+            strokeShape.radius,
+        );
+        background.stroke({
+            color: baseBorderColor,
+            width: baseBorderWidth,
+            alpha: baseBorderAlpha,
+        });
     }
 
-  renderDefaultContent(input, context);
-
-  return currentContainer!;
+    if (input.context.cell.crop) {
+        const cropMask = ensureGraphicsByLabel(currentContainer!, CROP_MASK_LABEL);
+        cropMask.clear();
+        cropMask.roundRect(0, 0, effectiveWidth, effectiveHeight, borderRadius).fill(0xffffff);
+        currentContainer!.mask = cropMask;
+    } else if (currentContainer!.mask instanceof Graphics && currentContainer!.mask.label === CROP_MASK_LABEL) {
+        currentContainer!.mask.clear();
+        currentContainer!.mask = null;
+    }
 }
 
 function renderDefaultContent(
     input: BoxPixiRenderInput,
     context: BoxStyleContext,
-): void {
+): ContentExtent {
     const {currentContainer, localLocation} = input.local;
     const content = input.context.cell.content;
 
     if (!currentContainer || !content) {
-        return;
+        return {w: localLocation.w, h: localLocation.h};
     }
 
     if (content.type === 'url') {
         const sprite = ensureSprite(currentContainer);
         sprite.visible = true;
+        sprite.alpha = resolveNumericStyle(
+            resolveStyleValue(input.options.styleTree, context, ['alpha'])
+        ) ?? 1;
    
-        const cached = Assets.get<Texture>(content.value);
-        if (cached) {
-            sprite.texture = cached;
+        if (Assets.cache.has(content.value)) {
+            const cached = Assets.cache.get<Texture>(content.value);
+            if (cached) {
+                sprite.texture = cached;
+            }
             fitSpriteToRect(sprite, cached, localLocation.w, localLocation.h);
-            return;
+            return {w: localLocation.w, h: localLocation.h};
         }
 
         sprite.texture = Texture.EMPTY;
@@ -229,17 +276,19 @@ function renderDefaultContent(
             if (sprite.destroyed) {
                 return;
             }
-            sprite.texture = texture;
+            if (texture) {
+                sprite.texture = texture;
+            }
             fitSpriteToRect(sprite, texture, localLocation.w, localLocation.h);
             input.options.app?.render();
         }).catch((error) => {
             console.error(`[boxTreeToPixi] Failed to load texture "${content.value}"`, error);
         });
-        return;
+        return {w: localLocation.w, h: localLocation.h};
     }
 
     if (content.type !== 'text') {
-        return;
+        return {w: localLocation.w, h: localLocation.h};
     }
 
     const fill = resolvePixiColor(
@@ -298,6 +347,10 @@ function renderDefaultContent(
         resolveAlignedOffset(localLocation.w, bounds.width, input.context.cell.align.xPosition),
         resolveAlignedOffset(localLocation.h, bounds.height, input.context.cell.align.yPosition),
     );
+    return {
+        w: Math.max(localLocation.w, textNode.position.x + bounds.width),
+        h: Math.max(localLocation.h, textNode.position.y + bounds.height),
+    };
 }
 
 function resolvePixiRendererOverride(

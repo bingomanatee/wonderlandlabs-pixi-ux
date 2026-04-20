@@ -9,6 +9,6 @@ export {
 export {
     BTYPE_TEXT,
     BTYPE_AVATAR,
-    BTYPE_BUTTON,
-    BTYPE_ICON_VERT,
+    BTYPE_BASE,
+    BTYPE_VERTICAL,
 } from './constants.js';

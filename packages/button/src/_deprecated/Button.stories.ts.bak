@@ -442,7 +442,7 @@ export const AllModes: Story = {
 
             // Row 2: IconVertical button (icon with label below)
             const iconVerticalBtn = new ButtonStore({
-                id: 'icon-vertical-demo',
+                id: 'verticalical-demo',
                 mode: 'iconVertical',
                 sprite: createIconSprite(texture, 0x8844cc),
                 label: 'Vertical',

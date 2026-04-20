@@ -5,26 +5,36 @@
         "$*": "#FFFFFF",
         "$dark": "#000000"
       },
+      "gradient": {
+        "$base": {
+          "direction": "vertical",
+          "colors": [
+            "#D9D9D9",
+            "#FFFFFF",
+            "#BFBFBF"
+          ]
+        }
+      },
       "padding": {
         "$*": 4,
         "$avatar": 15,
-        "$icon-vert": 8
+        "$vertical": 8
       },
       "width": {
         "$*": 200,
         "$avatar": 150,
-        "$icon-vert": 60
+        "$vertical": 60
       },
       "height": {
         "$*": 40,
         "$avatar": 150,
-        "$icon-vert": 80
+        "$vertical": 80
       }
     },
     "content": {
       "gap": {
         "$*": 6,
-        "$icon-vert": 4,
+        "$vertical": 4,
         "$avatar": 8
       }
     },
@@ -65,6 +75,10 @@
     }
   },
   "icon": {
+    "alpha": {
+      "$*": 1,
+      "$disabled": 0.45
+    },
     "size": {
       "width": {
         "$*": 16,

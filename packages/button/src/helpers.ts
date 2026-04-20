@@ -5,8 +5,15 @@ import {
     INSET_SCOPE_ALL,
     POS_CENTER,
 } from '@wonderlandlabs-pixi-ux/box';
+import {
+    CanvasTextMetrics,
+    TextStyle,
+    type TextStyleFontStyle,
+    type TextStyleFontWeight,
+    type TextStyleOptions,
+} from 'pixi.js';
 import type {ButtonOptionsType, ButtonStateType} from "./types.js";
-import {BTYPE_AVATAR, BTYPE_BUTTON, BTYPE_ICON_VERT, BTYPE_TEXT} from "./constants.js";
+import {BTYPE_AVATAR, BTYPE_BASE, BTYPE_VERTICAL, BTYPE_TEXT} from "./constants.js";
 import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
 import defaultStyleJSON from './defaultStyles.json' with {type: 'json'};
 
@@ -23,10 +30,10 @@ export function makeStoreConfig(value: ButtonStateType, styleTree: BoxStyleManag
         case BTYPE_AVATAR: {
             return makeStoreConfigAvatar(value, styleTree);
         }
-        case BTYPE_ICON_VERT: {
+        case BTYPE_VERTICAL: {
             return makeStoreConfigIconVert(value, styleTree);
         }
-        case BTYPE_BUTTON:
+        case BTYPE_BASE:
         default: {
             return makeStoreConfigButton(value, styleTree);
         }
@@ -121,9 +128,19 @@ function makeContainerCell(
     styleTree: BoxStyleManagerLike[],
     input: { direction: typeof DIR_HORIZ | typeof DIR_VERT; children: BoxCellType[]; gap?: number }
 ): BoxCellType {
-    const width = value.size?.width ?? resolveContainerWidth(value, styleTree);
-    const height = value.size?.height ?? resolveContainerHeight(value, styleTree);
     const padding = resolvePadding(value, styleTree);
+    const preferredWidth = value.size?.width ?? resolveContainerWidth(value, styleTree);
+    const preferredHeight = value.size?.height ?? resolveContainerHeight(value, styleTree);
+    const horizontalPadding = resolveHorizontalPadding(padding);
+    const verticalPadding = resolveVerticalPadding(padding);
+    const childrenWidth = input.direction === DIR_HORIZ
+        ? input.children.reduce((total, child) => total + (child.dim?.w ?? 0), 0) + (Math.max(0, input.children.length - 1) * (input.gap ?? 0))
+        : input.children.reduce((max, child) => Math.max(max, child.dim?.w ?? 0), 0);
+    const childrenHeight = input.direction === DIR_VERT
+        ? input.children.reduce((total, child) => total + (child.dim?.h ?? 0), 0) + (Math.max(0, input.children.length - 1) * (input.gap ?? 0))
+        : input.children.reduce((max, child) => Math.max(max, child.dim?.h ?? 0), 0);
+    const width = Math.max(preferredWidth, childrenWidth + horizontalPadding);
+    const height = Math.max(preferredHeight, childrenHeight + verticalPadding);
 
     const inset: { scope: string; value: number }[] = [];
     if (Array.isArray(padding)) {
@@ -215,7 +232,7 @@ function makeLabelCell(
         name: 'label',
         absolute: false,
         dim: {
-            w: Math.max(0, width),
+            w: Math.max(0, Math.max(width, measureLabelWidth(value, styleTree))),
             h: Math.max(0, height),
         },
         align: {
@@ -232,16 +249,7 @@ function makeLabelCell(
 
 function resolveContentWidth(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
     const padding = resolvePadding(value, styleTree);
-    let horizontalPadding = 0;
-    if (Array.isArray(padding)) {
-        if (padding.length === 2) {
-            horizontalPadding = padding[1] * 2;
-        } else if (padding.length === 4) {
-            horizontalPadding = padding[1] + padding[3];
-        }
-    } else {
-        horizontalPadding = padding * 2;
-    }
+    const horizontalPadding = resolveHorizontalPadding(padding);
     return Math.max(0, (value.size?.width ?? resolveContainerWidth(value, styleTree)) - horizontalPadding);
 }
 
@@ -285,7 +293,13 @@ function resolveIconHeight(value: ButtonStateType, styleTree: BoxStyleManagerLik
 }
 
 function resolveLabelHeight(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
-    return resolveStyleNumber(styleTree, 'label.size', styleVerbs(value), 14);
+    const states = styleVerbs(value);
+    return resolveStyleNumber(
+        styleTree,
+        'label.font.size',
+        states,
+        resolveStyleNumber(styleTree, 'label.size', states, 14),
+    );
 }
 
 function resolveAvatarInnerSize(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
@@ -299,17 +313,87 @@ function resolveAvatarInnerSize(value: ButtonStateType, styleTree: BoxStyleManag
         value.size?.height ?? resolveContainerHeight(value, styleTree),
     );
     const padding = resolvePadding(value, styleTree);
-    let totalPadding = 0;
+    const totalPadding = resolveVerticalPadding(padding);
+    return Math.max(0, Math.min(contentSize, containerSize - totalPadding));
+}
+
+function measureLabelWidth(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
+    if (!value.label) {
+        return 0;
+    }
+
+    const metrics = CanvasTextMetrics.measureText(value.label, new TextStyle(resolveLabelTextStyle(styleTree, styleVerbs(value))));
+    return Number.isFinite(metrics.width) ? metrics.width : 0;
+}
+
+function resolveLabelTextStyle(styleTree: BoxStyleManagerLike[], states: string[]): TextStyleOptions {
+    const fontFamilyValue = resolveStyleValue(styleTree, 'label.font', states)
+        ?? resolveStyleValue(styleTree, 'label.font.family', states);
+    const fontSize = resolveStyleNumber(
+        styleTree,
+        'label.font.size',
+        states,
+        resolveStyleNumber(styleTree, 'label.size', states, 14),
+    );
+    const fill = resolveStyleValue(styleTree, 'label.font.color', states);
+    const fontWeight = resolveStyleValue(styleTree, 'label.font.weight', states);
+    const fontStyle = resolveStyleValue(styleTree, 'label.font.style', states);
+
+    return {
+        fontFamily: Array.isArray(fontFamilyValue)
+            ? fontFamilyValue.join(', ')
+            : typeof fontFamilyValue === 'string'
+                ? fontFamilyValue
+                : 'Arial',
+        fontSize,
+        fill: typeof fill === 'string' || typeof fill === 'number' ? fill : '#000000',
+        fontWeight: typeof fontWeight === 'string' ? fontWeight as TextStyleFontWeight : undefined,
+        fontStyle: typeof fontStyle === 'string' ? fontStyle as TextStyleFontStyle : undefined,
+    };
+}
+
+function resolveStyleValue(
+    styleTree: BoxStyleManagerLike[],
+    nouns: string,
+    states: string[],
+): unknown {
+    const query = {nouns: nouns.split('.'), states};
+    for (let index = styleTree.length - 1; index >= 0; index -= 1) {
+        const layer = styleTree[index];
+        const value = layer.matchHierarchy
+            ? layer.matchHierarchy(query)
+            : layer.match(query);
+        if (value !== undefined) {
+            return value;
+        }
+    }
+    return undefined;
+}
+
+function resolveHorizontalPadding(padding: number | number[]): number {
     if (Array.isArray(padding)) {
         if (padding.length === 2) {
-            totalPadding = padding[0] * 2;
-        } else if (padding.length === 4) {
-            totalPadding = padding[0] + padding[2];
+            return padding[1] * 2;
         }
-    } else {
-        totalPadding = padding * 2;
+        if (padding.length === 4) {
+            return padding[1] + padding[3];
+        }
+        return 0;
     }
-    return Math.max(0, Math.min(contentSize, containerSize - totalPadding));
+    return padding * 2;
+}
+
+function resolveVerticalPadding(padding: number | number[]): number {
+    if (Array.isArray(padding)) {
+        if (padding.length === 2) {
+            return padding[0] * 2;
+        }
+        if (padding.length === 4) {
+            return padding[0] + padding[2];
+        }
+        return 0;
+    }
+    return padding * 2;
 }
 
 function resolveStyleNumber(
@@ -355,7 +439,7 @@ function resolveStatus(value: ButtonStateType): Set<string> {
         status.add('hover');
     }
     if (value.variant) {
-        status.add(value.variant);
+        status.add(`${value.variant}?`);
     }
     return status;
 }

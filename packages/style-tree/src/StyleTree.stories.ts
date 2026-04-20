@@ -172,10 +172,9 @@ export const JSONDigestion: Story = {
     wrapper.appendChild(title);
 
     const description = document.createElement('p');
-    description.textContent = 'Plain keys form noun hierarchy, $-prefixed keys are states';
+    description.textContent = 'Plain keys form noun hierarchy, $-prefixed keys are states. You can use free functions or the StyleTree class helpers.';
     wrapper.appendChild(description);
 
-    // Import fromJSON dynamically
     import('./digest.js').then(({ fromJSON }) => {
       const themeJSON = {
         button: {
@@ -206,6 +205,28 @@ export const JSONDigestion: Story = {
       };
 
       const tree = fromJSON(themeJSON);
+      const classTree = StyleTree.fromJSON(themeJSON);
+      const exportedJSON = classTree.toJSON();
+
+      const apiSection = document.createElement('div');
+      apiSection.style.marginTop = '20px';
+      apiSection.innerHTML = '<h3>Class API:</h3>';
+      const apiPre = document.createElement('pre');
+      apiPre.style.backgroundColor = 'white';
+      apiPre.style.padding = '15px';
+      apiPre.style.border = '1px solid #ddd';
+      apiPre.style.overflow = 'auto';
+      apiPre.textContent = [
+        "const tree = StyleTree.fromJSON(themeJSON);",
+        "const json = tree.toJSON();",
+        "",
+        "const remoteTree = await StyleTree.fromJSONUrl('/theme.json');",
+        "const customTree = await StyleTree.fromJSONUrl('https://example.com/theme.json', {",
+        "  getJson: async (url) => myLoader(url),",
+        "});",
+      ].join('\n');
+      apiSection.appendChild(apiPre);
+      wrapper.appendChild(apiSection);
 
       // Show JSON input
       const jsonSection = document.createElement('div');
@@ -236,6 +257,18 @@ export const JSONDigestion: Story = {
       entriesPre.textContent = entries;
       entriesSection.appendChild(entriesPre);
       wrapper.appendChild(entriesSection);
+
+      const roundTripSection = document.createElement('div');
+      roundTripSection.style.marginTop = '20px';
+      roundTripSection.innerHTML = '<h3>Round-Tripped JSON:</h3>';
+      const roundTripPre = document.createElement('pre');
+      roundTripPre.style.backgroundColor = 'white';
+      roundTripPre.style.padding = '15px';
+      roundTripPre.style.border = '1px solid #ddd';
+      roundTripPre.style.overflow = 'auto';
+      roundTripPre.textContent = JSON.stringify(exportedJSON, null, 2);
+      roundTripSection.appendChild(roundTripPre);
+      wrapper.appendChild(roundTripSection);
 
       // Show example queries
       const queriesSection = document.createElement('div');

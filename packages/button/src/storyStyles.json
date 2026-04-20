@@ -8,13 +8,13 @@
       "width": {
         "$button": 180,
         "$text": 180,
-        "$icon-vert": 80,
+        "$vertical": 80,
         "$avatar": 72
       },
       "height": {
         "$button": 48,
         "$text": 40,
-        "$icon-vert": 80,
+        "$vertical": 80,
         "$avatar": 72
       }
     },
@@ -31,7 +31,7 @@
       "gap": {
         "$text": 8,
         "$button": 10,
-        "$icon-vert": 8
+        "$vertical": 8
       }
     }
   },
@@ -40,13 +40,13 @@
       "width": {
         "$button": 28,
         "$text": 24,
-        "$icon-vert": 40,
+        "$vertical": 40,
         "$avatar": 36
       },
       "height": {
         "$button": 28,
         "$text": 24,
-        "$icon-vert": 40,
+        "$vertical": 40,
         "$avatar": 36
       }
     }

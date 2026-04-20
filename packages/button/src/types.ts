@@ -1,7 +1,7 @@
 import {z} from 'zod';
-import {BTYPE_AVATAR, BTYPE_BUTTON, BTYPE_ICON_VERT, BTYPE_TEXT} from "./constants.js";
+import {BTYPE_AVATAR, BTYPE_BASE, BTYPE_VERTICAL, BTYPE_TEXT} from "./constants.js";
 
-export const ButtonVariant = z.enum([BTYPE_ICON_VERT, BTYPE_TEXT, BTYPE_AVATAR, BTYPE_BUTTON])
+export const ButtonVariant = z.enum([BTYPE_VERTICAL, BTYPE_TEXT, BTYPE_AVATAR, BTYPE_BASE])
 
 const ButtonState = z.object({
     variant: ButtonVariant,

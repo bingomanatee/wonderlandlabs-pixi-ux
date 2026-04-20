@@ -138,6 +138,13 @@ Methods:
 - `matchHierarchy(query: { nouns: string[]; states: string[] }): unknown`
 - `findBestMatch(query): StyleMatch | undefined`
 - `findAllMatches(query): StyleMatch[]`
+- `toJSON(options?: { statePrefix?: string }): unknown`
+
+Static methods:
+- `StyleTree.fromJSON(json, options?): StyleTree`
+- `StyleTree.fromJSONUrl(url, options?): Promise<StyleTree>`
+  - `options` extends the normal digest options with:
+  - `getJson?: (url: string) => Promise<unknown>`
 
 ## Canonical Style Conventions
 
@@ -210,11 +217,16 @@ setConvention(tree, 'window.label', [], {
 `fromJSON()` converts nested JSON into tree entries.
 Plain keys build noun paths; `$` keys create state variants.
 If you want object expansion from data files rather than method calls, `fromJSON()` and `digestJSON()` are still the best fit.
+You can use either the free functions or the class conveniences:
+- `fromJSON(json)`
+- `StyleTree.fromJSON(json)`
+- `tree.toJSON()`
+- `StyleTree.fromJSONUrl(url, { getJson })`
 
 ### Example
 
 ```typescript
-import { fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
+import { StyleTree, fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
 
 const themeJSON = {
   button: {
@@ -228,6 +240,23 @@ const themeJSON = {
 };
 
 const tree = fromJSON(themeJSON);
+const sameTree = StyleTree.fromJSON(themeJSON);
+const roundTripped = sameTree.toJSON();
+```
+
+### Loading From URL
+
+```typescript
+import { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
+
+const browserTree = await StyleTree.fromJSONUrl('/theme.json');
+
+const nodeTree = await StyleTree.fromJSONUrl('https://example.com/theme.json', {
+  getJson: async (url) => {
+    const response = await myCustomFetcher(url);
+    return response.json();
+  },
+});
 ```
 
 ## A note on stored values

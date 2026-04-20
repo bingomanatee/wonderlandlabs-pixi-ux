@@ -1,9 +1,17 @@
-import { Color, Container, Graphics, Sprite, Text, TextStyle, Texture, type ColorSource, type TextStyleOptions } from 'pixi.js';
+import { Color, Container, FillGradient, Graphics, Sprite, Text, TextStyle, Texture, type ColorSource, type TextStyleOptions } from 'pixi.js';
 import { z } from 'zod';
-import type { RectStaticType } from './types.js';
+import type { BoxGradientType, RectStaticType } from './types.js';
+import { sizeToNumber } from './helpers.js';
+import { DIR_HORIZ_S, DIR_VERT_S } from './constants.js';
 
 export const GRAPHICS_LABEL = '$$background';
 export const CONTENT_LABEL = '$$content';
+export const CROP_MASK_LABEL = '$$crop-mask';
+
+type InsetRoundRectResult = {
+  rect: RectStaticType;
+  radius: number;
+};
 const ContainerLikeSchema = z.object({
   addChild: z.function(),
   addChildAt: z.function(),
@@ -27,12 +35,20 @@ const PixiContainerResult = z.custom<Container>((value) => {
 });
 
 export function ensureGraphics(container: Container): Graphics {
+  return ensureGraphicsByLabel(container, GRAPHICS_LABEL, 0);
+}
+
+export function ensureGraphicsByLabel(
+  container: Container,
+  label: string,
+  defaultZIndex = 0,
+): Graphics {
   return ensureChild(
     container,
-    GRAPHICS_LABEL,
+    label,
     (child): child is Graphics => child instanceof Graphics,
-    () => new Graphics({ label: GRAPHICS_LABEL }),
-    0,
+    () => new Graphics({ label }),
+    defaultZIndex,
   );
 }
 
@@ -62,10 +78,18 @@ export function ensureSprite(container: Container): Sprite {
 
 export function fitSpriteToRect(
   sprite: Sprite,
-  texture: Texture,
+  texture: Texture | null | undefined,
   width: number,
   height: number,
 ): void {
+  if (!texture) {
+    sprite.texture = Texture.EMPTY;
+    sprite.width = 0;
+    sprite.height = 0;
+    sprite.position.set(0, 0);
+    return;
+  }
+
   const sourceWidth = texture.width || width || 1;
   const sourceHeight = texture.height || height || 1;
   const scale = Math.min(width / sourceWidth, height / sourceHeight);
@@ -78,6 +102,23 @@ export function fitSpriteToRect(
     Math.max(0, (width - fittedWidth) / 2),
     Math.max(0, (height - fittedHeight) / 2),
   );
+}
+
+export function insetRoundRect(
+  rect: RectStaticType,
+  radius: number,
+  inset: number,
+): InsetRoundRectResult {
+  const nextInset = Math.max(0, inset);
+  return {
+    rect: {
+      x: rect.x + nextInset,
+      y: rect.y + nextInset,
+      w: Math.max(0, rect.w - (nextInset * 2)),
+      h: Math.max(0, rect.h - (nextInset * 2)),
+    },
+    radius: Math.max(0, radius - nextInset),
+  };
 }
 
 export function drawBorderBands(
@@ -115,6 +156,84 @@ export function resolvePixiColor(input: unknown): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+const BoxGradientSchema = z.object({
+  from: z.object({
+    x: z.any(),
+    y: z.any(),
+  }).optional(),
+  to: z.object({
+    x: z.any(),
+    y: z.any(),
+  }).optional(),
+  direction: z.enum(['horizontal', 'vertical']).optional(),
+  colors: z.array(z.union([
+    z.object({
+      offset: z.number(),
+      color: z.union([z.string(), z.number()]),
+    }),
+    z.union([z.string(), z.number()]),
+  ])),
+});
+
+export function resolvePixiGradient(
+  input: unknown,
+  rect: RectStaticType,
+): FillGradient | undefined {
+  const parsed = BoxGradientSchema.safeParse(input);
+  if (!parsed.success || rect.w <= 0 || rect.h <= 0) {
+    return undefined;
+  }
+
+  const gradient = parsed.data as BoxGradientType;
+  const from = gradient.from ?? defaultGradientPoint(gradient.direction, 'from');
+  const to = gradient.to ?? defaultGradientPoint(gradient.direction, 'to');
+  const fromX = sizeToNumber({ input: from.x, parentContainer: rect, direction: DIR_HORIZ_S }) ?? 0;
+  const fromY = sizeToNumber({ input: from.y, parentContainer: rect, direction: DIR_VERT_S }) ?? 0;
+  const toX = sizeToNumber({ input: to.x, parentContainer: rect, direction: DIR_HORIZ_S }) ?? rect.w;
+  const toY = sizeToNumber({ input: to.y, parentContainer: rect, direction: DIR_VERT_S }) ?? 0;
+
+  return new FillGradient({
+    type: 'linear',
+    textureSpace: 'local',
+    start: {
+      x: rect.w === 0 ? 0 : fromX / rect.w,
+      y: rect.h === 0 ? 0 : fromY / rect.h,
+    },
+    end: {
+      x: rect.w === 0 ? 1 : toX / rect.w,
+      y: rect.h === 0 ? 0 : toY / rect.h,
+    },
+    colorStops: normalizeGradientStops(gradient.colors),
+  });
+}
+
+function normalizeGradientStops(
+  colors: BoxGradientType['colors'],
+): Array<{ offset: number; color: string | number }> {
+  if (colors.length === 0) {
+    return [];
+  }
+  if (typeof colors[0] === 'string' || typeof colors[0] === 'number') {
+    const lastIndex = Math.max(colors.length - 1, 1);
+    return (colors as Array<string | number>).map((color, index) => ({
+      offset: index / lastIndex,
+      color,
+    }));
+  }
+
+  return colors as Array<{ offset: number; color: string | number }>;
+}
+
+function defaultGradientPoint(
+  direction: 'horizontal' | 'vertical' | undefined,
+  end: 'from' | 'to',
+): { x: number; y: number } {
+  if (direction === 'vertical') {
+    return end === 'from' ? { x: 0, y: 0 } : { x: 0, y: 100 };
+  }
+  return end === 'from' ? { x: 0, y: 0 } : { x: 100, y: 0 };
 }
 
 export function resolveNumericStyle(input: unknown): number | undefined {

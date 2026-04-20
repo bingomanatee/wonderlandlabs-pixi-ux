@@ -286,6 +286,28 @@ describe('StyleTree', () => {
         expect(matches[2].score).toBe(101); // Either disabled or hover
         expect(matches[4].value).toBe('base'); // score: 100
       });
+
+      it('should treat query states ending in ? as optional and prefer matches that include them', () => {
+        tree.set('button', ['disabled'], 'generic-disabled');
+        tree.set('button', ['button', 'disabled'], 'variant-disabled');
+
+        const matches = tree.findAllMatches({ nouns: ['button'], states: ['button?', 'disabled'] });
+
+        expect(matches[0].value).toBe('variant-disabled');
+        expect(matches[0].score).toBe(102);
+        expect(matches[1].value).toBe('generic-disabled');
+        expect(matches[1].score).toBe(101);
+      });
+
+      it('should reject explicit optional-only matches that miss required query states', () => {
+        tree.set('button', ['button'], 'variant-only');
+        tree.set('button', ['disabled'], 'generic-disabled');
+
+        const matches = tree.findAllMatches({ nouns: ['button'], states: ['button?', 'disabled'] });
+
+        expect(matches.some((match) => match.value === 'variant-only')).toBe(false);
+        expect(matches[0].value).toBe('generic-disabled');
+      });
     });
   });
 
