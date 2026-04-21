@@ -403,12 +403,20 @@ function effectiveDim(
     }
 
     const measure = textMeasures.get(cell.id);
-    const baseWidth = typeof cell.dim.w === 'number' ? cell.dim.w : 0;
-    const baseHeight = typeof cell.dim.h === 'number' ? cell.dim.h : 0;
+    const measuredWidth = measure?.w ?? cell.textWidth ?? 0;
+    const measuredHeight = measure?.h ?? cell.textHeight ?? 0;
     return {
         ...cell.dim,
-        w: Math.max(baseWidth, measure?.w ?? cell.textWidth ?? 0),
-        h: Math.max(baseHeight, measure?.h ?? cell.textHeight ?? 0),
+        w: cell.dim.w === undefined
+            ? measuredWidth
+            : typeof cell.dim.w === 'number'
+                ? Math.max(cell.dim.w, measuredWidth)
+                : cell.dim.w,
+        h: cell.dim.h === undefined
+            ? measuredHeight
+            : typeof cell.dim.h === 'number'
+                ? Math.max(cell.dim.h, measuredHeight)
+                : cell.dim.h,
     };
 }
 
