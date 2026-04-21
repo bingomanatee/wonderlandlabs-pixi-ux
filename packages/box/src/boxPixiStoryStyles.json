@@ -1,0 +1,250 @@
+{
+  "scene": {
+    "background": {
+      "color": {
+        "$*": "#f7f5f1"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#dccfc0"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "hero": {
+    "background": {
+      "color": {
+        "$*": "#f2e3d6"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#d9b89f"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "hero-photo": {
+    "background": {
+      "color": {
+        "$*": "#ead7c4"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#cfad8f"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "catalog": {
+    "background": {
+      "color": {
+        "$*": "#fbfaf8"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#e1d7ca"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "card": {
+    "background": {
+      "color": {
+        "$*": "#fffdfa"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#d7c8b5"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "photo": {
+    "background": {
+      "color": {
+        "$*": "#efe2d0"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#d2b89a"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "details": {
+    "background": {
+      "color": {
+        "$*": "#fffdf9"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#e1d7ca"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    }
+  },
+  "cta": {
+    "background": {
+      "color": {
+        "$*": "#1f5c4d"
+      }
+    },
+    "border": {
+      "color": {
+        "$*": "#17483c"
+      },
+      "alpha": {
+        "$*": 1
+      }
+    },
+    "font": {
+      "family": {
+        "$*": "Arial"
+      },
+      "size": {
+        "$*": 15
+      },
+      "weight": {
+        "$*": "700"
+      },
+      "color": {
+        "$*": "#f9f6f1"
+      },
+      "align": {
+        "$*": "center"
+      }
+    }
+  },
+  "eyebrow": {
+    "font": {
+      "family": {
+        "$*": "Courier New"
+      },
+      "size": {
+        "$*": 11
+      },
+      "weight": {
+        "$*": "700"
+      },
+      "color": {
+        "$*": "#8b5e34"
+      },
+      "letterSpacing": {
+        "$*": 2
+      }
+    }
+  },
+  "title": {
+    "font": {
+      "family": {
+        "$*": "Georgia"
+      },
+      "size": {
+        "$*": 26
+      },
+      "weight": {
+        "$*": "700"
+      },
+      "color": {
+        "$*": "#14213d"
+      },
+      "wordWrap": {
+        "$*": true
+      },
+      "lineHeight": {
+        "$*": 26
+      }
+    }
+  },
+  "price": {
+    "font": {
+      "family": {
+        "$*": "Georgia"
+      },
+      "size": {
+        "$*": 22
+      },
+      "weight": {
+        "$*": "700"
+      },
+      "color": {
+        "$*": "#1f5c4d"
+      }
+    }
+  },
+  "body": {
+    "font": {
+      "family": {
+        "$*": "Arial"
+      },
+      "size": {
+        "$*": 14
+      },
+      "color": {
+        "$*": "#46546b"
+      },
+      "wordWrap": {
+        "$*": true
+      },
+      "lineHeight": {
+        "$*": 20
+      }
+    }
+  },
+  "bullet-mark": {
+    "font": {
+      "family": {
+        "$*": "Arial"
+      },
+      "size": {
+        "$*": 13
+      },
+      "weight": {
+        "$*": "700"
+      },
+      "color": {
+        "$*": "#46546b"
+      }
+    }
+  },
+  "bullet-text": {
+    "font": {
+      "family": {
+        "$*": "Arial"
+      },
+      "size": {
+        "$*": 13
+      },
+      "color": {
+        "$*": "#46546b"
+      },
+      "wordWrap": {
+        "$*": true
+      },
+      "lineHeight": {
+        "$*": 18
+      }
+    }
+  }
+}
