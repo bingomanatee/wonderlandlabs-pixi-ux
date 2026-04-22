@@ -24,3 +24,9 @@
 - Revisit `BoxTree.children` input types. Consider dropping plain object support in favor of ordered inputs only (`Map` or tuple arrays) so child iteration order is always explicit and not subject to JS object key ordering rules for numeric-like keys.
 - Add Pixi injection seams around `boxTreeToPixi` / button rendering so traversal, measurement, and invalidation order can be tested without deep Pixi mocking.
 - Evaluate adapter or engine patterns that let a non-rendering test harness stub container/text/graphics creation while preserving the real layout/update flow.
+
+## Button
+
+- Evaluate a hover-render strategy that avoids relayout for purely visual button hover states.
+- Candidate approach: render the button once, then use an absolute-positioned hover layer or overlay with visibility/alpha toggles instead of rebuilding the box tree for hover color/border changes.
+- Keep this scoped to visual hover effects only; intrinsic size/content changes should still go through normal layout.
