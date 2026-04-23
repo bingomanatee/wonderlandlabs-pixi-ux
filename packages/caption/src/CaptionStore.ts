@@ -1,13 +1,15 @@
 import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
+import { BoxStore, DIR_HORIZ, INSET_SCOPE_ALL, POS_CENTER, type BoxCellType } from '@wonderlandlabs-pixi-ux/box';
+import { fromJSON, type StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import {
-    Application,
-    Container,
-    Graphics,
-    Text,
-    TextStyle,
-    type ContainerOptions,
+    type Application,
+    type Container,
+    type Graphics,
+    type Text,
     type TextStyleOptions,
+    type ContainerOptions,
 } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import {
     DEFAULT_CAPTION_BACKGROUND_STYLE,
     DEFAULT_CAPTION_TEXT_STYLE,
@@ -42,11 +44,36 @@ function clampRadius(value: number, width: number, height: number): number {
     return Math.max(0, Math.min(value, max));
 }
 
+type CaptionTheme = {
+    padding: number;
+    cornerRadius: number;
+    bubbleFill?: { color: number; alpha: number };
+    bubbleStroke?: { color: number; alpha: number; width: number };
+    textStyle: TextStyleOptions;
+    textAlpha: number;
+};
+
+function toStyleLayers(styleTree?: StyleTree | StyleTree[], styleDef?: unknown): StyleTree[] {
+    const layers: StyleTree[] = [];
+    if (styleDef && typeof styleDef === 'object') {
+        layers.push(fromJSON(styleDef as Record<string, unknown>));
+    }
+    if (Array.isArray(styleTree)) {
+        layers.push(...styleTree);
+    } else if (styleTree) {
+        layers.push(styleTree);
+    }
+    return layers;
+}
+
 export class CaptionStore extends TickerForest<CaptionState> {
     readonly id: string;
+    readonly pixi: PixiProvider;
+    #layoutStore: BoxStore;
+    #styleTree: StyleTree[];
 
-    #bubbleFill: Graphics = new Graphics();
-    #bubbleOutline: Graphics = new Graphics();
+    #bubbleFill: Graphics;
+    #bubbleOutline: Graphics;
     #textDisplay: Text;
     #backgroundStyle: CaptionBackgroundStyle;
     #textStyle: TextStyleOptions;
@@ -54,7 +81,8 @@ export class CaptionStore extends TickerForest<CaptionState> {
     constructor(
         config: CaptionConfigInput,
         app: Application,
-        rootProps?: ContainerOptions
+        rootProps?: ContainerOptions,
+        pixi: PixiProvider = PixiProvider.shared,
     ) {
         const resolved: CaptionConfig = resolveCaptionConfig(config);
         const initialState: CaptionState = {
@@ -73,25 +101,32 @@ export class CaptionStore extends TickerForest<CaptionState> {
             thought: resolved.thought,
         };
 
-        const captionContainer = new Container({
+        const captionContainer = new pixi.Container({
             label: `caption-${resolved.id}`,
             ...rootProps,
         });
         super({ value: initialState }, {app, container: captionContainer});
 
         this.id = resolved.id;
+        this.pixi = pixi;
+        this.#styleTree = toStyleLayers(resolved.styleTree, resolved.styleDef);
+        this.#bubbleFill = new pixi.Graphics();
+        this.#bubbleOutline = new pixi.Graphics();
         this.#backgroundStyle = mergeBackgroundStyle(
             DEFAULT_CAPTION_BACKGROUND_STYLE,
             resolved.backgroundStyle
         );
         this.#textStyle = mergeTextStyle(DEFAULT_CAPTION_TEXT_STYLE, resolved.textStyle);
+        this.#layoutStore = new BoxStore({
+            value: this.#makeLayoutTree(initialState.width, initialState.height, initialState.padding, initialState.text),
+        });
 
         this.container.position.set(initialState.x, initialState.y);
         this.container.zIndex = initialState.order;
 
-        this.#textDisplay = new Text({
+        this.#textDisplay = new pixi.Text({
             text: initialState.text,
-            style: new TextStyle(this.#textStyle),
+            style: new pixi.TextStyle(this.#textStyle),
         });
 
         // Layer order: stroke behind fill, text on top.
@@ -230,8 +265,165 @@ export class CaptionStore extends TickerForest<CaptionState> {
 
     setTextStyle(style: Partial<TextStyleOptions>): void {
         this.#textStyle = mergeTextStyle(this.#textStyle, style);
-        this.#textDisplay.style = new TextStyle(this.#textStyle);
+        this.#textDisplay.style = new this.pixi.TextStyle(this.#textStyle);
         this.dirty();
+    }
+
+    #matchStyle(path: string[]): unknown {
+        if (this.#styleTree.length === 0) {
+            return undefined;
+        }
+        const queries = [
+            ['caption', this.value.shape, ...path],
+            ['caption', ...path],
+        ];
+        for (const nouns of queries) {
+            for (let index = this.#styleTree.length - 1; index >= 0; index -= 1) {
+                const layer = this.#styleTree[index];
+                const value = layer.matchHierarchy({ nouns, states: [] });
+                if (value !== undefined) {
+                    return value;
+                }
+            }
+        }
+        return undefined;
+    }
+
+    #matchNumber(path: string[], fallback: number): number {
+        const value = this.#matchStyle(path);
+        return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    }
+
+    #matchColorNumber(path: string[]): number | undefined {
+        const value = this.#matchStyle(path);
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+        if (typeof value === 'string') {
+            return new this.pixi.Color(value).toNumber();
+        }
+        if (value && typeof value === 'object' && 'r' in value && 'g' in value && 'b' in value) {
+            return rgbToNumber(value as { r: number; g: number; b: number });
+        }
+        return undefined;
+    }
+
+    #resolveTheme(): CaptionTheme {
+        const padding = this.#matchNumber(['padding'], this.value.padding);
+        const cornerRadius = this.#matchNumber(['bubble', 'radius'], this.value.cornerRadius);
+
+        const fillColor = this.#matchColorNumber(['bubble', 'fill', 'color']);
+        const fillAlpha = this.#matchNumber(['bubble', 'fill', 'alpha'], this.#backgroundStyle.fill?.alpha ?? 1);
+        const strokeColor = this.#matchColorNumber(['bubble', 'stroke', 'color']);
+        const strokeAlpha = this.#matchNumber(['bubble', 'stroke', 'alpha'], this.#backgroundStyle.stroke?.alpha ?? 1);
+        const strokeWidth = this.#matchNumber(['bubble', 'stroke', 'width'], this.#backgroundStyle.stroke?.width ?? 0);
+
+        const fontSize = this.#matchStyle(['label', 'font', 'size']);
+        const fontFamily = this.#matchStyle(['label', 'font', 'family']);
+        const fontFill = this.#matchStyle(['label', 'font', 'color']) ?? this.#matchStyle(['label', 'fill', 'color']);
+        const fontAlpha = this.#matchStyle(['label', 'font', 'alpha']);
+        const align = this.#matchStyle(['label', 'font', 'align']);
+
+        return {
+            padding,
+            cornerRadius,
+            bubbleFill: fillColor !== undefined
+                ? { color: fillColor, alpha: fillAlpha }
+                : this.#backgroundStyle.fill?.color
+                    ? { color: rgbToNumber(this.#backgroundStyle.fill.color), alpha: this.#backgroundStyle.fill.alpha ?? 1 }
+                    : undefined,
+            bubbleStroke: strokeColor !== undefined && strokeWidth > 0
+                ? { color: strokeColor, alpha: strokeAlpha, width: strokeWidth }
+                : this.#backgroundStyle.stroke?.color && (this.#backgroundStyle.stroke.width ?? 0) > 0
+                    ? {
+                        color: rgbToNumber(this.#backgroundStyle.stroke.color),
+                        alpha: this.#backgroundStyle.stroke.alpha ?? 1,
+                        width: this.#backgroundStyle.stroke.width ?? 0,
+                    }
+                    : undefined,
+            textStyle: {
+                ...this.#textStyle,
+                fontSize: typeof fontSize === 'number' ? fontSize : this.#textStyle.fontSize,
+                fontFamily: typeof fontFamily === 'string' ? fontFamily : this.#textStyle.fontFamily,
+                fill: fontFill ?? this.#textStyle.fill,
+                align: typeof align === 'string' ? align as TextStyleOptions['align'] : this.#textStyle.align,
+            },
+            textAlpha: typeof fontAlpha === 'number'
+                ? fontAlpha
+                : (this.#textStyle as TextStyleOptions & { alpha?: number }).alpha ?? 1,
+        };
+    }
+
+    #makeLayoutTree(width: number, height: number, padding: number, text: string): BoxCellType {
+        return {
+            id: 'caption-root',
+            name: 'container',
+            absolute: true,
+            layoutStrategy: 'bloat',
+            dim: {
+                x: 0,
+                y: 0,
+                w: Math.max(1, width),
+                h: Math.max(1, height),
+            },
+            align: {
+                direction: DIR_HORIZ,
+                xPosition: POS_CENTER,
+                yPosition: POS_CENTER,
+            },
+            insets: padding > 0 ? [{
+                role: 'padding',
+                inset: [{ scope: INSET_SCOPE_ALL, value: padding }],
+            }] : undefined,
+            children: [{
+                id: 'caption-text',
+                name: 'label',
+                absolute: false,
+                dim: {
+                    w: 0,
+                    h: 0,
+                },
+                align: {
+                    direction: DIR_HORIZ,
+                    xPosition: POS_CENTER,
+                    yPosition: POS_CENTER,
+                },
+                content: {
+                    type: 'text',
+                    value: text,
+                },
+            }],
+        };
+    }
+
+    #measureText(): { width: number; height: number } {
+        const bounds = this.#textDisplay.getLocalBounds();
+        return {
+            width: Math.max(1, Math.ceil(bounds.width)),
+            height: Math.max(1, Math.ceil(bounds.height)),
+        };
+    }
+
+    #updateLayout(theme: CaptionTheme): void {
+        const { width, height, text } = this.value;
+        this.#layoutStore.mutate((draft) => {
+            draft.dim = {
+                ...draft.dim,
+                w: Math.max(1, width),
+                h: Math.max(1, height),
+            };
+            draft.insets = theme.padding > 0 ? [{
+                role: 'padding',
+                inset: [{ scope: INSET_SCOPE_ALL, value: theme.padding }],
+            }] : undefined;
+            if (draft.children?.[0]?.content?.type === 'text') {
+                draft.children[0].content.value = text;
+            }
+        });
+        this.#layoutStore.recordTextMeasures(new Map([
+            ['caption-text', { w: this.#measureText().width, h: this.#measureText().height }],
+        ]));
+        this.#layoutStore.update();
     }
 
     #drawBubbleBody(
@@ -272,10 +464,8 @@ export class CaptionStore extends TickerForest<CaptionState> {
         }
     }
 
-    #drawBubble(): void {
-        const { width, height, shape, cornerRadius, x, y, pointer, thought } = this.value;
-        const fill = this.#backgroundStyle.fill;
-        const stroke = this.#backgroundStyle.stroke;
+    #drawBubble(theme: CaptionTheme): void {
+        const { width, height, shape, x, y, pointer, thought } = this.value;
 
         this.#bubbleFill.clear();
         this.#bubbleOutline.clear();
@@ -296,59 +486,45 @@ export class CaptionStore extends TickerForest<CaptionState> {
             });
         }
 
-        if (fill?.color) {
+        if (theme.bubbleFill) {
             this.#appendBubbleGeometry(
                 this.#bubbleFill,
                 width,
                 height,
                 shape,
-                cornerRadius,
+                theme.cornerRadius,
                 thought,
                 triangle
             );
             this.#bubbleFill.fill({
-                color: rgbToNumber(fill.color),
-                alpha: fill.alpha ?? 1,
+                color: theme.bubbleFill.color,
+                alpha: theme.bubbleFill.alpha,
             });
         }
 
-        if (stroke?.color && (stroke.width ?? 0) > 0) {
-            const strokeColor = rgbToNumber(stroke.color);
-            const strokeAlpha = stroke.alpha ?? 1;
-            const strokeWidth = stroke.width ?? 0;
-
+        if (theme.bubbleStroke && theme.bubbleStroke.width > 0) {
             this.#appendBubbleGeometry(
                 this.#bubbleOutline,
                 width,
                 height,
                 shape,
-                cornerRadius,
+                theme.cornerRadius,
                 thought,
                 triangle
             );
             this.#bubbleOutline.stroke({
-                color: strokeColor,
-                alpha: strokeAlpha,
-                width: strokeWidth,
+                color: theme.bubbleStroke.color,
+                alpha: theme.bubbleStroke.alpha,
+                width: theme.bubbleStroke.width,
             });
         }
     }
 
-    #measureText(): { width: number; height: number } {
-        const bounds = this.#textDisplay.getLocalBounds();
-        return {
-            width: Math.max(1, Math.ceil(bounds.width)),
-            height: Math.max(1, Math.ceil(bounds.height)),
-        };
-    }
-
     #maybeAutoSize(): void {
-        const { autoSize, padding, width, height } = this.value;
+        const { autoSize, width, height } = this.value;
         if (!autoSize) return;
-
-        const measured = this.#measureText();
-        const nextWidth = Math.max(1, measured.width + padding * 2);
-        const nextHeight = Math.max(1, measured.height + padding * 2);
+        const nextWidth = Math.max(1, Math.ceil(this.#layoutStore.location.w));
+        const nextHeight = Math.max(1, Math.ceil(this.#layoutStore.location.h));
 
         if (nextWidth === width && nextHeight === height) return;
         this.mutate((draft) => {
@@ -357,33 +533,37 @@ export class CaptionStore extends TickerForest<CaptionState> {
         });
     }
 
-    #layoutText(): void {
-        const { width, height, padding } = this.value;
-        const contentWidth = Math.max(1, width - padding * 2);
-        const contentHeight = Math.max(1, height - padding * 2);
+    #layoutText(theme: CaptionTheme): void {
+        const textRect = this.#layoutStore.getLocation(['caption-root', 'caption-text']);
+        const contentRect = textRect ?? { x: 0, y: 0, w: this.value.width, h: this.value.height };
 
-        this.#textDisplay.style = new TextStyle({
-            ...this.#textStyle,
-            wordWrapWidth: contentWidth,
+        this.#textDisplay.style = new this.pixi.TextStyle({
+            ...theme.textStyle,
+            wordWrapWidth: Math.max(1, contentRect.w),
         });
+        this.#textDisplay.alpha = theme.textAlpha;
 
         const bounds = this.#textDisplay.getLocalBounds();
-        const x = padding + (contentWidth - bounds.width) / 2 - bounds.x;
-        const y = padding + (contentHeight - bounds.height) / 2 - bounds.y;
+        const x = contentRect.x + (contentRect.w - bounds.width) / 2 - bounds.x;
+        const y = contentRect.y + (contentRect.h - bounds.height) / 2 - bounds.y;
         this.#textDisplay.position.set(x, y);
     }
 
     protected resolve(): void {
+        const theme = this.#resolveTheme();
         this.#textDisplay.text = this.value.text;
+        this.#updateLayout(theme);
         this.#maybeAutoSize();
+        this.#updateLayout(theme);
         this.container.position.set(this.value.x, this.value.y);
         this.container.zIndex = this.value.order;
-        this.#layoutText();
-        this.#drawBubble();
+        this.#layoutText(theme);
+        this.#drawBubble(theme);
     }
 
     cleanup(): void {
         super.cleanup();
+        this.#layoutStore.complete();
         const container = super.container;
         if (container) {
             container.destroy({children: true});

@@ -11,6 +11,11 @@ Resize handles for PixiJS containers.
 yarn add @wonderlandlabs-pixi-ux/resizer
 ```
 
+## Shared Runtime Setup
+
+`resizer` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider`.
+Before creating a `ResizerStore` or calling `enableHandles`, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+
 ## Primary API
 
 - `enableHandles(container, rect, config): ResizerStore`
@@ -19,20 +24,24 @@ yarn add @wonderlandlabs-pixi-ux/resizer
 ## Basic Usage
 
 ```ts
-import { Application, Container, Graphics, Rectangle } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { enableHandles } from '@wonderlandlabs-pixi-ux/resizer';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 900, height: 600 });
 
-const box = new Container();
-const shape = new Graphics();
+const box = new Pixi.Container();
+const shape = new Pixi.Graphics();
 shape.rect(0, 0, 240, 140).fill(0x4da3ff);
 box.addChild(shape);
 app.stage.addChild(box);
 
-const handles = enableHandles(box, new Rectangle(80, 80, 240, 140), {
+const handles = enableHandles(box, new Pixi.Rectangle(80, 80, 240, 140), {
   app,
+  pixi: PixiProvider.shared,
   mode: 'EDGE_AND_CORNER',
   size: 12,
   color: { r: 0.2, g: 0.6, b: 1 },
@@ -48,8 +57,10 @@ const handles = enableHandles(box, new Rectangle(80, 80, 240, 140), {
 });
 
 handles.setVisible(true);
-handles.setRect(new Rectangle(100, 100, 300, 160));
+handles.setRect(new Pixi.Rectangle(100, 100, 300, 160));
 ```
+
+`resizer` uses the shared or injected `PixiProvider` for runtime Pixi access. In app code and stories, initialize the provider once with your installed Pixi module before creating a `ResizerStore` or calling `enableHandles`.
 
 ## Coordinate Model
 

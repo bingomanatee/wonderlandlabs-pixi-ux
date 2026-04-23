@@ -1,4 +1,4 @@
-import {Point, type Application, type Ticker} from 'pixi.js';
+import type {Application, Ticker} from 'pixi.js';
 import {fromEventPattern, type Observable} from 'rxjs';
 
 type TickerListener = {
@@ -103,14 +103,14 @@ export class MockContainer {
         this.#toLocalResolver = args.toLocal;
     }
 
-    toGlobal(point: PointLike): Point {
+    toGlobal(point: PointLike): PointLike {
         const resolved = resolvePoint(this.#toGlobalResolver, point);
-        return new Point(resolved.x, resolved.y);
+        return {x: resolved.x, y: resolved.y};
     }
 
-    toLocal(point: PointLike): Point {
+    toLocal(point: PointLike): PointLike {
         const resolved = resolvePoint(this.#toLocalResolver, point);
-        return new Point(resolved.x, resolved.y);
+        return {x: resolved.x, y: resolved.y};
     }
 }
 

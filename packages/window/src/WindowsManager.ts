@@ -1,4 +1,5 @@
-import {Application, Assets, Container, FederatedPointerEvent, Texture} from 'pixi.js';
+import {PixiProvider} from '@wonderlandlabs-pixi-ux/utils';
+import type {Application, Container, FederatedPointerEvent, Texture} from 'pixi.js';
 import {Forest} from "@wonderlandlabs/forestry4";
 import dragObserverFactory from '@wonderlandlabs-pixi-ux/observe-drag';
 import {
@@ -37,6 +38,7 @@ export interface WindowsManagerConfig {
     container: Container;
     handleContainer?: Container;
     textures?: TextureDef[];
+    pixi?: PixiProvider;
 }
 
 /**
@@ -45,6 +47,7 @@ export interface WindowsManagerConfig {
  */
 export class WindowsManager extends Forest<WindowStoreValue> {
     app: Application;
+    readonly pixi: PixiProvider;
     container!: Container; // Parent container that holds both windowsContainer and handlesContainer
     windowsContainer!: Container; // Container for all windows
     handlesContainer!: Container; // Container for all resize handles (sibling to windowsContainer)
@@ -70,6 +73,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
             }
         );
         this.app = config.app;
+        this.pixi = config.pixi ?? PixiProvider.shared;
         // Stage listeners are used by observe-drag for move/up tracking.
         this.app.stage.eventMode = 'static';
         if (!this.app.stage.hitArea) {
@@ -97,7 +101,8 @@ export class WindowsManager extends Forest<WindowStoreValue> {
     }
 
     #initContainers(config: Partial<WindowsManagerConfig>) {
-        const {container} = config
+        const {container, handleContainer} = config;
+        const ContainerClass = this.pixi.Container;
 
         if (!this.container && container) {
             this.container = container;
@@ -108,7 +113,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         // Create windowsContainer as a child of the main container
         // This will hold all the windows and be used for z-index management
         if (!this.windowsContainer) {
-            this.windowsContainer = new Container();
+            this.windowsContainer = new ContainerClass();
             this.windowsContainer.label = 'windows';
             this.container?.addChild(this.windowsContainer);
         }
@@ -117,7 +122,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         // Added after windowsContainer so it renders on top
         // This ensures handles are always visible regardless of window z-index
         if (!this.handlesContainer) {
-            this.handlesContainer = new Container();
+            this.handlesContainer = handleContainer ?? new ContainerClass();
             this.handlesContainer.label = 'handles';
             this.container?.addChild(this.handlesContainer);
         }
@@ -234,7 +239,7 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         // @ts-ignore
         const branch = this.$branches.$add<WindowDef, WindowStore>(['windows', key], {
             subclass: StoreClass,
-        }, this.app) as unknown as WindowStore;
+        }, this.app, this.pixi) as unknown as WindowStore;
 
         branch.dirty();
         this.#windowsBranches.set(key, branch);
@@ -540,8 +545,8 @@ export class WindowsManager extends Forest<WindowStoreValue> {
         };
 
         // Use Assets.init with manifest for efficient batch loading
-        Assets.init({manifest}).then(() => {
-            return Assets.loadBundle('windowTextures');
+        this.pixi.Assets.init({manifest}).then(() => {
+            return this.pixi.Assets.loadBundle('windowTextures');
         }).then((loadedTextures) => {
             // Update entries with loaded textures via mutate
             this.mutate(draft => {

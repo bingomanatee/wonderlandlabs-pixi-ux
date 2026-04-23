@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {DIMENSION_TYPE, LOAD_STATUS, TITLEBAR_MODE, WINDOW_STATUS, STYLE_VARIANT} from './constants.js';
 import type {HandleMode} from '@wonderlandlabs-pixi-ux/resizer';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type {Application, Container, Rectangle} from 'pixi.js';
 import type {TickerForestConfig} from '@wonderlandlabs-pixi-ux/ticker-forest';
 
@@ -256,7 +257,8 @@ export type WindowRectTransform = (params: WindowRectTransformParams) => Rectang
 // Type for WindowStore class constructor
 export type WindowStoreClass<T extends WindowDef = WindowDef> = new (
     config: any,
-    app: Application
+    app: Application,
+    pixi?: PixiProvider,
 ) => any;
 
 export type TitlebarStoreClass = new (

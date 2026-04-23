@@ -30,3 +30,10 @@
 - Evaluate a hover-render strategy that avoids relayout for purely visual button hover states.
 - Candidate approach: render the button once, then use an absolute-positioned hover layer or overlay with visibility/alpha toggles instead of rebuilding the box tree for hover color/border changes.
 - Keep this scoped to visual hover effects only; intrinsic size/content changes should still go through normal layout.
+
+## Style DSL Migration
+
+- Keep `box`, `button`, and `toolbar` aligned with the shared `style-tree` Style DSL and avoid introducing new package-specific style nouns there.
+- Migrate `caption` away from transitional `bubble.*` style keys toward canonical `background.*` and `border.*` paths while preserving only genuinely caption-specific geometry keys such as `pointer.*` and `thought.*`.
+- Migrate `window` off its current bespoke style merge model and onto shared style-tree digestors and canonical DSL paths.
+- Keep package docs explicit about current deviations until the `caption` and `window` migrations are complete.

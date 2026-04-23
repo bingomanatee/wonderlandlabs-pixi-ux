@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Application, Container } from 'pixi.js';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type { BoxStore } from './BoxStore.js';
 import {
   DIR_HORIZ,
@@ -315,6 +316,7 @@ export type BoxPixiOptions = {
   root: BoxLayoutCellType;
   app?: Application;
   parentContainer?: Container;
+  pixi?: PixiProvider;
   store: BoxStore;
   styleTree?: BoxStyleManagerLike[];
   renderers?: BoxPixiRendererManifest;

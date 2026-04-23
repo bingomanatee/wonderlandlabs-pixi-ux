@@ -1,4 +1,4 @@
-import {Point, type Application, type Container} from 'pixi.js';
+import type {Application, Container} from 'pixi.js';
 import {BehaviorSubject, distinctUntilChanged} from 'rxjs';
 import type {DirtyOnScale} from './DirtyOnScale.js';
 import type {
@@ -86,7 +86,7 @@ export function readScalePoint(container?: Container): ScalePoint | undefined {
 
     const scaleX = Math.hypot(xAxis.x - origin.x, xAxis.y - origin.y);
     const scaleY = Math.hypot(yAxis.x - origin.x, yAxis.y - origin.y);
-    return new Point(scaleX || 1, scaleY || 1);
+    return {x: scaleX || 1, y: scaleY || 1};
 }
 
 function canInvertValue(n: unknown): n is number {
@@ -102,11 +102,11 @@ function canInvertScale(scale?: unknown): scale is ScalePoint {
 
 export function inverseScalePoint(container?: Container): ScalePoint {
     if (!container) {
-        return new Point(1, 1);
+        return {x: 1, y: 1};
     }
     const scale = readScalePoint(container);
     if (!canInvertScale(scale)) {
-        return new Point(1, 1);
+        return {x: 1, y: 1};
     }
-    return new Point(1 / scale.x, 1 / scale.y);
+    return {x: 1 / scale.x, y: 1 / scale.y};
 }

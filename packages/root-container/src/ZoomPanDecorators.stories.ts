@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
 import { Application, Graphics, Container, Text } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { createRootContainer } from './RootContainer.js';
 import { makeStageDraggable } from './makeStageDraggable.js';
 import { makeStageZoomable } from './makeStageZoomable.js';
@@ -25,6 +26,7 @@ const meta: Meta<ZoomPanDecoratorsArgs> = {
     container.style.overflow = 'hidden';
     wrapper.appendChild(container);
 
+    PixiProvider.init({ Graphics, Container, Text });
     const app = new Application();
 
     app.init({
@@ -49,7 +51,7 @@ const meta: Meta<ZoomPanDecoratorsArgs> = {
       resizeObserver.observe(container);
 
       // Create rootContainer container (centered origin)
-      const { root } = createRootContainer(app);
+      const { root } = createRootContainer(app, PixiProvider.shared);
       app.stage.addChild(root);
 
       // Create two separate containers to demonstrate different combinations

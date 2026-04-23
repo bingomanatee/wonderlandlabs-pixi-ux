@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type { Application, Container } from 'pixi.js';
 
 // ============================================================================
@@ -111,6 +112,7 @@ export interface GridManagerConfig {
   application: Application;
   zoomPanContainer: Container;
   cache?: GridCacheOptions;
+  pixi?: PixiProvider;
 }
 
 export interface WorldBounds {

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Graphics, Text } from 'pixi.js';
+import { Application, Container, Graphics, Text } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { createRootContainer } from './RootContainer.js';
 import { createZoomPan } from './ZoomPanContainer.js';
 import { makeStageDraggable } from './makeStageDraggable.js';
@@ -47,6 +48,7 @@ const meta: Meta<ZoomPanArgs> = {
     wrapper.appendChild(container);
 
     // Create PixiJS application
+    PixiProvider.init({ Container, Graphics, Text });
     const app = new Application();
 
     // Initialize the app
@@ -72,11 +74,11 @@ const meta: Meta<ZoomPanArgs> = {
       resizeObserver.observe(container);
 
       // Create rootContainer container (centers origin)
-      const { root } = createRootContainer(app);
+      const { root } = createRootContainer(app, PixiProvider.shared);
       app.stage.addChild(root);
 
       // Create zoom/pan container
-      const { zoomPan } = createZoomPan(app, root);
+      const { zoomPan } = createZoomPan(app, root, PixiProvider.shared);
       root.addChild(zoomPan);
 
       // Add zoom decorator only (no dragging)
@@ -231,6 +233,7 @@ export const ZoomAndPan: Story = {
     wrapper.appendChild(container);
 
     // Create PixiJS application
+    PixiProvider.init({ Container, Graphics, Text });
     const app = new Application();
 
     // Initialize the app
@@ -256,11 +259,11 @@ export const ZoomAndPan: Story = {
       resizeObserver.observe(container);
 
       // Create rootContainer container (centers origin)
-      const { root } = createRootContainer(app);
+      const { root } = createRootContainer(app, PixiProvider.shared);
       app.stage.addChild(root);
 
       // Create zoom/pan container
-      const { zoomPan } = createZoomPan(app, root);
+      const { zoomPan } = createZoomPan(app, root, PixiProvider.shared);
       root.addChild(zoomPan);
 
       // Add both decorators
@@ -418,6 +421,7 @@ export const PanOnly: Story = {
     wrapper.appendChild(container);
 
     // Create PixiJS application
+    PixiProvider.init({ Container, Graphics, Text });
     const app = new Application();
 
     // Initialize the app
@@ -502,11 +506,11 @@ export const PanOnly: Story = {
       app.stage.addChild(staticLayer);
 
       // Create rootContainer container (centers origin)
-      const { root } = createRootContainer(app);
+      const { root } = createRootContainer(app, PixiProvider.shared);
       app.stage.addChild(root);
 
       // Create zoom/pan container
-      const { zoomPan } = createZoomPan(app, root);
+      const { zoomPan } = createZoomPan(app, root, PixiProvider.shared);
       root.addChild(zoomPan);
 
       // Make it draggable via stage (no zoom for this example)

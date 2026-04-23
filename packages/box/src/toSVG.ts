@@ -34,7 +34,7 @@ function paletteFor(
         ? resolveStyleValue<Record<string, unknown> | undefined>(options.styleTree, context, ['background'])
         : undefined;
     const styleBackground = context
-        ? svgFillColor(backgroundStyle?.fill)
+        ? svgFillColor(resolveSvgBackgroundFill(options.styleTree, context, backgroundStyle))
         : undefined;
     const styleBorder = context
         ? svgColor(
@@ -58,6 +58,33 @@ function paletteFor(
         insetStroke: styleBorder,
         text: styleText ?? styleBorder,
     };
+}
+
+function resolveSvgBackgroundFill(
+    styles: BoxSvgOptions['styleTree'],
+    context: BoxStyleContext,
+    backgroundStyle?: Record<string, unknown>,
+): unknown {
+    const direction = resolveStyleValue(styles, context, ['background', 'fill', 'direction']);
+    const colors = resolveStyleValue(styles, context, ['background', 'fill', 'colors']);
+    const from = resolveStyleValue(styles, context, ['background', 'fill', 'from']);
+    const to = resolveStyleValue(styles, context, ['background', 'fill', 'to']);
+
+    if (
+        direction !== undefined
+        || colors !== undefined
+        || from !== undefined
+        || to !== undefined
+    ) {
+        return {
+            ...(direction !== undefined ? { direction } : {}),
+            ...(colors !== undefined ? { colors } : {}),
+            ...(from !== undefined ? { from } : {}),
+            ...(to !== undefined ? { to } : {}),
+        };
+    }
+
+    return backgroundStyle?.fill;
 }
 
 function boundsOf(cell: BoxLayoutCellType): { maxX: number; maxY: number } {

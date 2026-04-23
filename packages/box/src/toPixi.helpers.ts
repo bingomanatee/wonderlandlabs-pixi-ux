@@ -1,4 +1,5 @@
-import { Color, Container, FillGradient, Graphics, Sprite, Text, TextStyle, Texture, type ColorSource, type TextStyleOptions } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+import type { ColorSource, Container, FillGradient, Graphics, Sprite, Text, TextStyleOptions, Texture } from 'pixi.js';
 import { z } from 'zod';
 import { BoxFill, type BoxGradientType, type BoxSizeType, type RectStaticType } from './types.js';
 import { sizeToNumber } from './helpers.js';
@@ -34,20 +35,22 @@ const PixiContainerResult = z.custom<Container>((value) => {
   return ContainerLikeSchema.safeParse(value).success;
 });
 
-export function ensureGraphics(container: Container): Graphics {
-  return ensureGraphicsByLabel(container, GRAPHICS_LABEL, 0);
+export function ensureGraphics(container: Container, pixi = PixiProvider.shared): Graphics {
+  return ensureGraphicsByLabel(container, GRAPHICS_LABEL, 0, pixi);
 }
 
 export function ensureGraphicsByLabel(
   container: Container,
   label: string,
   defaultZIndex = 0,
+  pixi = PixiProvider.shared,
 ): Graphics {
+  const GraphicsClass = pixi.Graphics;
   return ensureChild(
     container,
     label,
-    (child): child is Graphics => child instanceof Graphics,
-    () => new Graphics({ label }),
+    (child): child is Graphics => child instanceof GraphicsClass,
+    () => new GraphicsClass({ label }),
     defaultZIndex,
   );
 }
@@ -55,24 +58,28 @@ export function ensureGraphicsByLabel(
 export function ensureText(
   container: Container,
   style: TextStyleOptions = {},
+  pixi = PixiProvider.shared,
 ): Text {
+  const TextClass = pixi.Text;
+  const TextStyleClass = pixi.TextStyle;
   return ensureChild(
     container,
     CONTENT_LABEL,
-    (child): child is Text => child instanceof Text,
-    () => new Text({
+    (child): child is Text => child instanceof TextClass,
+    () => new TextClass({
       text: '',
-      style: new TextStyle(style),
+      style: new TextStyleClass(style),
     }),
   );
 }
 
-export function ensureSprite(container: Container): Sprite {
+export function ensureSprite(container: Container, pixi = PixiProvider.shared): Sprite {
+  const SpriteClass = pixi.Sprite;
   return ensureChild(
     container,
     CONTENT_LABEL,
-    (child): child is Sprite => child instanceof Sprite,
-    () => new Sprite(Texture.EMPTY),
+    (child): child is Sprite => child instanceof SpriteClass,
+    () => new SpriteClass(pixi.Texture.EMPTY),
   );
 }
 
@@ -81,9 +88,10 @@ export function fitSpriteToRect(
   texture: Texture | null | undefined,
   width: number,
   height: number,
+  pixi = PixiProvider.shared,
 ): void {
   if (!texture) {
-    sprite.texture = Texture.EMPTY;
+    sprite.texture = pixi.Texture.EMPTY;
     sprite.width = 0;
     sprite.height = 0;
     sprite.position.set(0, 0);
@@ -147,12 +155,13 @@ export function drawBorderBands(
   }
 }
 
-export function resolvePixiColor(input: unknown): number | undefined {
+export function resolvePixiColor(input: unknown, pixi = PixiProvider.shared): number | undefined {
   if (input === undefined || input === null || input === false) {
     return undefined;
   }
   try {
-    return new Color(input as ColorSource).toNumber();
+    const ColorClass = pixi.Color;
+    return new ColorClass(input as ColorSource).toNumber();
   } catch {
     return undefined;
   }
@@ -161,7 +170,9 @@ export function resolvePixiColor(input: unknown): number | undefined {
 export function resolvePixiGradient(
   input: unknown,
   rect: RectStaticType,
+  pixi = PixiProvider.shared,
 ): FillGradient | undefined {
+  const FillGradientClass = pixi.FillGradient;
   const parsed = BoxFill.safeParse(input);
   if (!parsed.success || rect.w <= 0 || rect.h <= 0) {
     return undefined;
@@ -173,7 +184,7 @@ export function resolvePixiGradient(
 
   const gradient = parsed.data as BoxGradientType;
   if (!gradient.from && !gradient.to && gradient.direction) {
-    return new FillGradient({
+    return new FillGradientClass({
       type: 'linear',
       textureSpace: 'local',
       start: gradient.direction === 'vertical'
@@ -193,7 +204,7 @@ export function resolvePixiGradient(
   const toX = sizeToNumber({ input: to.x, parentContainer: rect, direction: DIR_HORIZ_S }) ?? rect.w;
   const toY = sizeToNumber({ input: to.y, parentContainer: rect, direction: DIR_VERT_S }) ?? 0;
 
-  return new FillGradient({
+  return new FillGradientClass({
     type: 'linear',
     textureSpace: 'local',
     start: {
@@ -211,17 +222,18 @@ export function resolvePixiGradient(
 export function resolvePixiFill(
   input: unknown,
   rect: RectStaticType,
+  pixi = PixiProvider.shared,
 ): { color?: number; gradient?: FillGradient } {
   if (input === undefined || input === null || input === false) {
     return {};
   }
 
-  const gradient = resolvePixiGradient(input, rect);
+  const gradient = resolvePixiGradient(input, rect, pixi);
   if (gradient) {
     return { gradient };
   }
 
-  const color = resolvePixiColor(input);
+  const color = resolvePixiColor(input, pixi);
   if (color !== undefined) {
     return { color };
   }

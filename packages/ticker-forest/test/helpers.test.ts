@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {Point, type Container} from 'pixi.js';
+import type {Container} from 'pixi.js';
 import {DirtyOnScale} from '../src/DirtyOnScale';
 import {
     compareScalePoints,
@@ -39,22 +39,22 @@ describe('ticker-forest helpers', () => {
         });
 
         it('returns identity inverse scale when scale cannot be read', () => {
-            expect(inverseScalePoint(undefined)).toEqual(new Point(1, 1));
+            expect(inverseScalePoint(undefined)).toEqual({x: 1, y: 1});
 
             const orphan = new MockContainer({
                 toGlobal: ({x, y}) => ({x, y}),
             });
-            expect(inverseScalePoint(orphan as unknown as Container)).toEqual(new Point(1, 1));
+            expect(inverseScalePoint(orphan as unknown as Container)).toEqual({x: 1, y: 1});
         });
     });
 
     describe('compareScalePoints', () => {
         it('respects DirtyOnScale watch flags and epsilon in comparisons', () => {
             const dirtyOnScale = new DirtyOnScale({watchX: true, watchY: false, epsilon: 0.2});
-            const prev = new Point(1, 1);
+            const prev = {x: 1, y: 1};
 
-            expect(compareScalePoints(dirtyOnScale, prev, new Point(1.1, 99))).toBe(true);
-            expect(compareScalePoints(dirtyOnScale, prev, new Point(1.3, 1))).toBe(false);
+            expect(compareScalePoints(dirtyOnScale, prev, {x: 1.1, y: 99})).toBe(true);
+            expect(compareScalePoints(dirtyOnScale, prev, {x: 1.3, y: 1})).toBe(false);
         });
     });
 
@@ -72,7 +72,7 @@ describe('ticker-forest helpers', () => {
 
     describe('isScalePoint', () => {
         it('validates scale point guard for finite x/y coordinates', () => {
-            expect(isScalePoint(new Point(1, 2))).toBe(true);
+            expect(isScalePoint({x: 1, y: 2})).toBe(true);
             expect(isScalePoint({x: 1, y: 2})).toBe(true);
             expect(isScalePoint({x: Infinity, y: 2})).toBe(false);
             expect(isScalePoint({x: 1})).toBe(false);

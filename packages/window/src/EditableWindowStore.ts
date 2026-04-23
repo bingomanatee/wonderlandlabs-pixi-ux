@@ -1,6 +1,7 @@
 import {WindowStore} from "./WindowStore.js";
 import {WindowDef} from "./types.js";
-import {Application, Container} from "pixi.js";
+import {PixiProvider} from "@wonderlandlabs-pixi-ux/utils";
+import type {Application, Container} from "pixi.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {WindowsManager} from "./WindowsManager.js";
 
@@ -15,8 +16,8 @@ const UNSELECTED_ALPHA = 0.15;
  * - Provides hooks for toolbar integration
  */
 export class EditableWindowStore extends WindowStore {
-    constructor(config: StoreParams<WindowDef>, app: Application) {
-        super(config, app);
+    constructor(config: StoreParams<WindowDef>, app: Application, pixi?: PixiProvider) {
+        super(config, app, pixi);
     }
 
     /**

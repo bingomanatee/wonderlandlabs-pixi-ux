@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Graphics } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { CaptionStore } from './CaptionStore.js';
 import type { CaptionShape } from './types.js';
 
@@ -89,7 +90,8 @@ export const Playground: Story = {
         wrapper.style.height = '620px';
         wrapper.style.position = 'relative';
 
-        const app = new Application();
+        PixiProvider.init(Pixi);
+        const app = new Pixi.Application();
         app.init({
             width: 900,
             height: 620,
@@ -140,9 +142,9 @@ export const Playground: Story = {
                     align: 'center',
                     wordWrap: true,
                 },
-            }, app);
+            }, app, undefined, PixiProvider.shared);
 
-            const speaker = new Graphics();
+            const speaker = new Pixi.Graphics();
             speaker.circle(args.speakerX, args.speakerY, 9);
             speaker.fill({ color: 0xffb347 });
             speaker.circle(args.speakerX, args.speakerY, 13);
@@ -163,7 +165,8 @@ export const SideBySide: Story = {
         wrapper.style.height = '520px';
         wrapper.style.position = 'relative';
 
-        const app = new Application();
+        PixiProvider.init(Pixi);
+        const app = new Pixi.Application();
         app.init({
             width: 1200,
             height: 520,
@@ -203,7 +206,7 @@ export const SideBySide: Story = {
                     align: 'center',
                     wordWrap: true,
                 },
-            }, app);
+            }, app, undefined, PixiProvider.shared);
 
             const ovalCaption = new CaptionStore({
                 id: 'caption-oval',
@@ -231,7 +234,7 @@ export const SideBySide: Story = {
                     align: 'center',
                     wordWrap: true,
                 },
-            }, app);
+            }, app, undefined, PixiProvider.shared);
 
             const thoughtCaption = new CaptionStore({
                 id: 'caption-thought',
@@ -264,22 +267,22 @@ export const SideBySide: Story = {
                     align: 'center',
                     wordWrap: true,
                 },
-            }, app);
+            }, app, undefined, PixiProvider.shared);
 
             const markerStyle = { color: 0xffb347, alpha: 1, width: 2 };
-            const marker1 = new Graphics();
+            const marker1 = new Pixi.Graphics();
             marker1.circle(rectSpeaker.x, rectSpeaker.y, 9);
             marker1.fill({ color: 0xffb347 });
             marker1.circle(rectSpeaker.x, rectSpeaker.y, 13);
             marker1.stroke(markerStyle);
 
-            const marker2 = new Graphics();
+            const marker2 = new Pixi.Graphics();
             marker2.circle(ovalSpeaker.x, ovalSpeaker.y, 9);
             marker2.fill({ color: 0xffb347 });
             marker2.circle(ovalSpeaker.x, ovalSpeaker.y, 13);
             marker2.stroke(markerStyle);
 
-            const marker3 = new Graphics();
+            const marker3 = new Pixi.Graphics();
             marker3.circle(thoughtSpeaker.x, thoughtSpeaker.y, 9);
             marker3.fill({ color: 0xffb347 });
             marker3.circle(thoughtSpeaker.x, thoughtSpeaker.y, 13);

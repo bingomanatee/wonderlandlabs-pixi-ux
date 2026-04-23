@@ -1,6 +1,6 @@
 ---
-title: box styles and composition
-description: Style keys, layering, and composition behavior for the default BoxUxPixi.
+title: "box styles and composition"
+description: "Style keys, layering, and composition behavior for the default BoxUxPixi."
 ---
 # Box Styles and Composition
 

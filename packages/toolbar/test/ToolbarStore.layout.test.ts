@@ -1,6 +1,8 @@
 import './setupNavigator';
 import { describe, expect, it } from 'vitest';
+import * as Pixi from 'pixi.js';
 import { fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { ToolbarStore } from '../src/ToolbarStore';
 
 type QueuedTick = {
@@ -75,6 +77,7 @@ function createToolbar(orientation: 'horizontal' | 'vertical', fillButtons = fal
   flushTicker: () => void;
 } {
   const { host, flushTicker } = createMockTickerHost();
+  const pixi = new PixiProvider(Pixi);
 
   const toolbar = new ToolbarStore({
     id: `toolbar-${orientation}`,
@@ -82,6 +85,7 @@ function createToolbar(orientation: 'horizontal' | 'vertical', fillButtons = fal
     spacing: 8,
     padding: 8,
     fillButtons,
+    pixi,
     style: createToolbarStyle(),
     buttons: [
       { id: 'one', variant: 'vertical', icon: '/icons/demo-icon.png' },
@@ -162,6 +166,7 @@ describe('ToolbarStore layout dimensions', () => {
 
   it('fills vertical button widths to the widest child when fillButtons is enabled', () => {
     const { host, flushTicker } = createMockTickerHost();
+    const pixi = new PixiProvider(Pixi);
 
     const toolbar = new ToolbarStore({
       id: 'toolbar-vertical-fill-width',
@@ -169,6 +174,7 @@ describe('ToolbarStore layout dimensions', () => {
       spacing: 8,
       padding: 8,
       fillButtons: true,
+      pixi,
       style: createToolbarStyle(),
       buttons: [
         { id: 'one', variant: 'vertical', icon: '/icons/demo-icon.png' },

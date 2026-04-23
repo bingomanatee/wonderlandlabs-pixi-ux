@@ -1,6 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/html';
-import {Application, Color} from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
+import {PixiProvider} from '@wonderlandlabs-pixi-ux/utils';
 import {ButtonStore} from './ButtonStore.js';
 import {
     BTYPE_AVATAR,
@@ -13,10 +14,10 @@ import capsuleStyles from './capsuleStyles.json' with {type: 'json'};
 import warnStyles from './warnStyles.json' with {type: 'json'};
 
 const PLACEHOLDER_ICON = '/icons/demo-icon.png';
-const STORY_BACKGROUND = new Color('#f6f1e7').toNumber();
+const STORY_BACKGROUND = new Pixi.Color('#f6f1e7').toNumber();
 
 function color(value: string | number): number {
-    return new Color(value).toNumber();
+    return new Pixi.Color(value).toNumber();
 }
 
 function createStoryStyleTree() {
@@ -98,7 +99,8 @@ export const AlertButtons: Story = {
         wrapper.style.width = '100%';
         wrapper.style.height = '320px';
         void (async () => {
-            const app = new Application();
+            PixiProvider.init(Pixi);
+            const app = new Pixi.Application();
             await app.init({
                 width: 900,
                 height: 320,
@@ -115,6 +117,7 @@ export const AlertButtons: Story = {
                     size: {x: 40, y: 40, width: 220, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Primary button clicked')},
                 }),
@@ -125,6 +128,7 @@ export const AlertButtons: Story = {
                     size: {x: 300, y: 46, width: 220, height: 40},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Text button clicked')},
                 }),
@@ -135,6 +139,7 @@ export const AlertButtons: Story = {
                     size: {x: 560, y: 24, width: 80, height: 80},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Vertical icon button clicked')},
                 }),
@@ -144,6 +149,7 @@ export const AlertButtons: Story = {
                     size: {x: 720, y: 40, width: 72, height: 72},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Avatar button clicked')},
                 }),
@@ -166,7 +172,8 @@ export const AlertStates: Story = {
         wrapper.style.width = '100%';
         wrapper.style.height = '320px';
         void (async () => {
-            const app = new Application();
+            PixiProvider.init(Pixi);
+            const app = new Pixi.Application();
             await app.init({
                 width: 900,
                 height: 320,
@@ -183,6 +190,7 @@ export const AlertStates: Story = {
                     size: {x: 40, y: 40, width: 190, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Enabled button clicked')},
                 }),
@@ -194,6 +202,7 @@ export const AlertStates: Story = {
                     size: {x: 260, y: 40, width: 190, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('This should not fire')},
                 }),
@@ -203,6 +212,7 @@ export const AlertStates: Story = {
                     size: {x: 500, y: 46, width: 160, height: 40},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Hover state button clicked')},
                 }),
@@ -212,6 +222,7 @@ export const AlertStates: Story = {
                     size: {x: 720, y: 30, width: 88, height: 88},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree,
                     handlers: {click: showAlert('Avatar icon button clicked')},
                 }),
@@ -234,7 +245,8 @@ export const SubmitFlow: Story = {
         wrapper.style.width = '100%';
         wrapper.style.height = '240px';
         void (async () => {
-            const app = new Application();
+            PixiProvider.init(Pixi);
+            const app = new Pixi.Application();
             await app.init({
                 width: 900,
                 height: 240,
@@ -251,6 +263,7 @@ export const SubmitFlow: Story = {
                 size: {x: 40, y: 48, width: 220, height: 52},
             }, {
                 app,
+                pixi: PixiProvider.shared,
                 styleTree,
                 handlers: {
                     click: () => {
@@ -273,6 +286,7 @@ export const SubmitFlow: Story = {
                 size: {x: 300, y: 54, width: 420, height: 36},
             }, {
                 app,
+                pixi: PixiProvider.shared,
                 styleTree,
                 handlers: {
                     click: showAlert('This helper text is also clickable'),
@@ -299,7 +313,8 @@ export const PartialThemeOverrides: Story = {
         wrapper.style.height = '300px';
 
         void (async () => {
-            const app = new Application();
+            PixiProvider.init(Pixi);
+            const app = new Pixi.Application();
             await app.init({
                 width: 960,
                 height: 300,
@@ -316,6 +331,7 @@ export const PartialThemeOverrides: Story = {
                     size: {x: 40, y: 40, width: 210, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree: [baseStyles],
                     handlers: {click: showAlert('Base theme clicked')},
                 }),
@@ -326,6 +342,7 @@ export const PartialThemeOverrides: Story = {
                     size: {x: 290, y: 40, width: 220, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree: [baseStyles, capsuleStyles],
                     handlers: {click: showAlert('Capsule override clicked')},
                 }),
@@ -336,6 +353,7 @@ export const PartialThemeOverrides: Story = {
                     size: {x: 550, y: 40, width: 220, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree: [baseStyles, warnStyles],
                     handlers: {click: showAlert('Warm override clicked')},
                 }),
@@ -347,6 +365,7 @@ export const PartialThemeOverrides: Story = {
                     size: {x: 40, y: 130, width: 300, height: 52},
                 }, {
                     app,
+                    pixi: PixiProvider.shared,
                     styleTree: [baseStyles, capsuleStyles],
                     handlers: {click: showAlert('Disabled should not click')},
                 }),
@@ -484,7 +503,8 @@ export const Designer: StoryObj<DesignerArgs> = {
         wrapper.appendChild(code);
 
         void (async () => {
-            const app = new Application();
+            PixiProvider.init(Pixi);
+            const app = new Pixi.Application();
             await app.init({
                 width: 640,
                 height: 320,
@@ -506,6 +526,7 @@ export const Designer: StoryObj<DesignerArgs> = {
                 },
             }, {
                 app,
+                pixi: PixiProvider.shared,
                 styleTree: [baseStyles, overrideStyles],
                 handlers: {click: showAlert('Designer button clicked')},
             });

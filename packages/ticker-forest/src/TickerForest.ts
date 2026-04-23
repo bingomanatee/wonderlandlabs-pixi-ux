@@ -1,6 +1,6 @@
 import {Forest, StoreParams} from '@wonderlandlabs/forestry4';
 import {getSharedRenderHelper} from '@wonderlandlabs-pixi-ux/utils';
-import {Application, Container, Point, Ticker} from 'pixi.js';
+import type {Application, Container, Ticker} from 'pixi.js';
 import {BehaviorSubject, combineLatest, distinctUntilChanged, filter, map, pairwise, Subscription} from 'rxjs';
 import {
     compareScalePoints,
@@ -247,7 +247,7 @@ export abstract class TickerForest<T> extends Forest<T> {
     }
 
     protected getScale(): ScalePoint {
-        return readScalePoint(this.container) || new Point(1, 1);
+        return readScalePoint(this.container) || {x: 1, y: 1};
     }
 
     protected getInverseScale(): { x: number; y: number } {

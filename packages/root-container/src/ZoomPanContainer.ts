@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type { Application, Container as PixiContainer } from 'pixi.js';
 import type { ZoomPanResult } from './types.js';
 
@@ -15,9 +15,10 @@ import type { ZoomPanResult } from './types.js';
  */
 export function createZoomPan(
   _app: Application,
-  _root?: PixiContainer
+  _root?: PixiContainer,
+  pixi: PixiProvider = PixiProvider.shared,
 ): ZoomPanResult {
-  const zoomPan = new Container();
+  const zoomPan = new pixi.Container();
   zoomPan.label = 'ZoomPanContainer';
 
   // Cleanup function

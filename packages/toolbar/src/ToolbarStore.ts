@@ -8,13 +8,8 @@ import {
 } from '@wonderlandlabs-pixi-ux/button';
 import { fromJSON, type StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import { TickerForest, type TickerForestConfig } from '@wonderlandlabs-pixi-ux/ticker-forest';
-import {
-  Application,
-  Container,
-  Graphics,
-  Rectangle,
-  type Ticker,
-} from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+import type { Application, Container, Graphics, Rectangle, Ticker } from 'pixi.js';
 import type {
   BackgroundStyle,
   ToolbarButtonConfig,
@@ -146,10 +141,10 @@ function normalizeButtonState(config: ToolbarButtonConfig): ButtonStateType {
 
 function measureButton(button: ButtonStore): { width: number; height: number } {
   const hitArea = buttonContainer(button).hitArea;
-  if (hitArea instanceof Rectangle) {
+  if (hitArea && typeof hitArea === 'object' && 'width' in hitArea && 'height' in hitArea) {
     return {
-      width: Math.max(0, Math.ceil(hitArea.width)),
-      height: Math.max(0, Math.ceil(hitArea.height)),
+      width: Math.max(0, Math.ceil((hitArea as Rectangle).width)),
+      height: Math.max(0, Math.ceil((hitArea as Rectangle).height)),
     };
   }
 
@@ -181,6 +176,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
 
   #styleTree: StyleTree | StyleTree[];
   #toolbarConfig: ToolbarConfig;
+  #pixi: PixiProvider;
   #buttons = new Map<string, ToolbarButtonRecord>();
   #background: Graphics;
   #rect: ToolbarRect = {
@@ -196,13 +192,17 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
 
   constructor(config: ToolbarConfig, tickerSource: TickerSource) {
     const parsedConfig = ToolbarConfigSchema.parse(config);
-    const toolbarContainer = new Container({ label: `toolbar-${parsedConfig.id ?? 'toolbar'}` });
+    const pixi = parsedConfig.pixi ?? PixiProvider.shared;
+    const ContainerClass = pixi.Container;
+    const GraphicsClass = pixi.Graphics;
+    const toolbarContainer = new ContainerClass({ label: `toolbar-${parsedConfig.id ?? 'toolbar'}` });
     super(
       { value: { order: parsedConfig.order ?? 0 } },
       { ...toTickerConfig(tickerSource), container: toolbarContainer },
     );
 
     this.id = parsedConfig.id ?? 'toolbar';
+    this.#pixi = pixi;
     this.#styleTree = parsedConfig.style ?? fromJSON(defaultStyles);
     this.#toolbarConfig = {
       ...parsedConfig,
@@ -211,7 +211,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
     this.#padding = normalizePadding(parsedConfig.padding);
 
     this.container.zIndex = this.value.order;
-    this.#background = new Graphics({ label: `toolbar-background-${this.id}` });
+    this.#background = new GraphicsClass({ label: `toolbar-background-${this.id}` });
     this.container.addChild(this.#background);
 
     for (const buttonConfig of parsedConfig.buttons) {
@@ -265,6 +265,7 @@ export class ToolbarStore extends TickerForest<ToolbarState> {
   #createButton(buttonConfig: ToolbarButtonConfig): ButtonStore {
     const button = new ButtonStore(normalizeButtonState(buttonConfig), {
       app: this.application,
+      pixi: this.#pixi,
       styleTree: this.#styleTree,
       handlers: {
         click: buttonConfig.onClick ?? (() => {}),

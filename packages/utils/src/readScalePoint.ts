@@ -1,4 +1,9 @@
-import {Point, type Container} from 'pixi.js';
+import type {Container} from 'pixi.js';
+
+export type ScalePointLike = {
+  x: number;
+  y: number;
+};
 
 function resolveRootParent(container: Container): Container | undefined {
   let root = container.parent ?? undefined;
@@ -8,7 +13,7 @@ function resolveRootParent(container: Container): Container | undefined {
   return root;
 }
 
-export function readScalePoint(container?: Container): Point | undefined {
+export function readScalePoint(container?: Container): ScalePointLike | undefined {
   if (!container) {
     return undefined;
   }
@@ -23,5 +28,5 @@ export function readScalePoint(container?: Container): Point | undefined {
 
   const scaleX = Math.hypot(xAxis.x - origin.x, xAxis.y - origin.y);
   const scaleY = Math.hypot(yAxis.x - origin.x, yAxis.y - origin.y);
-  return new Point(scaleX || 1, scaleY || 1);
+  return { x: scaleX || 1, y: scaleY || 1 };
 }

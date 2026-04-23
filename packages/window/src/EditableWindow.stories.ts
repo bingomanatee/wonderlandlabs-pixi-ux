@@ -1,7 +1,8 @@
 import type {Meta, StoryObj} from '@storybook/html';
-import {Application, Assets, Container, Graphics, Sprite, Text} from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import {ToolbarStore} from '@wonderlandlabs-pixi-ux/toolbar';
 import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
+import {PixiProvider} from '@wonderlandlabs-pixi-ux/utils';
 import {WindowsManager, TEXTURE_STATUS} from "./WindowsManager.js";
 import type {TitlebarContentRendererFn, WindowContentRendererFn, WindowDef} from "./types.js";
 import type {TitlebarStore} from "./TitlebarStore.js";
@@ -61,7 +62,7 @@ const toolbarStyleTree = fromJSON({
 });
 
 function createStoryToolbar(
-    app: Application,
+    app: Pixi.Application,
     onAddImage: () => void,
     onAddCaption: () => void,
     onDone: () => void
@@ -81,6 +82,7 @@ function createStoryToolbar(
             { id: 'toolbar-caption', label: 'Caption', variant: 'text', modifiers: ['caption'], onClick: onAddCaption },
             { id: 'toolbar-done', label: 'Done', variant: 'text', modifiers: ['done'], onClick: onDone },
         ],
+        pixi: PixiProvider.shared,
     }, app);
     toolbar.container.visible = false;
     toolbar.kickoff();
@@ -114,10 +116,10 @@ const customTitlebarRenderer: TitlebarContentRendererFn = ({
     const moveButtonId = `move-btn-${windowValue.id}`;
 
     // Check if close button already exists
-    let closeBtn = contentContainer.getChildByLabel(closeButtonId) as Graphics | null;
+    let closeBtn = contentContainer.getChildByLabel(closeButtonId) as Pixi.Graphics | null;
 
     if (!closeBtn) {
-        closeBtn = new Graphics({label: closeButtonId});
+        closeBtn = new Pixi.Graphics({label: closeButtonId});
         closeBtn.eventMode = 'static';
         closeBtn.cursor = 'pointer';
 
@@ -137,7 +139,7 @@ const customTitlebarRenderer: TitlebarContentRendererFn = ({
     }
 
     // Check if move button already exists
-    let moveBtn = contentContainer.getChildByLabel(moveButtonId) as Container | null;
+    let moveBtn = contentContainer.getChildByLabel(moveButtonId) as Pixi.Container | null;
 
     if (!moveBtn) {
         // Check texture status from WindowsManager (accessed via store.$parent.$root)
@@ -146,11 +148,11 @@ const customTitlebarRenderer: TitlebarContentRendererFn = ({
 
         if (textureStatus === TEXTURE_STATUS.LOADED) {
             // Create move button with loaded texture
-            moveBtn = new Container({label: moveButtonId});
+            moveBtn = new Pixi.Container({label: moveButtonId});
             moveBtn.eventMode = 'static';
             moveBtn.cursor = 'move';
 
-            const moveIcon = new Sprite(Assets.get('move'));
+            const moveIcon = new Pixi.Sprite(Pixi.Assets.get('move'));
             moveIcon.width = 16;
             moveIcon.height = 16;
             moveIcon.anchor.set(0.5);
@@ -213,7 +215,7 @@ const meta: Meta<EditableWindowArgs> = {
             }
 
             placeholderImageLoading = true;
-            Assets.load(placeholderImagePath)
+            Pixi.Assets.load(placeholderImagePath)
                 .then(() => {
                     placeholderImageReady = true;
                     placeholderImageLoading = false;
@@ -271,9 +273,9 @@ const meta: Meta<EditableWindowArgs> = {
                 activeLabels.add(label);
 
                 if (item.type === 'caption') {
-                    let caption = contentContainer.getChildByLabel(label) as Text | null;
+                    let caption = contentContainer.getChildByLabel(label) as Pixi.Text | null;
                     if (!caption) {
-                        caption = new Text({
+                        caption = new Pixi.Text({
                             text: '',
                             style: {
                                 fontSize: 14,
@@ -294,14 +296,14 @@ const meta: Meta<EditableWindowArgs> = {
                     continue;
                 }
 
-                const texture = Assets.get(placeholderImagePath);
+                const texture = Pixi.Assets.get(placeholderImagePath);
                 if (!texture) {
                     continue;
                 }
 
-                let sprite = contentContainer.getChildByLabel(label) as Sprite | null;
+                let sprite = contentContainer.getChildByLabel(label) as Pixi.Sprite | null;
                 if (!sprite) {
-                    sprite = new Sprite(texture);
+                    sprite = new Pixi.Sprite(texture);
                     sprite.label = label;
                     contentContainer.addChild(sprite);
                 } else if (sprite.texture !== texture) {
@@ -396,7 +398,8 @@ const meta: Meta<EditableWindowArgs> = {
             toolbar.setPosition(toolbarX, toolbarY);
         };
 
-        const app = new Application();
+        PixiProvider.init(Pixi);
+        const app = new Pixi.Application();
         app.init({
             width: stageWidth,
             height: stageHeight,
@@ -404,14 +407,14 @@ const meta: Meta<EditableWindowArgs> = {
             antialias: true,
         }).then(async () => {
             wrapper.appendChild(app.canvas);
-            const container = new Container();
-            const handleContainer = new Container();
+            const container = new Pixi.Container();
+            const handleContainer = new Pixi.Container();
 
             // Create toolbar and add to stage (above everything)
             toolbar = createStoryToolbar(app, addImageToWindow, addCaptionToWindow, handleDeselect);
 
             // Create background for click-to-deselect
-            const background = new Graphics();
+            const background = new Pixi.Graphics();
             background.rect(0, 0, stageWidth, stageHeight).fill(0x2a2a2a);
             background.eventMode = 'static';
             background.cursor = 'default';
@@ -425,6 +428,7 @@ const meta: Meta<EditableWindowArgs> = {
                 container,
                 handleContainer,
                 app,
+                pixi: PixiProvider.shared,
                 textures: [
                     {id: 'move', url: '/icons/move.png'}
                 ]

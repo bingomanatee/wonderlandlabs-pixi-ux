@@ -3,6 +3,24 @@
 Reusable PixiJS UI/state packages for windows, drag/resize flows, layout, and rendering helpers.
 This repo publishes the `@wonderlandlabs-pixi-ux/*` package set and keeps versions aligned for coordinated releases.
 
+## Pixi Provider Model
+
+The current rendering direction is:
+
+- core packages treat `pixi.js` as a `peerDependency`
+- runtime Pixi access goes through `PixiProvider`
+- callers either pass a provider explicitly or initialize `PixiProvider.shared`
+- tests can use the built-in headless fallbacks to inspect rendered trees without creating a real Pixi canvas
+
+That lets packages like `box`, `button`, and `toolbar` keep Pixi-backed rendering behavior while avoiding direct runtime Pixi imports in the core modules.
+
+Practical usage rule:
+
+- production and Storybook: call `PixiProvider.init(Pixi)` once at boot
+- local tests: either call `PixiProvider.init(Pixi)` in setup, or inject `new PixiProvider(...)` directly into the unit under test
+
+For the shared package-level explanation and test patterns, see [packages/utils/README.md](./packages/utils/README.md).
+
 ## Repository Layout
 
 ```text
@@ -51,13 +69,13 @@ See [CONTROLLERS.md](./CONTROLLERS.md) for controller conventions and usage patt
 | `@wonderlandlabs-pixi-ux/utils` | _none_ |
 | `@wonderlandlabs-pixi-ux/observe-drag` | `@wonderlandlabs-pixi-ux/utils` |
 | `@wonderlandlabs-pixi-ux/root-container` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/utils` |
-| `@wonderlandlabs-pixi-ux/box` | _none_ |
-| `@wonderlandlabs-pixi-ux/button` | `@wonderlandlabs-pixi-ux/box`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
+| `@wonderlandlabs-pixi-ux/box` | `@wonderlandlabs-pixi-ux/utils` |
+| `@wonderlandlabs-pixi-ux/button` | `@wonderlandlabs-pixi-ux/box`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/utils` |
 | `@wonderlandlabs-pixi-ux/caption` | `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/drag` | `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/grid` | `@wonderlandlabs-pixi-ux/ticker-forest` |
 | `@wonderlandlabs-pixi-ux/resizer` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/ticker-forest` |
-| `@wonderlandlabs-pixi-ux/toolbar` | `@wonderlandlabs-pixi-ux/button`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest` |
+| `@wonderlandlabs-pixi-ux/toolbar` | `@wonderlandlabs-pixi-ux/button`, `@wonderlandlabs-pixi-ux/style-tree`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/utils` |
 | `@wonderlandlabs-pixi-ux/window` | `@wonderlandlabs-pixi-ux/observe-drag`, `@wonderlandlabs-pixi-ux/resizer`, `@wonderlandlabs-pixi-ux/ticker-forest`, `@wonderlandlabs-pixi-ux/toolbar` |
 
 ## Manual Publish Order

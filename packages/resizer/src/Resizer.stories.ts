@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Container, Graphics, Rectangle, Text } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { enableHandles } from './enableHandles.js';
 import { ResizerStore } from './ResizerStore.js';
 import type { HandleMode } from './types.js';
@@ -46,7 +47,8 @@ const meta: Meta<ResizerArgs> = {
     };
 
     // Create PixiJS app
-    const app = new Application();
+    PixiProvider.init(Pixi);
+    const app = new Pixi.Application();
     app.init({ 
       width: 800, 
       height: 600, 
@@ -55,7 +57,7 @@ const meta: Meta<ResizerArgs> = {
     }).then(() => {
       wrapper.appendChild(app.canvas);
       app.stage.eventMode = 'static';
-      app.stage.hitArea = new Rectangle(0, 0, 800, 600);
+      app.stage.hitArea = new Pixi.Rectangle(0, 0, 800, 600);
       let activeControls: ResizerStore | null = null;
       const allControls: ResizerStore[] = [];
       const setActiveControls = (nextControls: ResizerStore | null, label?: string) => {
@@ -66,7 +68,7 @@ const meta: Meta<ResizerArgs> = {
         }
         debugLog('controls.active', { box: label ?? null });
       };
-      const background = new Graphics();
+      const background = new Pixi.Graphics();
       background
         .rect(0, 0, 800, 600)
         .fill({ color: 0xf0f0f0, alpha: 1 });
@@ -86,14 +88,14 @@ const meta: Meta<ResizerArgs> = {
       ];
 
       boxes.forEach(boxConfig => {
-        let currentRect = new Rectangle(boxConfig.x, boxConfig.y, boxConfig.width, boxConfig.height);
+        let currentRect = new Pixi.Rectangle(boxConfig.x, boxConfig.y, boxConfig.width, boxConfig.height);
         // Create container for the box at 0,0
-        const boxContainer = new Container();
+        const boxContainer = new Pixi.Container();
         boxContainer.position.set(0, 0);
         app.stage.addChild(boxContainer);
 
         // Create box graphic using full rect coordinates
-        const boxGraphic = new Graphics();
+        const boxGraphic = new Pixi.Graphics();
         boxGraphic.rect(boxConfig.x, boxConfig.y, boxConfig.width, boxConfig.height);
         boxGraphic.fill({ color: boxConfig.color, alpha: 0.7 });
         boxGraphic.stroke({ color: 0x333333, width: 2 });
@@ -102,7 +104,7 @@ const meta: Meta<ResizerArgs> = {
         boxContainer.addChild(boxGraphic);
 
         // Add label (box name)
-        const labelText = new Text({
+        const labelText = new Pixi.Text({
           text: boxConfig.label,
           style: {
             fontSize: 16,
@@ -115,7 +117,7 @@ const meta: Meta<ResizerArgs> = {
         boxContainer.addChild(labelText);
 
         // Add mode label (smaller font)
-        const modeText = new Text({
+        const modeText = new Pixi.Text({
           text: `(${boxConfig.mode})`,
           style: {
             fontSize: 11,
@@ -133,13 +135,14 @@ const meta: Meta<ResizerArgs> = {
 
         const controls = enableHandles(boxContainer, currentRect, {
           app,
+          pixi: PixiProvider.shared,
           drawRect: (newRect) => {
             // Update box graphic using full rect coordinates
             boxGraphic.clear();
             boxGraphic.rect(newRect.x, newRect.y, newRect.width, newRect.height);
             boxGraphic.fill({ color: boxConfig.color, alpha: 0.7 });
             boxGraphic.stroke({ color: 0x333333, width: 2 });
-            currentRect = new Rectangle(newRect.x, newRect.y, newRect.width, newRect.height);
+            currentRect = new Pixi.Rectangle(newRect.x, newRect.y, newRect.width, newRect.height);
 
             // Update label position (main title)
             labelText.position.set(newRect.x + newRect.width / 2, newRect.y + newRect.height / 2 - 10);

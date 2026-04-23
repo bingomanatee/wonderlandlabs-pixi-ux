@@ -1,5 +1,4 @@
 import {describe, expect, it} from 'vitest';
-import {Point} from 'pixi.js';
 import {DirtyOnScale} from '../src/DirtyOnScale';
 
 describe('DirtyOnScale', () => {
@@ -21,17 +20,17 @@ describe('DirtyOnScale', () => {
 
     it('compare tracks only watched axes', () => {
         const xOnly = new DirtyOnScale({watchX: true, watchY: false});
-        const prev = new Point(1, 1);
+        const prev = {x: 1, y: 1};
 
-        expect(DirtyOnScale.compare(xOnly, prev, new Point(1.00001, 99))).toBe(true);
-        expect(DirtyOnScale.compare(xOnly, prev, new Point(2, 1))).toBe(false);
+        expect(DirtyOnScale.compare(xOnly, prev, {x: 1.00001, y: 99})).toBe(true);
+        expect(DirtyOnScale.compare(xOnly, prev, {x: 2, y: 1})).toBe(false);
     });
 
     it('compare honors optional epsilon', () => {
         const strict = new DirtyOnScale({watchX: true, watchY: false, epsilon: 0.05});
         const loose = new DirtyOnScale({watchX: true, watchY: false, epsilon: 0.5});
-        const prev = new Point(1, 1);
-        const next = new Point(1.2, 1);
+        const prev = {x: 1, y: 1};
+        const next = {x: 1.2, y: 1};
 
         expect(DirtyOnScale.compare(strict, prev, next)).toBe(false);
         expect(DirtyOnScale.compare(loose, prev, next)).toBe(true);

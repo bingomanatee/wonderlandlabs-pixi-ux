@@ -5,8 +5,6 @@ import {
     INSET_SCOPE_ALL,
     POS_CENTER,
 } from '@wonderlandlabs-pixi-ux/box';
-import {
-} from 'pixi.js';
 import type {ButtonOptionsType, ButtonStateType} from "./types.js";
 import {BTYPE_AVATAR, BTYPE_BASE, BTYPE_VERTICAL, BTYPE_TEXT} from "./constants.js";
 import {fromJSON} from '@wonderlandlabs-pixi-ux/style-tree';
@@ -243,18 +241,35 @@ function resolveContentWidth(value: ButtonStateType, styleTree: BoxStyleManagerL
 }
 
 function resolveContainerWidth(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
-    return resolveStyleNumber(styleTree, 'container.background.width', styleVerbs(value), 200, value.variant);
+    const states = styleVerbs(value);
+    const canonical = resolveStyleNumber(styleTree, 'container.width', states, Number.NaN, value.variant);
+    if (Number.isFinite(canonical)) {
+        return canonical;
+    }
+    return resolveStyleNumber(styleTree, 'container.background.width', states, 200, value.variant);
 }
 
 function resolveContainerHeight(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
-    return resolveStyleNumber(styleTree, 'container.background.height', styleVerbs(value), 40, value.variant);
+    const states = styleVerbs(value);
+    const canonical = resolveStyleNumber(styleTree, 'container.height', states, Number.NaN, value.variant);
+    if (Number.isFinite(canonical)) {
+        return canonical;
+    }
+    return resolveStyleNumber(styleTree, 'container.background.height', states, 40, value.variant);
 }
 
 function resolvePadding(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number | number[] {
-    const resolvedValue = resolveStyleValue(
+    const states = styleVerbs(value);
+    const canonicalValue = resolveStyleValue(
+        styleTree,
+        'container.padding',
+        states,
+        value.variant,
+    );
+    const resolvedValue = canonicalValue ?? resolveStyleValue(
         styleTree,
         'container.background.padding',
-        styleVerbs(value),
+        states,
         value.variant,
     );
 
@@ -265,7 +280,12 @@ function resolvePadding(value: ButtonStateType, styleTree: BoxStyleManagerLike[]
 }
 
 function resolveGap(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {
-    return resolveStyleNumber(styleTree, 'container.content.gap', styleVerbs(value), 6, value.variant);
+    const states = styleVerbs(value);
+    const canonical = resolveStyleNumber(styleTree, 'container.gap', states, Number.NaN, value.variant);
+    if (Number.isFinite(canonical)) {
+        return canonical;
+    }
+    return resolveStyleNumber(styleTree, 'container.content.gap', states, 6, value.variant);
 }
 
 function resolveIconWidth(value: ButtonStateType, styleTree: BoxStyleManagerLike[]): number {

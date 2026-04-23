@@ -4,6 +4,7 @@ import {
   BTYPE_TEXT,
   BTYPE_VERTICAL,
 } from '@wonderlandlabs-pixi-ux/button';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import { z } from 'zod';
 
@@ -104,7 +105,10 @@ export const ToolbarConfigSchema = z.object({
   fixedSize: z.boolean().optional(),
   padding: z.union([z.number(), ToolbarPaddingSchema]).optional(),
   background: BackgroundStyleSchema.optional(),
+  pixi: z.any().optional(),
   style: z.custom<StyleTree | StyleTree[]>((value) => !!value).optional(),
 });
 
-export type ToolbarConfig = z.input<typeof ToolbarConfigSchema>;
+export type ToolbarConfig = z.input<typeof ToolbarConfigSchema> & {
+  pixi?: PixiProvider;
+};

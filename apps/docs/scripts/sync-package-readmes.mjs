@@ -83,8 +83,8 @@ function buildDoc({ title, description, markdown, repositoryUrl }) {
 
   return [
     '---',
-    `title: ${title}`,
-    `description: ${description}`,
+    `title: ${JSON.stringify(title)}`,
+    `description: ${JSON.stringify(description)}`,
     '---',
     body,
     '',

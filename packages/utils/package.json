@@ -1,6 +1,6 @@
 {
   "name": "@wonderlandlabs-pixi-ux/utils",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Shared utilities for wonderlandlabs-pixi-ux packages",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,12 +14,15 @@
     "access": "public"
   },
   "devDependencies": {
+    "pixi.js": "8.16.0",
     "typescript": "^5.5.4",
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "pixi.js": "8.16.0",
     "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "pixi.js": "8.16.0"
   },
   "engines": {
     "node": ">=20.0.0"

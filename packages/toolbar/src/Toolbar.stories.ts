@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Color } from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import { fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { ToolbarStore } from './ToolbarStore.js';
 
 interface ToolbarArgs {
@@ -103,11 +104,12 @@ const meta: Meta<ToolbarArgs> = {
     wrapper.style.position = 'relative';
 
     void (async () => {
-      const app = new Application();
+      PixiProvider.init(Pixi);
+      const app = new Pixi.Application();
       await app.init({
         width: 800,
         height: 600,
-        backgroundColor: new Color('#f3eee3').toNumber(),
+        backgroundColor: new Pixi.Color('#f3eee3').toNumber(),
         antialias: true,
       });
 
@@ -145,6 +147,7 @@ const meta: Meta<ToolbarArgs> = {
         spacing: args.spacing,
         orientation: args.orientation,
         fillButtons: args.fillButtons,
+        pixi: PixiProvider.shared,
         style: makeToolbarStyle(),
         padding: 8,
         background: {
@@ -182,11 +185,12 @@ export const TextOnly: Story = {
     wrapper.style.position = 'relative';
 
     void (async () => {
-      const app = new Application();
+      PixiProvider.init(Pixi);
+      const app = new Pixi.Application();
       await app.init({
         width: 800,
         height: 600,
-        backgroundColor: new Color('#f3eee3').toNumber(),
+        backgroundColor: new Pixi.Color('#f3eee3').toNumber(),
         antialias: true,
       });
 
@@ -215,6 +219,7 @@ export const TextOnly: Story = {
         spacing: args.spacing,
         orientation: args.orientation,
         fillButtons: args.fillButtons,
+        pixi: PixiProvider.shared,
         style: makeToolbarStyle(),
         padding: 8,
         background: {

@@ -1,4 +1,4 @@
-import type {Application, Container, Point, Ticker} from 'pixi.js';
+import type {Application, Container, Ticker} from 'pixi.js';
 import type {BehaviorSubject, Observable} from 'rxjs';
 import type {DirtyOnScale} from './DirtyOnScale.js';
 
@@ -17,7 +17,10 @@ export interface TickerForestConfig {
     dirtyOnScale?: DirtyOnScaleInput;
 }
 
-export type ScalePoint = Point;
+export type ScalePoint = {
+    x: number;
+    y: number;
+};
 
 export type DirtyProps = {
     state$: BehaviorSubject<boolean>;

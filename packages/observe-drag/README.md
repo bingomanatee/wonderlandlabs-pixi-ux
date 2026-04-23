@@ -1,6 +1,14 @@
 # @wonderlandlabs-pixi-ux/observe-drag
 
 `observe-drag` enforces a single active drag owner via a module-level pointer lock by default.
+The active runtime is Pixi-like rather than Pixi-concrete: it works with event targets that expose `on/off` or `addEventListener/removeEventListener`, and drag targets that expose `position` plus optional `parent.toLocal`.
+
+Unlike renderer/store packages, `observe-drag` does not need `PixiProvider` because it does not construct Pixi runtime classes.
+
+## Shared Runtime Setup
+
+`observe-drag` depends on `@wonderlandlabs-pixi-ux/utils` for the shared render-helper path, not for `PixiProvider`.
+You should still read the shared runtime guidance in [utils docs](/packages/utils), but this package does not require `PixiProvider.init(Pixi)` unless the surrounding app is already using that pattern for other packages.
 
 ## Behavior
 

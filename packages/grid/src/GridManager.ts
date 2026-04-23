@@ -1,5 +1,6 @@
 import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
-import { Container, Graphics } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+import type { Container, Graphics } from 'pixi.js';
 import type {
   GridStoreValue,
   GridManagerValue,
@@ -14,6 +15,7 @@ import type {
  * This avoids tiled texture seam artifacts and keeps behavior deterministic.
  */
 export class GridManager extends TickerForest<GridManagerValue> {
+  readonly pixi: PixiProvider;
   #_gridContainer?: Container;
   #_grid?: Graphics;
   #_gridMajor?: Graphics;
@@ -58,6 +60,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
       { app: config.application, container: config.zoomPanContainer }
     );
 
+    this.pixi = config.pixi ?? PixiProvider.shared;
     this.#cacheEnabled = config.cache?.enabled ?? true;
     this.#cacheBaseResolution = Math.max(Number.EPSILON, config.cache?.resolution ?? 2);
     this.#cacheActiveResolution = this.#cacheBaseResolution;
@@ -84,7 +87,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
       if (!parent) {
         throw new Error('GridManager requires a container');
       }
-      const container = new Container();
+      const container = new this.pixi.Container();
       container.label = 'GridContainer';
       parent.addChildAt(container, 0);
       if (this.#cacheEnabled) {
@@ -100,7 +103,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   get #gridGraphics(): Graphics {
     if (!this.#_grid) {
-      const graphics = new Graphics();
+      const graphics = new this.pixi.Graphics();
       graphics.label = 'Grid';
       this.#gridContainer.addChild(graphics);
       this.#_grid = graphics;
@@ -110,7 +113,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   get #majorGraphics(): Graphics {
     if (!this.#_gridMajor) {
-      const graphics = new Graphics();
+      const graphics = new this.pixi.Graphics();
       graphics.label = 'GridMajor';
       this.#gridContainer.addChild(graphics);
       this.#_gridMajor = graphics;
@@ -120,7 +123,7 @@ export class GridManager extends TickerForest<GridManagerValue> {
 
   get #artboardGraphics(): Graphics {
     if (!this.#_artboard) {
-      const graphics = new Graphics();
+      const graphics = new this.pixi.Graphics();
       graphics.label = 'Artboard';
       this.#gridContainer.addChild(graphics);
       this.#_artboard = graphics;

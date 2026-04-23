@@ -1,10 +1,9 @@
 import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
 import type {TickerForestConfig} from "@wonderlandlabs-pixi-ux/ticker-forest";
-import {readScalePoint} from "@wonderlandlabs-pixi-ux/utils";
+import {PixiProvider, readScalePoint} from "@wonderlandlabs-pixi-ux/utils";
 import type {TitlebarConfig, TitlebarContentRendererFn} from "./types.js";
-import {Container, Graphics, Rectangle} from "pixi.js";
+import type {Container, Graphics, Rectangle} from "pixi.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
-import rgbToColor from "./rgbToColor.js";
 import {TITLEBAR_MODE} from "./constants.js";
 import type {WindowStore} from "./WindowStore.js";
 import {
@@ -24,14 +23,9 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     static readonly HOVER_HIDE_DELAY_MS = 500;
 
     titlebarContentRenderer?: TitlebarContentRendererFn;
-
-    protected readonly backgroundGraphic: Graphics = new Graphics({
-        label: 'titlebar-background',
-    });
-    readonly contentContainer: Container = new Container({
-        label: 'titlebar-content',
-        sortableChildren: true,
-    });
+    readonly pixi: PixiProvider;
+    protected readonly backgroundGraphic: Graphics;
+    readonly contentContainer: Container;
 
     #hoverAdded = false;
     #valueSubscription?: Subscription;
@@ -41,14 +35,25 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         config: StoreParams<TitlebarStoreValue>,
         options: TickerForestConfig = {},
     ) {
+        const pixi = (options as TickerForestConfig & {pixi?: PixiProvider}).pixi ?? PixiProvider.shared;
+        const ContainerClass = pixi.Container;
+        const GraphicsClass = pixi.Graphics;
         super(config, {
             ...options,
-            container: new Container({
+            container: new ContainerClass({
                 label: 'titlebar',
                 position: {x: 0, y: 0},
                 sortableChildren: true,
                 eventMode: 'static',
             }),
+        });
+        this.pixi = pixi;
+        this.backgroundGraphic = new GraphicsClass({
+            label: 'titlebar-background',
+        });
+        this.contentContainer = new ContainerClass({
+            label: 'titlebar-content',
+            sortableChildren: true,
         });
         const self = this;
         let initialized = false;
@@ -190,7 +195,7 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
     }
 
     protected getTitlebarRect(): Rectangle {
-        return new Rectangle(
+        return new this.pixi.Rectangle(
             0,
             0,
             this.width,
@@ -212,11 +217,16 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         const backgroundColor = windowStore?.value?.variant
             ? style?.titlebarBackgroundColor
             : this.value.backgroundColor;
+        const color = new this.pixi.Color([
+            backgroundColor?.r ?? 0,
+            backgroundColor?.g ?? 0,
+            backgroundColor?.b ?? 0,
+        ]);
 
         this.backgroundGraphic.clear();
         this.backgroundGraphic
             .rect(rect.x, rect.y, rect.width, rect.height)
-            .fill(rgbToColor(backgroundColor ?? this.value.backgroundColor));
+            .fill(color);
     }
 
     protected afterLayout(_rect: Rectangle): void {
@@ -227,7 +237,7 @@ export class TitlebarStore extends TickerForest<TitlebarStoreValue> {
         if (!windowStore || !this.titlebarContentRenderer) {
             return;
         }
-        const localRect = new Rectangle(0, 0, this.width, this.height);
+        const localRect = new this.pixi.Rectangle(0, 0, this.width, this.height);
 
         this.titlebarContentRenderer({
             titlebarStore: this,

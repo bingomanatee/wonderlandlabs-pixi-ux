@@ -1,7 +1,8 @@
 import type {Meta, StoryObj} from '@storybook/html';
-import {Application, Container, Graphics, Text} from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import type {TextStyleOptions} from 'pixi.js';
 import {createRootContainer, createZoomPan, makeStageZoomable} from '@wonderlandlabs-pixi-ux/root-container';
+import {PixiProvider} from '@wonderlandlabs-pixi-ux/utils';
 import type {
     TitlebarContentRendererFn,
     WindowContentRendererFn,
@@ -42,9 +43,10 @@ function mountScene(
     wrapper: HTMLDivElement,
     width: number,
     height: number,
-    scene: (app: Application) => void,
+    scene: (app: Pixi.Application) => void,
 ): HTMLDivElement {
-    const app = new Application();
+    PixiProvider.init(Pixi);
+    const app = new Pixi.Application();
     void app.init({
         width,
         height,
@@ -58,13 +60,13 @@ function mountScene(
 }
 
 function ensureText(
-    container: Container,
+    container: Pixi.Container,
     label: string,
     baseStyle: TextStyleOptions,
-): Text {
-    let text = container.getChildByLabel(label) as Text | null;
+): Pixi.Text {
+    let text = container.getChildByLabel(label) as Pixi.Text | null;
     if (!text) {
-        text = new Text({
+        text = new Pixi.Text({
             text: '',
             style: baseStyle,
         });
@@ -74,16 +76,16 @@ function ensureText(
     return text;
 }
 
-function ensureCard(container: Container, label: string): Graphics {
-    let card = container.getChildByLabel(label) as Graphics | null;
+function ensureCard(container: Pixi.Container, label: string): Pixi.Graphics {
+    let card = container.getChildByLabel(label) as Pixi.Graphics | null;
     if (!card) {
-        card = new Graphics({label});
+        card = new Pixi.Graphics({label});
         container.addChild(card);
     }
     return card;
 }
 
-function removeChildByLabel(container: Container, label: string): void {
+function removeChildByLabel(container: Pixi.Container, label: string): void {
     const child = container.getChildByLabel(label);
     if (!child) {
         return;
@@ -178,7 +180,7 @@ function makeBadgeTitlebarRenderer(
             titlebarValue,
             windowValue,
         } = params;
-        const counterScaleContainer = contentContainer.getChildByLabel('counter-scale') as Container | null;
+        const counterScaleContainer = contentContainer.getChildByLabel('counter-scale') as Pixi.Container | null;
         const targetContainer = counterScaleContainer ?? contentContainer;
         const layoutRect = counterScaleContainer
             ? {
@@ -218,8 +220,8 @@ function makeBadgeTitlebarRenderer(
     };
 }
 
-function drawBackdrop(container: Container, width: number, height: number): void {
-    const backdrop = new Graphics({label: 'story-backdrop'});
+function drawBackdrop(container: Pixi.Container, width: number, height: number): void {
+    const backdrop = new Pixi.Graphics({label: 'story-backdrop'});
     backdrop.rect(0, 0, width, height).fill(0xe2e8f0);
     backdrop.moveTo(width / 2, 0).lineTo(width / 2, height).stroke({color: 0xcbd5e1, width: 1});
     backdrop.moveTo(0, height / 2).lineTo(width, height / 2).stroke({color: 0xcbd5e1, width: 1});
@@ -234,14 +236,14 @@ export const ThreeWindows: Story = {
     render: () => {
         const wrapper = createWrapper();
         return mountScene(wrapper, 1000, 600, (app) => {
-            const backdrop = new Container({label: 'three-windows-backdrop'});
-            const container = new Container();
-            const handleContainer = new Container();
+            const backdrop = new Pixi.Container({label: 'three-windows-backdrop'});
+            const container = new Pixi.Container();
+            const handleContainer = new Pixi.Container();
 
             app.stage.addChild(backdrop, container, handleContainer);
             drawBackdrop(backdrop, 1000, 600);
 
-            const wm = new WindowsManager({container, handleContainer, app});
+            const wm = new WindowsManager({container, handleContainer, app, pixi: PixiProvider.shared});
 
             wm.addWindow('alpha', {
                 x: 24,
@@ -380,7 +382,7 @@ export const ZoomCounterScaleTitlebar: Story = {
                 zoomSpeed: 0.1,
             });
 
-            const worldGrid = new Graphics({label: 'zoom-grid'});
+            const worldGrid = new Pixi.Graphics({label: 'zoom-grid'});
             for (let x = -520; x <= 520; x += 40) {
                 worldGrid.moveTo(x, -360).lineTo(x, 360);
             }
@@ -392,13 +394,14 @@ export const ZoomCounterScaleTitlebar: Story = {
             worldGrid.moveTo(0, -360).lineTo(0, 360).stroke({color: 0x94a3b8, width: 2});
             zoomPan.addChild(worldGrid);
 
-            const origin = new Graphics({label: 'origin'});
+            const origin = new Pixi.Graphics({label: 'origin'});
             origin.circle(0, 0, 8).fill({color: 0x0f172a, alpha: 0.9});
             zoomPan.addChild(origin);
 
             const wm = new WindowsManager({
                 container: zoomPan,
                 app,
+                pixi: PixiProvider.shared,
             });
 
             wm.addWindow('zoomed-notes', {
@@ -432,7 +435,7 @@ export const ZoomCounterScaleTitlebar: Story = {
                 }),
             });
 
-            const zoomDisplay = new Text({
+            const zoomDisplay = new Pixi.Text({
                 text: `Zoom: ${getZoom().toFixed(2)}x`,
                 style: {
                     fontSize: 14,
@@ -443,7 +446,7 @@ export const ZoomCounterScaleTitlebar: Story = {
             zoomDisplay.position.set(-app.screen.width / 2 + 16, -app.screen.height / 2 + 16);
             root.addChild(zoomDisplay);
 
-            const sceneLabel = new Text({
+            const sceneLabel = new Pixi.Text({
                 text: 'Counter-scaled titlebar inside zoomable root-container',
                 style: {
                     fontSize: 16,

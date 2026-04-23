@@ -10,6 +10,63 @@ Shared utility helpers for the `@wonderlandlabs-pixi-ux/*` packages.
 yarn add @wonderlandlabs-pixi-ux/utils
 ```
 
+## `PixiProvider`
+
+`PixiProvider` is the shared runtime boundary for packages that need to create Pixi classes without importing `pixi.js` directly in core package code.
+
+Use it in three ways:
+
+- production/app boot: call `PixiProvider.init(Pixi)` once, then let packages use `PixiProvider.shared`
+- stories/demo boot: same as production
+- tests: either call `PixiProvider.init(...)` inside test setup, or inject a local provider instance into the object under test
+
+Recommended app/story pattern:
+
+```ts
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+
+PixiProvider.init(Pixi);
+```
+
+After that, packages can safely use `PixiProvider.shared`.
+
+Recommended test patterns:
+
+1. Shared-init test setup when you want to exercise the default app path
+
+```ts
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+
+beforeEach(() => {
+  PixiProvider.init(Pixi);
+});
+```
+
+2. Local injection when you want isolated control inside a specific test
+
+```ts
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+
+const pixi = new PixiProvider(PixiProvider.fallbacks);
+```
+
+Pass that local provider through the package API under test, for example `pixi` on `ButtonStore`, `GridManager`, `ResizerStore`, or `boxTreeToPixi(...)`.
+
+Testing rule of thumb:
+
+- use `PixiProvider.init(...)` when your test is intentionally covering the normal app/shared path
+- use `new PixiProvider(...)` when your test needs isolation, headless fallbacks, or a custom stub map
+
+Why this exists:
+
+- core packages avoid direct runtime `pixi.js` imports
+- packages remain testable in headless environments
+- callers still control the real Pixi runtime in production
+
+One exception: packages like `observe-drag` do not need `PixiProvider` because they operate on Pixi-like object shapes instead of creating Pixi runtime classes.
+
 ## `getSharedRenderHelper(app, options?)`
 
 Returns an app-scoped shared render helper from an internal `WeakMap`, creating it on first access.

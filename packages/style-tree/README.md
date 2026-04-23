@@ -18,6 +18,8 @@ A hierarchical style matching system with noun paths and state arrays.
 yarn add @wonderlandlabs-pixi-ux/style-tree
 ```
 
+See [Style DSL](/packages/style-tree-style-dsl) for the shared monorepo styling vocabulary and the common parser helpers.
+
 ## Usage
 
 ```typescript
@@ -148,40 +150,34 @@ Static methods:
 
 ## Canonical Style Conventions
 
-This package does not assume any sort of heirarchy or keys for nouns; you can organize your styles however you like.
-However withn the @wonderlandlabs-pixi-ux family of modules we have established a pattern, documented below; 
+The tree itself is noun-agnostic, but the monorepo now standardizes on a CSS-like topology:
 
-```aiignore
-context[.context].topic.propewrty
-```
-as in, window.panel (context) .font (topic) .size (property). this is comparable but not strictly analogous to the 
-IBM convention Base, Element, Modifer (BEM). 
+- `background.fill`
+- `background.alpha`
+- `border.color`
+- `border.width`
+- `border.radius`
+- `padding`
+- `gap`
+- `label.font.size`
+- `label.font.family`
+- `label.font.color`
+- `label.font.alpha`
 
-
-For consistency across packages, the style package now exposes canonical key conventions:
-General naming rule: avoid compound keys such as `fontSize` in favor of dot-separated noun parts like `font.size`.
-Nouns and verbs should be lowercase across the board, unless you expect and want to have your nouns split up.
-This is true in the setter(s) and the getter(s) but it is really best if you express all noun keys in lowercase 
-fully exploded termas as described below.
-
-- `*.font.size` (number, px)
-- `*.font.color` (hex string)
-- `*.font.family` (string)
-- `*.font.alpha` (0..1)
-- `*.font.visible` (boolean)
-- `*.fill.size` (number)
-- `*.fill.color` (hex string)
-- `*.fill.alpha` (0..1)
-- `*.fill.visible` (boolean)
-- `*.stroke.size` (number)
-- `*.stroke.color` (hex string)
-- `*.stroke.alpha` (0..1)
-- `*.stroke.visible` (boolean)
+Use dot-separated lowercase nouns and avoid compound keys such as `fontSize`.
+Use `fill` when a value may be either a solid color or a gradient.
+See [Style DSL](/packages/style-tree-style-dsl) for the full shared vocabulary and migration guidance.
 
 Helpers:
 - `normalizeStyleConvention(partial)`
 - `setConvention(tree, path, states, partial)`
 - `conventionKeys(path)`
+- `resolveSpacing(tree, root, fallback?, options?)`
+- `resolveGap(tree, root, fallback?, options?)`
+- `resolveFill(tree, root, fallback?, options?)`
+- `resolveBackgroundStyle(tree, root, fallback?, options?)`
+- `resolveBorderStyle(tree, root, fallback?, options?)`
+- `resolveFontStyle(tree, root, fallback?, options?)`
 
 ### Example
 

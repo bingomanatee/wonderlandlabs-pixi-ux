@@ -17,12 +17,16 @@ describe('button style resolution', () => {
         ).toBe(60);
     });
 
-    it('stores the base resting fill as a gradient object and omits it on hover', () => {
-        expect(defaultStyles.container.background.base.$start.fill).toEqual({
-            direction: 'vertical',
-            colors: ['#D9D9D9', '#FFFFFF', '#BFBFBF'],
-        });
-        expect(defaultStyles.container.background.base.$hover?.fill).toBeUndefined();
+    it('stores the base resting fill as fill sub-properties and omits them on hover', () => {
+        expect(
+            resolveStyleValue(styles, 'container.background.fill.direction', ['start'], BTYPE_BASE),
+        ).toBe('vertical');
+        expect(
+            resolveStyleValue(styles, 'container.background.fill.colors', ['start'], BTYPE_BASE),
+        ).toEqual(['#D9D9D9', '#FFFFFF', '#BFBFBF']);
+        expect(
+            resolveStyleValue(styles, 'container.background.fill.direction', ['hover'], BTYPE_BASE),
+        ).toBeUndefined();
     });
 
     it('resolves generic disabled alpha for label and icon', () => {
@@ -32,5 +36,29 @@ describe('button style resolution', () => {
         expect(
             resolveStyleValue(styles, 'icon.alpha', ['disabled'], BTYPE_BASE),
         ).toBe(0.45);
+    });
+
+    it('accepts canonical container width, height, padding, and gap paths', () => {
+        const canonicalStyles = [fromJSON({
+            container: {
+                width: 220,
+                height: 44,
+                padding: [7, 15],
+                gap: 9,
+            },
+        })];
+
+        expect(
+            resolveStyleNumber(canonicalStyles, 'container.width', ['start'], 0, BTYPE_BASE),
+        ).toBe(220);
+        expect(
+            resolveStyleNumber(canonicalStyles, 'container.height', ['start'], 0, BTYPE_BASE),
+        ).toBe(44);
+        expect(
+            resolveStyleValue(canonicalStyles, 'container.padding', ['start'], BTYPE_BASE),
+        ).toEqual([7, 15]);
+        expect(
+            resolveStyleNumber(canonicalStyles, 'container.gap', ['start'], 0, BTYPE_BASE),
+        ).toBe(9);
     });
 });

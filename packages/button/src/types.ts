@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import {BTYPE_AVATAR, BTYPE_BASE, BTYPE_VERTICAL, BTYPE_TEXT} from "./constants.js";
 
 export const ButtonVariant = z.enum([BTYPE_VERTICAL, BTYPE_TEXT, BTYPE_AVATAR, BTYPE_BASE])
@@ -27,11 +28,14 @@ export type EventFn = () => void;
 export const ButtonOptions = z.object({
     handlers: z.record(z.string(), z.function()),
     app: z.any(),
+    pixi: z.any().optional(),
     styleTree: z.any().optional(),
     styleDef: z.any().optional(),
 });
 
-export type ButtonOptionsType = z.infer<typeof ButtonOptions>;
+export type ButtonOptionsType = z.infer<typeof ButtonOptions> & {
+    pixi?: PixiProvider;
+};
 /**
  * styleTree: StyleTree, handlers: Record<string, EventFn>
  */

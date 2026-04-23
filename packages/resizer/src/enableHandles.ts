@@ -1,4 +1,4 @@
-import {Container, Rectangle} from 'pixi.js';
+import type {Container, Rectangle} from 'pixi.js';
 import type {EnableHandlesConfig} from './types.js';
 import {ResizerStore} from './ResizerStore.js';
 
@@ -20,6 +20,7 @@ export function enableHandles(
         container,
         rect,
         app: config.app,
+        pixi: config.pixi,
         drawRect: config.drawRect,
         onRelease: config.onRelease,
         size: config.size,

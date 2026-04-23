@@ -11,21 +11,31 @@ A window management system for PixiJS applications using Forestry state manageme
 yarn add @wonderlandlabs-pixi-ux/window
 ```
 
+## Shared Runtime Setup
+
+`window` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider`, both directly and through the packages it composes.
+Before creating a `WindowsManager` or `WindowStore`, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+`window` is not fully migrated to the shared [Style DSL](/packages/style-tree-style-dsl) yet. Its current style surface is still partly bespoke, and that normalization work is intentionally still in progress.
+
 ## Quick Start
 
 ```ts
-import { Application, Container } from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import { WindowsManager } from '@wonderlandlabs-pixi-ux/window';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 1200, height: 800 });
 
-const root = new Container();
+const root = new Pixi.Container();
 app.stage.addChild(root);
 
 const windows = new WindowsManager({
   app,
   container: root,
+  pixi: PixiProvider.shared,
 });
 
 windows.addWindow('notes', {
@@ -42,6 +52,9 @@ windows.addWindow('notes', {
   titlebar: { title: 'Notes' },
 });
 ```
+
+`window` uses the shared or injected `PixiProvider` for runtime Pixi access.
+In app code and stories, initialize the provider once with your installed Pixi module before creating managers or stores.
 
 ## Resize Coordinate Model
 
@@ -63,6 +76,7 @@ Window title text is styled from `window.label.*` style properties:
 - `window.label.font.visible`
 
 Default label style: `10px Helvetica` with black text.
+This label section describes the current implementation and should be treated as transitional rather than the final DSL surface.
 
 ```ts
 windows.addWindow('notes', {

@@ -1,6 +1,6 @@
 ---
-title: root-container
-description: Package README for @wonderlandlabs-pixi-ux/root-container
+title: "root-container"
+description: "Package README for @wonderlandlabs-pixi-ux/root-container"
 ---
 # @wonderlandlabs-pixi-ux/root-container
 
@@ -18,10 +18,16 @@ Root/zoom-pan container utilities for PixiJS.
 yarn add @wonderlandlabs-pixi-ux/root-container
 ```
 
+## Shared Runtime Setup
+
+`root-container` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider` and shared render-helper behavior.
+Before creating root or zoom-pan containers, read the shared runtime guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+
 ## Basic Usage
 
 ```ts
-import { Application } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import {
   createRootContainer,
   createZoomPan,
@@ -29,12 +35,14 @@ import {
   makeStageZoomable,
 } from '@wonderlandlabs-pixi-ux/root-container';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 1200, height: 800 });
 
-const { root, destroy: destroyRoot } = createRootContainer(app);
+const { root, destroy: destroyRoot } = createRootContainer(app, PixiProvider.shared);
 app.stage.addChild(root); // manual mount
-const { zoomPan, destroy: destroyZoomPan } = createZoomPan(app, root);
+const { zoomPan, destroy: destroyZoomPan } = createZoomPan(app, root, PixiProvider.shared);
 root.addChild(zoomPan); // manual mount
 
 const drag = makeStageDraggable(app, zoomPan);
@@ -54,6 +62,8 @@ zoom.destroy();
 destroyZoomPan();
 destroyRoot();
 ```
+
+`root-container` uses the shared or injected `PixiProvider` for runtime container creation. In app code and stories, initialize the provider once with your installed Pixi module before creating root or zoom-pan containers.
 
 ## Exported APIs
 

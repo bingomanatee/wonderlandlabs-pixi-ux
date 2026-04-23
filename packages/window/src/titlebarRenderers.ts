@@ -1,6 +1,6 @@
-import {Assets, Container, Graphics, Rectangle, Sprite, Text} from "pixi.js";
+import {PixiProvider} from "@wonderlandlabs-pixi-ux/utils";
+import type {Container, Graphics, Rectangle, Sprite, Text} from "pixi.js";
 import type {TitlebarContentRendererFn, WindowLabelFontStyle} from "./types.js";
-import rgbToColor from "./rgbToColor.js";
 import type {TitlebarStore} from "./TitlebarStore.js";
 import type {WindowStore} from "./WindowStore.js";
 import {computeTitlebarLayout} from "./titlebarLayout.js";
@@ -32,6 +32,7 @@ function resolveLabelStyle(
 }
 
 function resolveRenderTarget(
+    pixi: PixiProvider,
     contentContainer: TitlebarStore['contentContainer'],
     localRect: Rectangle,
     localScale: {x: number; y: number},
@@ -45,7 +46,7 @@ function resolveRenderTarget(
     }
     return {
         container: counterScale,
-        rect: new Rectangle(
+        rect: new pixi.Rectangle(
             localRect.x,
             localRect.y,
             localRect.width * localScale.x,
@@ -69,10 +70,14 @@ function getManagedChild<T extends Text | Graphics | Sprite>(
     return rootContainer.getChildByLabel(label) as T | null;
 }
 
-function getText(targetContainer: Container, rootContainer: Container): Text {
+function getText(
+    pixi: PixiProvider,
+    targetContainer: Container,
+    rootContainer: Container,
+): Text {
     let titleText = getManagedChild<Text>(targetContainer, rootContainer, STOCK_TITLE_TEXT);
     if (!titleText) {
-        titleText = new Text({
+        titleText = new pixi.Text({
             text: '',
             style: {
                 fontSize: 14,
@@ -93,9 +98,10 @@ function getCloseButton(
     rootContainer: Container,
     windowStore: WindowStore,
 ): Graphics {
+    const pixi = windowStore.pixi ?? PixiProvider.shared;
     let closeButton = getManagedChild<Graphics>(targetContainer, rootContainer, STOCK_CLOSE_BUTTON);
     if (!closeButton) {
-        closeButton = new Graphics({label: STOCK_CLOSE_BUTTON});
+        closeButton = new pixi.Graphics({label: STOCK_CLOSE_BUTTON});
         closeButton.eventMode = 'static';
         closeButton.cursor = 'pointer';
         closeButton.on('pointerdown', (event) => {
@@ -144,8 +150,9 @@ export const renderStockTitlebarContent: TitlebarContentRendererFn = ({
 }) => {
     const typedTitlebarStore = titlebarStore as TitlebarStore;
     const typedWindowStore = windowStore as WindowStore;
+    const pixi = typedTitlebarStore.pixi;
     const labelStyle = resolveLabelStyle(typedTitlebarStore, typedWindowStore);
-    const {container: renderContainer, rect: layoutRect} = resolveRenderTarget(contentContainer, localRect, localScale);
+    const {container: renderContainer, rect: layoutRect} = resolveRenderTarget(pixi, contentContainer, localRect, localScale);
     const padding = titlebarValue.padding ?? 0;
     const closeButtonSize = titlebarValue.showCloseButton
         ? Math.max(10, Math.min(18, layoutRect.height - (padding * 2) - 6))
@@ -162,12 +169,17 @@ export const renderStockTitlebarContent: TitlebarContentRendererFn = ({
             : undefined,
         closeButtonSize,
     });
-    const titleText = getText(renderContainer, contentContainer);
+    const titleText = getText(pixi, renderContainer, contentContainer);
+    const labelColor = new pixi.Color([
+        labelStyle.color?.r ?? 0,
+        labelStyle.color?.g ?? 0,
+        labelStyle.color?.b ?? 0,
+    ]);
 
     titleText.text = titlebarValue.title;
     titleText.style.fontSize = labelStyle.size;
     titleText.style.fontFamily = labelStyle.family;
-    titleText.style.fill = rgbToColor(labelStyle.color);
+    titleText.style.fill = labelColor;
     titleText.alpha = labelStyle.visible ? labelStyle.alpha : 0;
     titleText.style.wordWrap = true;
 
@@ -194,7 +206,7 @@ export const renderStockTitlebarContent: TitlebarContentRendererFn = ({
             }
             applyIcon(existingIcon);
         } else {
-            Assets.load(iconUrl).then((texture) => {
+            typedTitlebarStore.pixi.Assets.load(iconUrl).then((texture) => {
                 if (typedTitlebarStore.value.icon?.url !== iconUrl) {
                     return;
                 }
@@ -209,7 +221,7 @@ export const renderStockTitlebarContent: TitlebarContentRendererFn = ({
                     applyIcon(existing);
                     return;
                 }
-                const iconSprite = new Sprite(texture) as StockIconSprite;
+                const iconSprite = new typedTitlebarStore.pixi.Sprite(texture) as StockIconSprite;
                 iconSprite.label = STOCK_TITLE_ICON;
                 iconSprite.__stockIconUrl = iconUrl;
                 applyIcon(iconSprite);
@@ -224,7 +236,7 @@ export const renderStockTitlebarContent: TitlebarContentRendererFn = ({
     } else {
         const closeButton = getCloseButton(renderContainer, contentContainer, typedWindowStore);
         const size = closeButtonSize ?? 10;
-        const symbolColor = rgbToColor(labelStyle.color);
+        const symbolColor = labelColor.toNumber();
         const inset = Math.max(2, size * 0.3);
         const half = size / 2;
 

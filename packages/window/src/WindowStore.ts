@@ -1,4 +1,5 @@
 import {TickerForest} from "@wonderlandlabs-pixi-ux/ticker-forest";
+import {PixiProvider} from "@wonderlandlabs-pixi-ux/utils";
 import type {
     ConfigureTitlebarFn,
     ModifyInitialTitlebarParamsResult,
@@ -15,9 +16,8 @@ import type {
     WindowRectTransform,
     WindowStyle
 } from "./types.js";
-import {Application, Container, FederatedPointerEvent, Graphics, Rectangle} from "pixi.js";
+import type {Application, Container, FederatedPointerEvent, Graphics, Rectangle} from "pixi.js";
 import {WindowsManager} from "./WindowsManager.js";
-import rgbToColor from "./rgbToColor.js";
 import dragObserverFactory from "@wonderlandlabs-pixi-ux/observe-drag";
 import {StoreParams} from "@wonderlandlabs/forestry4";
 import {TitlebarStore} from "./TitlebarStore.js";
@@ -49,25 +49,17 @@ export class WindowStore extends TickerForest<WindowDef> {
     handlesContainer?: Container; // Shared container for resize handles
     customStyle?: PartialWindowStyle; // User style overrides
     rectTransform?: WindowRectTransform; // Optional transform for resizer rectangle
+    readonly pixi: PixiProvider;
 
     // Pixi components - created in property definitions
     // guardContainer wraps rootContainer to protect event listeners from being purged
     // when event models change on rootContainer
-    #guardContainer: Container = new Container({
-        position: {x: 0, y: 0}
-    });
-    #rootContainer: Container = new Container({
-        eventMode: "static",
-        position: {x: 0, y: 0},
-        sortableChildren: true  // Enable zIndex sorting
-    });
-    #background: Graphics = new Graphics();
-    #selectionBorder: Graphics = new Graphics();
-    #contentContainer: Container = new Container({
-        eventMode: "static",
-        position: {x: 0, y: 0}
-    });
-    #contentMask: Graphics = new Graphics();
+    #guardContainer: Container;
+    #rootContainer: Container;
+    #background: Graphics;
+    #selectionBorder: Graphics;
+    #contentContainer: Container;
+    #contentMask: Graphics;
     #titlebarContentRendererOverride?: TitlebarContentRendererFn;
     #windowContentRendererOverride?: WindowContentRendererFn;
     #onResolveOverride?: WindowResolveHookFn;
@@ -83,8 +75,26 @@ export class WindowStore extends TickerForest<WindowDef> {
         return resolveWindowStyle(variant, this.customStyle);
     }
 
-    constructor(config: StoreParams<WindowDef>, app: Application) {
+    constructor(config: StoreParams<WindowDef>, app: Application, pixi: PixiProvider = PixiProvider.shared) {
         super(config, { app });
+        this.pixi = pixi;
+        const ContainerClass = pixi.Container;
+        const GraphicsClass = pixi.Graphics;
+        this.#guardContainer = new ContainerClass({
+            position: {x: 0, y: 0}
+        });
+        this.#rootContainer = new ContainerClass({
+            eventMode: "static",
+            position: {x: 0, y: 0},
+            sortableChildren: true
+        });
+        this.#background = new GraphicsClass();
+        this.#selectionBorder = new GraphicsClass();
+        this.#contentContainer = new ContainerClass({
+            eventMode: "static",
+            position: {x: 0, y: 0}
+        });
+        this.#contentMask = new GraphicsClass();
         this.#initTitlebar();
         if (app) {
             this.kickoff();
@@ -100,6 +110,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             subclass,
         }, {
             app: self.application,
+            pixi: self.pixi,
         }) as unknown as TitlebarStore;
         self.#titlebarStore.dirty();
         self.#applyTitlebarHooks();
@@ -184,7 +195,7 @@ export class WindowStore extends TickerForest<WindowDef> {
             windowStore: this,
             windowValue: this.value,
             contentContainer: this.#contentContainer,
-            localRect: new Rectangle(0, 0, width, height),
+            localRect: new this.pixi.Rectangle(0, 0, width, height),
             localScale: {
                 x: this.#contentContainer.scale.x,
                 y: this.#contentContainer.scale.y,
@@ -404,7 +415,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         const topLeft = this.#framePointToRootLocal(rect.x, rect.y);
         const topRight = this.#framePointToRootLocal(rect.x + rect.width, rect.y);
         const bottomLeft = this.#framePointToRootLocal(rect.x, rect.y + rect.height);
-        return new Rectangle(
+        return new this.pixi.Rectangle(
             topLeft.x,
             topLeft.y,
             topRight.x - topLeft.x,
@@ -416,7 +427,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         const topLeft = this.#rootLocalPointToFrame(rect.x, rect.y);
         const topRight = this.#rootLocalPointToFrame(rect.x + rect.width, rect.y);
         const bottomLeft = this.#rootLocalPointToFrame(rect.x, rect.y + rect.height);
-        return new Rectangle(
+        return new this.pixi.Rectangle(
             topLeft.x,
             topLeft.y,
             topRight.x - topLeft.x,
@@ -455,7 +466,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         }
 
         if (this.#resizerStore && !this.#isResizerRunning()) {
-            const resizerRect = this.#rootLocalRectToFrame(new Rectangle(
+            const resizerRect = this.#rootLocalRectToFrame(new this.pixi.Rectangle(
                 localPos.x,
                 localPos.y,
                 this.value.width,
@@ -660,11 +671,16 @@ export class WindowStore extends TickerForest<WindowDef> {
 
         // Use style background color if variant is set, otherwise use explicit backgroundColor
         const bgColor = this.value.variant ? style.backgroundColor : backgroundColor;
+        const fillColor = new this.pixi.Color([
+            bgColor?.r ?? 0,
+            bgColor?.g ?? 0,
+            bgColor?.b ?? 0,
+        ]);
 
         // Update graphics - fill only
         this.#background.clear();
         this.#background.rect(0, 0, width, height)
-            .fill(rgbToColor(bgColor));
+            .fill(fillColor);
 
         // Add click-to-select handler (only once)
         if (!this.#backgroundClickInitialized) {
@@ -708,7 +724,11 @@ export class WindowStore extends TickerForest<WindowDef> {
 
         const borderColor = style?.selectedBorderColor ?? HANDLE_COLOR;
         const borderWidth = style?.selectedBorderWidth ?? 2;
-        const color = rgbToColor(borderColor);
+        const color = new this.pixi.Color([
+            borderColor?.r ?? 0,
+            borderColor?.g ?? 0,
+            borderColor?.b ?? 0,
+        ]).toNumber();
         this.#selectionBorder
             .rect(0, 0, width, height)
             .stroke({width: borderWidth, color, alignment: 1});
@@ -779,7 +799,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         // Create resizer if isResizeable is true and it doesn't exist
         if (isResizeable && !this.#resizerStore && this.#rootContainer) {
             const self = this;
-            const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
+            const frameRect = this.#rootLocalRectToFrame(new this.pixi.Rectangle(x, y, width, height));
 
             const resizerConfig = {
                 container: this.#rootContainer,
@@ -826,7 +846,7 @@ export class WindowStore extends TickerForest<WindowDef> {
         if (this.#resizerStore) {
             const isResizerRunning = this.#isResizerRunning();
             const currentRect = this.#resizerStore.value.rect;
-            const frameRect = this.#rootLocalRectToFrame(new Rectangle(x, y, width, height));
+            const frameRect = this.#rootLocalRectToFrame(new this.pixi.Rectangle(x, y, width, height));
             const rectChanged = currentRect.x !== frameRect.x
                 || currentRect.y !== frameRect.y
                 || currentRect.width !== frameRect.width

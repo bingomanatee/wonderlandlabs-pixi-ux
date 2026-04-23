@@ -3,8 +3,17 @@ export { prepareBoxCellTree } from './helpers.js';
 export { ComputeAxis } from './ComputeAxis.js';
 export { InsetDigest } from './InsetDigest.js';
 export { boxTreeToPixi } from './toPixi.js';
+export { BoxRenderModelParser, boxTreeToJSON } from './renderModel.js';
 export { boxTreeToSVG, computedBoxesToSVG } from './toSVG.js';
 export * from './constants.js';
 export * from './helpers.js';
+export type {
+  BoxRenderBackgroundModel,
+  BoxRenderContentModel,
+  BoxRenderNodeInput,
+  BoxRenderNodeModel,
+  BoxRenderTextContentModel,
+  BoxRenderUrlContentModel,
+} from './renderModel.js';
 export * from './styleHelpers.js';
 export * from './types.js';

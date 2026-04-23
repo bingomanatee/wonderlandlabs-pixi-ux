@@ -1,16 +1,23 @@
 # @wonderlandlabs-pixi-ux/ticker-forest
 
-Abstract base class for Forestry state management that synchronizes state changes with PixiJS rendering via the ticker pattern.
+Abstract base class for Forestry state management that synchronizes state changes with frame/ticker-driven rendering.
 
 ## Overview
 
-This class solves the problem of PixiJS artifacts that occur when PixiJS operations are performed outside of ticker handlers. While Forestry state changes are synchronous, PixiJS-centric effects must be encapsulated inside ticker handlers to work correctly.
+This class solves the problem of render artifacts that occur when visual updates are performed outside of ticker handlers. While Forestry state changes are synchronous, renderer-centric effects should be encapsulated inside ticker handlers to work correctly.
 
 ## Installation
 
 ```bash
-yarn add @wonderlandlabs-pixi-ux/ticker-forest
+yarn add @wonderlandlabs-pixi-ux/ticker-forest pixi.js
 ```
+
+`pixi.js` is a peer dependency. `ticker-forest` uses Pixi types for the common `Application` / `Ticker` / `Container` contract, but the package no longer imports Pixi at runtime.
+
+## Shared Runtime Setup
+
+`ticker-forest` depends on `@wonderlandlabs-pixi-ux/utils` for shared helper/runtime support, but it does not require `PixiProvider` for its active core API.
+You should still read the shared runtime guidance in [utils docs](/packages/utils), especially if your subclass also uses provider-based packages higher in the stack.
 
 ## Pattern
 
@@ -27,7 +34,7 @@ Subclasses must implement `resolve()` and call `dirty()` when state changes requ
 
 ```typescript
 import { TickerForest } from '@wonderlandlabs-pixi-ux/ticker-forest';
-import { Application } from 'pixi.js';
+import type { Application } from 'pixi.js';
 
 interface MyState {
   position: { x: number; y: number };
@@ -50,7 +57,7 @@ class MyStore extends TickerForest<MyState> {
   }
 
   protected resolve(): void {
-    // Perform PixiJS operations here
+    // Perform renderer updates here
     const { position } = this.value;
     this.sprite.position.set(position.x, position.y);
   }
@@ -74,7 +81,7 @@ constructor(
 ```
 
 - `args` - The Forestry configuration object (includes `{value: ..., res: ...}` and other Forest options)
-- `config.app` - Optional PixiJS Application instance
+- `config.app` - Optional PixiJS Application-like instance
 - `config.ticker` - Optional explicit ticker override
 - `config.container` - Optional container reference for consumers
 - `config.dirtyOnScale` - Optional automatic dirty tracking for scale changes
@@ -113,7 +120,7 @@ Returns the inverse scale of `getScale()` as `{x, y}`. This is the counter-scale
 
 #### `resolve(): void`
 
-Perform PixiJS operations. This method is called inside a ticker handler, ensuring that PixiJS operations are synchronized with the rendering loop.
+Perform renderer operations. This method is called inside a ticker handler, ensuring that updates are synchronized with the rendering loop.
 
 #### `ticker: Ticker | undefined` (getter/setter)
 
@@ -123,10 +130,10 @@ Direct ticker access for animation sync. This can be explicitly set or inherited
 
 Cleanup method to remove ticker listeners. Subclasses should call `super.cleanup()` in their cleanup/destroy methods.
 
-## Dependencies
+## Dependency Model
 
-- `@wonderlandlabs/forestry4` - State management
-- `pixi.js` - PixiJS rendering engine
+- `@wonderlandlabs/forestry4` - state management
+- `pixi.js` - peer dependency for shared ticker/container/application types
 
 ## License
 

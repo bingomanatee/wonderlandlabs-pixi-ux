@@ -1,6 +1,6 @@
 import {z} from 'zod';
-import {Rectangle} from 'pixi.js';
-import type {Application, Container, FederatedPointerEvent} from 'pixi.js';
+import type { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+import type {Application, Container, FederatedPointerEvent, Rectangle} from 'pixi.js';
 import type {Rect} from './rectTypes.js';
 
 // ============================================================================
@@ -53,6 +53,7 @@ export interface ResizerStoreConfig {
     container: Container;
     rect: Rectangle;
     app: Application;
+    pixi?: PixiProvider;
     drawRect?: (rect: Rectangle, container: Container) => void;
     onRelease?: (rect: Rectangle) => void;
     size?: number;
@@ -74,6 +75,7 @@ export interface ResizerStoreValue {
 
 export interface EnableHandlesConfig {
     app: Application;
+    pixi?: PixiProvider;
     drawRect?: (rect: Rectangle, container: Container) => void;
     onRelease?: (rect: Rectangle) => void;
     size?: number;

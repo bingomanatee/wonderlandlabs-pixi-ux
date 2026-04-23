@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import type { Application } from 'pixi.js';
 import type { RootContainerResult } from './types.js';
 
@@ -12,8 +12,11 @@ import type { RootContainerResult } from './types.js';
  * Note: The container is not added to stage automatically.
  * Call `app.stage.addChild(root)` explicitly where you want it mounted.
  */
-export function createRootContainer(app: Application): RootContainerResult {
-  const root = new Container();
+export function createRootContainer(
+  app: Application,
+  pixi: PixiProvider = PixiProvider.shared,
+): RootContainerResult {
+  const root = new pixi.Container();
   root.label = 'RootContainer';
 
   // Update position to center

@@ -6,29 +6,40 @@ It owns a background, creates a set of current `ButtonStore` instances, and uses
 ## Installation
 
 ```bash
-yarn add @wonderlandlabs-pixi-ux/toolbar @wonderlandlabs-pixi-ux/button @wonderlandlabs-pixi-ux/box @wonderlandlabs-pixi-ux/style-tree
+yarn add @wonderlandlabs-pixi-ux/toolbar @wonderlandlabs-pixi-ux/button @wonderlandlabs-pixi-ux/box @wonderlandlabs-pixi-ux/style-tree pixi.js
 ```
+
+`pixi.js` is a peer dependency. `ToolbarStore` passes a `PixiProvider` through to the contained `ButtonStore` instances, so callers should either inject `pixi` or initialize `PixiProvider.shared`.
+
+## Shared Runtime Setup
+
+`toolbar` depends on `@wonderlandlabs-pixi-ux/utils` through the shared `PixiProvider` boundary.
+Before creating a `ToolbarStore`, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+For style naming, prefer the shared [Style DSL](/packages/style-tree-style-dsl). `toolbar` primarily inherits button-facing paths, so the most important nouns are `container.background.*`, `container.border.*`, `container.padding`, `container.gap`, and `label.font.*`.
 
 ## Basic Usage
 
 ```ts
-import { Application } from 'pixi.js';
+import * as Pixi from 'pixi.js';
 import { fromJSON } from '@wonderlandlabs-pixi-ux/style-tree';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { ToolbarStore } from '@wonderlandlabs-pixi-ux/toolbar';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 900, height: 600 });
 
 const style = fromJSON({
   container: {
+    padding: {
+      '$*': [6, 12],
+    },
     background: {
-      padding: {
-        '$*': [6, 12],
-      },
-      text: {
-        '$*': { fill: '#2f7f74' },
-        '$hover': { fill: '#379286' },
-        '$done': { fill: '#666666' },
+      fill: {
+        '$*': '#2f7f74',
+        '$hover': '#379286',
+        '$done': '#666666',
       },
     },
     border: {
@@ -45,14 +56,12 @@ const style = fromJSON({
     },
   },
   label: {
-    text: {
+    font: {
       size: {
         '$*': 13,
       },
-      font: {
-        color: {
-          '$*': '#ffffff',
-        },
+      color: {
+        '$*': '#ffffff',
       },
     },
   },
@@ -69,6 +78,7 @@ const toolbar = new ToolbarStore({
     borderRadius: 8,
   },
   style,
+  pixi: PixiProvider.shared,
   buttons: [
     { id: 'select', label: 'Select', variant: 'text', onClick: () => {} },
     { id: 'caption', label: 'Caption', variant: 'text', onClick: () => {} },
@@ -104,6 +114,7 @@ That "zero-size + bloat" behavior is the current replacement for the older wrap 
   fixedSize?: boolean,
   padding?: number | { top?: number, right?: number, bottom?: number, left?: number },
   background?: { fill?: {...}, stroke?: {...}, borderRadius?: number },
+  pixi?: PixiProvider,
   style?: StyleTree | StyleTree[],
 }
 ```
@@ -129,6 +140,8 @@ Notes:
 - Toolbar owns button positioning, so `size.x` and `size.y` are ignored.
 - `size.width` and `size.height` act as minimums; omitted values default to `0` for content-wrap.
 - `fillButtons` equalizes the cross-axis size using the widest or tallest measured child.
+- `pixi` is forwarded into each owned `ButtonStore`; omit it only if `PixiProvider.shared` has already been initialized.
+- The toolbar package does not define a second, conflicting style vocabulary; it passes button-style nouns through to owned buttons and uses explicit config for the outer toolbar shell.
 
 ## Compatibility
 

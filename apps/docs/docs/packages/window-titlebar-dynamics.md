@@ -1,6 +1,6 @@
 ---
-title: window titlebar dynamics
-description: Current titlebar mechanics for @wonderlandlabs-pixi-ux/window
+title: "window titlebar dynamics"
+description: "Current titlebar mechanics for @wonderlandlabs-pixi-ux/window"
 ---
 # Window Titlebar Dynamics
 

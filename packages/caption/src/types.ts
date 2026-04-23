@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { StyleTree } from '@wonderlandlabs-pixi-ux/style-tree';
 import type { TextStyleOptions } from 'pixi.js';
 
 export const CaptionShapeSchema = z.enum(['rect', 'oval', 'thought']);
@@ -69,12 +70,16 @@ export const CaptionConfigSchema = z.object({
 });
 export type CaptionConfigInput = z.input<typeof CaptionConfigSchema> & {
     textStyle?: TextStyleOptions;
+    styleTree?: StyleTree | StyleTree[];
+    styleDef?: unknown;
 };
 
 export interface CaptionConfig extends Omit<z.infer<typeof CaptionConfigSchema>, 'pointer' | 'thought'> {
     pointer: CaptionPointerConfig;
     thought: CaptionThoughtConfig;
     textStyle?: TextStyleOptions;
+    styleTree?: StyleTree | StyleTree[];
+    styleDef?: unknown;
 }
 
 export interface CaptionState {
@@ -152,5 +157,7 @@ export function resolveCaptionConfig(config: CaptionConfigInput): CaptionConfig 
         pointer: CaptionPointerConfigSchema.parse(config.pointer ?? {}),
         thought: CaptionThoughtConfigSchema.parse(config.thought ?? {}),
         textStyle: config.textStyle,
+        styleTree: config.styleTree,
+        styleDef: config.styleDef,
     };
 }

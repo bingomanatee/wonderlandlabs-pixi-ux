@@ -1,5 +1,6 @@
 import {ImageSpriteProps, Point} from "./types.js";
-import {Assets, Rectangle, Sprite, Texture} from "pixi.js";
+import {PixiProvider} from "@wonderlandlabs-pixi-ux/utils";
+import type {Sprite, Texture} from "pixi.js";
 import {DIMENSION_TYPE, LOAD_STATUS} from "./constants.js";
 import {BehaviorSubject} from "rxjs";
 
@@ -22,7 +23,10 @@ export interface ImageSpriteResult {
  * @param misProps - Image sprite properties including url, position, dimension type, and optional mask
  * @returns BehaviorSubject that emits ImageSpriteResult and completes on load
  */
-export function makeImageSprite(misProps: ImageSpriteProps): BehaviorSubject<ImageSpriteResult> {
+export function makeImageSprite(
+  misProps: ImageSpriteProps,
+  pixi: PixiProvider = PixiProvider.shared,
+): BehaviorSubject<ImageSpriteResult> {
   const {
     url,
     x = 0,
@@ -34,7 +38,7 @@ export function makeImageSprite(misProps: ImageSpriteProps): BehaviorSubject<Ima
   } = misProps;
 
   // Create sprite with empty texture initially
-  const sprite = new Sprite(Texture.EMPTY);
+  const sprite = new pixi.Sprite(pixi.Texture.EMPTY);
 
   // Set position
   sprite.position.set(x, y);
@@ -57,7 +61,7 @@ export function makeImageSprite(misProps: ImageSpriteProps): BehaviorSubject<Ima
   (async () => {
     try {
       // Load texture using PIXI's Assets system (handles caching automatically)
-      const texture = await Assets.load<Texture>(url);
+      const texture = await pixi.Assets.load<Texture>(url);
 
       // Update sprite texture
       sprite.texture = texture;
@@ -96,7 +100,7 @@ export function makeImageSprite(misProps: ImageSpriteProps): BehaviorSubject<Ima
 
       // Apply mask if provided
       if (mask) {
-        sprite.hitArea = new Rectangle(mask.x, mask.y, mask.width, mask.height);
+        sprite.hitArea = new pixi.Rectangle(mask.x, mask.y, mask.width, mask.height);
       }
 
       // Emit success state

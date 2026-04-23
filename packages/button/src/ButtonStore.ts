@@ -7,11 +7,8 @@ import {
     type BoxPixiRendererOverride,
 } from '@wonderlandlabs-pixi-ux/box';
 import {TickerForest} from '@wonderlandlabs-pixi-ux/ticker-forest';
-import {
-    Application,
-    Container,
-    Rectangle,
-} from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
+import type { Application, Container } from 'pixi.js';
 import type {ButtonOptionsType, ButtonStateType, EventFn} from './types.js';
 import {getStyleTree, makeStoreConfig} from "./helpers.js";
 import {
@@ -29,11 +26,14 @@ export class ButtonStore extends TickerForest<ButtonStateType> {
     #styleTree: BoxStyleManagerLike[];
     #renderer: ButtonRendererManifest;
     #options: ButtonOptionsType;
+    #pixi: PixiProvider;
     #boundHosts = new WeakSet<Container>();
     #isUpdatingValue = false;
 
     constructor(value: ButtonStateType, options: ButtonOptionsType) {
-        const container = new Container({
+        const pixi = options.pixi ?? PixiProvider.shared;
+        const ContainerClass = pixi.Container;
+        const container = new ContainerClass({
             x: value.size?.x ?? 0,
             y: value.size?.y ?? 0,
         });
@@ -43,6 +43,7 @@ export class ButtonStore extends TickerForest<ButtonStateType> {
         });
 
         this.#options = options;
+        this.#pixi = pixi;
         this.#styleTree = getStyleTree(value.variant, options);
         this.#renderer = this.#makeRendererManifest();
 
@@ -87,10 +88,11 @@ export class ButtonStore extends TickerForest<ButtonStateType> {
     }
 
     containerPostRenderer(input: BoxPixiRenderInput): Container {
+        const RectangleClass = this.#pixi.Rectangle;
         const currentContainer = input.local.currentContainer!;
         currentContainer.eventMode = this.hasStatus('disabled') ? 'none' : 'static';
         currentContainer.cursor = this.hasStatus('disabled') ? 'default' : 'pointer';
-        currentContainer.hitArea = new Rectangle(0, 0, input.local.localLocation.w, input.local.localLocation.h);
+        currentContainer.hitArea = new RectangleClass(0, 0, input.local.localLocation.w, input.local.localLocation.h);
 
         if (!this.#boundHosts.has(currentContainer)) {
             currentContainer.on(EVENT_POINTER_OVER, this.$.onPointerOver);
@@ -176,6 +178,7 @@ export class ButtonStore extends TickerForest<ButtonStateType> {
                 root: this.#boxStore.layoutValue,
                 app: this.#options.app as unknown as Application,
                 parentContainer: this.container,
+                pixi: this.#pixi,
                 store: this.#boxStore,
                 styleTree: this.#styleTree,
                 renderers: this.#renderer,

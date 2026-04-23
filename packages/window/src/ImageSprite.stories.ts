@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { makeImageSprite } from './makeImageSprite.js';
 import { DIMENSION_TYPE, LOAD_STATUS } from './constants.js';
 
@@ -49,7 +50,8 @@ const meta: Meta<ImageSpriteArgs> = {
     wrapper.style.position = 'relative';
 
     // Create PixiJS app
-    const app = new Application();
+    PixiProvider.init(Pixi);
+    const app = new Pixi.Application();
     app.init({
       width: 800,
       height: 600,
@@ -59,12 +61,12 @@ const meta: Meta<ImageSpriteArgs> = {
       wrapper.appendChild(app.canvas);
 
       // Create container for sprites
-      const container = new Container();
+      const container = new Pixi.Container();
       container.position.set(400, 300);
       app.stage.addChild(container);
 
       // Status text
-      const statusText = new Text({
+      const statusText = new Pixi.Text({
         text: 'Loading...',
         style: {
           fontSize: 16,
@@ -75,7 +77,7 @@ const meta: Meta<ImageSpriteArgs> = {
       app.stage.addChild(statusText);
 
       // Info text
-      const infoText = new Text({
+      const infoText = new Pixi.Text({
         text: '',
         style: {
           fontSize: 12,
@@ -92,7 +94,7 @@ const meta: Meta<ImageSpriteArgs> = {
         y: 0,
         dimension: { x: args.dimensionX, y: args.dimensionY },
         dimensionType: args.dimensionType === 'size' ? DIMENSION_TYPE.SIZE : DIMENSION_TYPE.SCALE,
-      });
+      }, PixiProvider.shared);
 
       // Subscribe to loading updates
       subject.subscribe({
@@ -117,7 +119,7 @@ const meta: Meta<ImageSpriteArgs> = {
                            `Computed: ${computedSize.x.toFixed(1)}x${computedSize.y.toFixed(1)}`;
 
             // Draw bounding box
-            const bbox = new Graphics();
+            const bbox = new Pixi.Graphics();
             bbox.rect(-computedSize.x / 2, -computedSize.y / 2, computedSize.x, computedSize.y);
             bbox.stroke({ color: 0xff0000, width: 2, alpha: 0.5 });
             container.addChild(bbox);
@@ -164,4 +166,3 @@ export const FixedSize: Story = {
     dimensionY: 200,
   },
 };
-

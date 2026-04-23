@@ -11,6 +11,11 @@ Grid/artboard renderer for PixiJS using `GridManager`.
 yarn add @wonderlandlabs-pixi-ux/grid
 ```
 
+## Shared Runtime Setup
+
+`grid` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider`.
+Before creating a `GridManager`, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+
 ## What This Package Exports
 
 - `GridManager`
@@ -20,11 +25,14 @@ yarn add @wonderlandlabs-pixi-ux/grid
 ## Basic Usage
 
 ```ts
-import { Application } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { createRootContainer, createZoomPan, makeStageDraggable, makeStageZoomable } from '@wonderlandlabs-pixi-ux/root-container';
 import { GridManager } from '@wonderlandlabs-pixi-ux/grid';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 1200, height: 800 });
 
 const { root } = createRootContainer(app);
@@ -38,6 +46,7 @@ makeStageZoomable(app, zoomPan);
 const grid = new GridManager({
   application: app,
   zoomPanContainer: zoomPan,
+  pixi: PixiProvider.shared,
   cache: {
     enabled: true,
     resolution: 2,
@@ -148,6 +157,8 @@ new GridManager({
   gridSpec,
 });
 ```
+
+`grid` uses the shared or injected `PixiProvider` for runtime Pixi access. In app code and stories, initialize the provider once with your installed Pixi module before creating a `GridManager`.
 
 ## Runtime Behavior
 

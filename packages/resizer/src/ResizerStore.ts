@@ -1,6 +1,7 @@
 import {TickerForest} from '@wonderlandlabs-pixi-ux/ticker-forest';
 import observeDrag from '@wonderlandlabs-pixi-ux/observe-drag';
-import {Container, FederatedPointerEvent, Graphics, Rectangle} from 'pixi.js';
+import {PixiProvider} from '@wonderlandlabs-pixi-ux/utils';
+import type {Container, FederatedPointerEvent, Graphics, Rectangle} from 'pixi.js';
 import type {
     Color,
     MinSize,
@@ -30,6 +31,7 @@ function rectDiff(r1: unknown, r2: unknown) {
  * Uses TickerForest to synchronize PixiJS operations with the ticker loop.
  */
 export class ResizerStore extends TickerForest<ResizerStoreValue> {
+    readonly pixi: PixiProvider;
     #targetContainer: Container;
     private stage?: Container;
     private drawRect?: (rect: Rectangle, container: Container) => void;
@@ -63,6 +65,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             {app: config.app, container: config.container}
         );
 
+        this.pixi = config.pixi ?? PixiProvider.shared;
         this.#targetContainer = config.container;
         this.drawRect = config.drawRect;
         this.onRelease = config.onRelease;
@@ -86,7 +89,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
             this.handlesContainer = config.handleContainer;
             this.ownsHandlesContainer = false;
         } else {
-            this.handlesContainer = new Container();
+            this.handlesContainer = new this.pixi.Container();
             this.handlesContainer.label = 'ResizerHandles';
             this.ownsHandlesContainer = true;
             parent.addChild(this.handlesContainer);
@@ -109,7 +112,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
         // Ensure stage has a comprehensive hit area for capturing pointer events
         if (this.stage && !this.stage?.hitArea) {
-            this.stage.hitArea = new Rectangle(0, 0, 10000, 10000);
+            this.stage.hitArea = new this.pixi.Rectangle(0, 0, 10000, 10000);
         }
     }
 
@@ -202,7 +205,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
         // Call onRelease callback if provided
         if (this.onRelease) {
-            this.onRelease(new Rectangle(releaseRect.x, releaseRect.y, releaseRect.width, releaseRect.height));
+            this.onRelease(new this.pixi.Rectangle(releaseRect.x, releaseRect.y, releaseRect.width, releaseRect.height));
         }
     }
 
@@ -225,7 +228,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
 
     get asRect(): Rectangle {
         const {x, y, width, height} = this.value.rect;
-        return new Rectangle(x, y, width, height);
+        return new this.pixi.Rectangle(x, y, width, height);
     }
 
     /**
@@ -333,7 +336,7 @@ export class ResizerStore extends TickerForest<ResizerStoreValue> {
      * Create a single handle graphic
      */
     private createHandle(position: HandlePosition): Graphics {
-        const handle = new Graphics({interactive: true});
+        const handle = new this.pixi.Graphics({interactive: true});
         handle.rect(-this.size / 2, -this.size / 2, this.size, this.size);
         handle.fill(this.colorToHex(this.color));
         handle.stroke({width: 1, color: 0xffffff});

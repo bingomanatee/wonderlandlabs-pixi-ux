@@ -14,16 +14,25 @@ Caption bubbles for PixiJS with:
 ## Installation
 
 ```bash
-yarn add @wonderlandlabs-pixi-ux/caption
+yarn add @wonderlandlabs-pixi-ux/caption @wonderlandlabs-pixi-ux/style-tree
 ```
+
+## Shared Runtime Setup
+
+`caption` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider`, uses `box` for inner text/content placement, and can resolve theme values from `style-tree` while keeping bubble edges and pointer geometry custom.
+Before creating a `CaptionStore`, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+Style naming in `caption` still deviates from the shared [Style DSL](/packages/style-tree-style-dsl). The current `bubble.*` keys are work in progress and are intended to migrate toward `background.*` / `border.*`.
 
 ## Basic usage
 
 ```ts
-import { Application } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { CaptionStore } from '@wonderlandlabs-pixi-ux/caption';
 
-const app = new Application();
+PixiProvider.init(Pixi);
+
+const app = new Pixi.Application();
 await app.init({ width: 800, height: 600 });
 
 const caption = new CaptionStore({
@@ -48,7 +57,7 @@ const caption = new CaptionStore({
     align: 'center',
     wordWrap: true,
   },
-}, app);
+}, app, undefined, PixiProvider.shared);
 
 app.stage.addChild(caption.container);
 ```
@@ -62,3 +71,5 @@ app.stage.addChild(caption.container);
 - Calling `setSize(width, height)` turns `autoSize` off for manual sizing.
 - `shape: 'thought'` uses `thought.edgeCircleCount` and `thought.edgeCircleRadiusRatio` to control border circles.
 - Circle radius is computed as `min(width, height) * edgeCircleRadiusRatio`.
+- `styleTree` / `styleDef` can theme `padding`, `bubble.radius`, `bubble.fill.*`, `bubble.stroke.*`, and `label.font.*` under `caption` or shape-specific paths like `caption.thought.*`.
+- Those `bubble.*` paths are transitional and do not yet match the canonical DSL.

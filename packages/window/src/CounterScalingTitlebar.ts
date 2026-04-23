@@ -1,4 +1,4 @@
-import {Container, Graphics, Rectangle} from "pixi.js";
+import type {Container, Graphics, Rectangle} from "pixi.js";
 import {TitlebarStore} from "./TitlebarStore.js";
 import type {TitlebarConfig} from "./types.js";
 import {StoreParams} from "@wonderlandlabs/forestry4";
@@ -7,13 +7,8 @@ import type {TickerForestConfig} from "@wonderlandlabs-pixi-ux/ticker-forest";
 export class CounterScalingTitlebar extends TitlebarStore {
     static readonly COUNTER_SCALE_LABEL = 'counter-scale';
 
-    #contentMask = new Graphics({
-        label: 'titlebar-counter-scale-mask',
-    });
-    #counterScaleContent = new Container({
-        label: CounterScalingTitlebar.COUNTER_SCALE_LABEL,
-        sortableChildren: true,
-    });
+    #contentMask: Graphics;
+    #counterScaleContent: Container;
 
     constructor(config: StoreParams<TitlebarConfig>, options: TickerForestConfig = {}) {
         super(config, {
@@ -22,6 +17,13 @@ export class CounterScalingTitlebar extends TitlebarStore {
                 watchX: true,
                 watchY: true,
             },
+        });
+        this.#contentMask = new this.pixi.Graphics({
+            label: 'titlebar-counter-scale-mask',
+        });
+        this.#counterScaleContent = new this.pixi.Container({
+            label: CounterScalingTitlebar.COUNTER_SCALE_LABEL,
+            sortableChildren: true,
         });
     }
 

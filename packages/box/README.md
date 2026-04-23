@@ -6,8 +6,16 @@ for area, alignment, constraints, and ordering without tying your state to Pixi 
 ## Installation
 
 ```bash
-yarn add @wonderlandlabs-pixi-ux/box
+yarn add @wonderlandlabs-pixi-ux/box pixi.js
 ```
+
+`pixi.js` is a peer dependency. Runtime rendering goes through `PixiProvider`, either by passing `pixi` explicitly or by initializing `PixiProvider.shared` before calling the Pixi renderer.
+
+## Shared Runtime Setup
+
+`box` depends on `@wonderlandlabs-pixi-ux/utils` for `PixiProvider`.
+Before using the Pixi render path in production, Storybook, or integration tests, read the shared provider guidance in [utils docs](/packages/utils) and initialize `PixiProvider` at app boot with `PixiProvider.init(Pixi)`.
+For style naming, treat `box` as the baseline implementation of the shared [Style DSL](/packages/style-tree-style-dsl): `background.*`, `border.*`, `label.font.*`, `padding`, and `gap`.
 
 ## Basic Usage
 
@@ -104,6 +112,9 @@ layout.styles = styles;
 
 ## Style Resolution
 
+The preferred style vocabulary for `box` is the shared [Style DSL](/packages/style-tree-style-dsl).
+Use this package as the baseline reference for structural style nouns such as `background.*`, `border.*`, `label.font.*`, `padding`, and `gap`.
+
 Each node has a `styleName` and optional state verbs:
 
 - `styleName`: style noun for the node
@@ -183,11 +194,16 @@ Build custom rendering by returning your own UX object from `assignUx((box) => .
 - extend `BoxUxPixi` for Pixi customization
 
 See [Box Styles and Composition](./README.STYLES_COMPOSITION.md) for the renderer-facing contract.
+That topic doc describes the current `box` renderer contract and is the reference point the other packages should converge toward.
 
 ## Optional Pixi Geometry Preview
 
 ```ts
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { boxTreeToPixi } from '@wonderlandlabs-pixi-ux/box';
+
+PixiProvider.init(Pixi);
 
 const graphics = await boxTreeToPixi(layout, {
   includeRoot: true,
@@ -198,6 +214,8 @@ const graphics = await boxTreeToPixi(layout, {
   strokeWidth: 2,
 });
 ```
+
+For tests, pass `pixi: new PixiProvider(PixiProvider.fallbacks)` and inspect the returned tree without creating a live Pixi canvas.
 
 ## Public API Snapshot
 
@@ -227,7 +245,6 @@ const graphics = await boxTreeToPixi(layout, {
 This package is mid-refactor.
 
 The active architecture is the simplified `BoxStore` and `ComputeAxis` path in `src/`.
-Older `BoxTree`-style code still exists under `src/_deprecated`, but it is not the current direction.
 
 ## Test Artifacts
 

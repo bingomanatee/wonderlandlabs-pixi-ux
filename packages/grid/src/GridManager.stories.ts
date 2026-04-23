@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/html';
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import * as Pixi from 'pixi.js';
+import { PixiProvider } from '@wonderlandlabs-pixi-ux/utils';
 import { GridManager } from './GridManager.js';
 import {
   createRootContainer,
@@ -107,7 +108,8 @@ export const WithZoomPan: Story = {
     container.style.overflow = 'hidden';
     wrapper.appendChild(container);
 
-    const app = new Application();
+    PixiProvider.init(Pixi);
+    const app = new Pixi.Application();
 
     app.init({
       width: window.innerWidth,
@@ -173,15 +175,16 @@ export const WithZoomPan: Story = {
         },
         application: app,
         zoomPanContainer: zoomPan,
+        pixi: PixiProvider.shared,
       });
 
       // Add some content to show zoom/pan working
-      const circle = new Graphics();
+      const circle = new Pixi.Graphics();
       circle.circle(0, 0, 50);
       circle.fill({ color: 0xff6b6b, alpha: 0.8 });
       zoomPan.addChild(circle);
 
-      const label = new Text({
+      const label = new Pixi.Text({
         text: 'Origin (0, 0)',
         style: { fontSize: 14, fill: 0x000000 },
       });
